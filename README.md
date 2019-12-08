@@ -1,15 +1,15 @@
-# Debtsolver
+# Rusty-Money
 
-Money handles currencies in Rust and helps with rounding, currency tracking and parsing. 
+Rusty-Money handles currencies in Rust and helps with rounding, currency tracking and parsing. 
 
 ## Example
-
 
 The easiest way to create Money is by using the flexible money! macro:
 
  ```rust
-use money::Money;
-use money::Currency;
+use rusty-money::money;
+use rusty-money::Money;
+use rusty-money::Currency;
 
 fn main() {
     let hundred_dollars = money!(100, "USD");
@@ -31,7 +31,7 @@ You can perform basic operations on money like:
  hundred = money!("100", "USD");
  thousand = money!("1000", "USD")
  println!("{:?}", hundred + thousand)     // 1000 USD
- println!("{:?}", thousand > hundred)     // false
+ println!("{:?}", thousand > hundred)     // true
  println!("{:?}", thousand.is_positive()) // true
 ```
  
