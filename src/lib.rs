@@ -1,7 +1,7 @@
 //! Handle money and currency conversions.
 //!
 //! Money lets you handle currencies in Rust easily  and takes care of rounding, currency tracking
-//! and parsing monetary symbols according to ISO standards. 
+//! and parsing monetary symbols according to ISO standards.
 //!
 //! # Use
 //!
@@ -17,12 +17,12 @@
 //! ```edition2018
 //! money = money!("-200.009", "USD");
 //! println!("{:?}", money) // -200.01 USD
-//! 
+//!
 //! TODO - show a currency with different exponent
 //! ```
 //!   
-//! You can perform basic operations on money like: 
-//! 
+//! You can perform basic operations on money like:
+//!
 //! ```edition2018
 //! hundred = money!("100", "USD");
 //! thousand = money!("1000", "USD")
@@ -30,26 +30,44 @@
 //! println!("{:?}", thousand > hundred)     // false
 //! println!("{:?}", thousand.is_positive()) // true
 //! ```
-//! 
+//!
 //! Currency is still a work in progress, but has hardcoded values for USD and GBP.
 
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
+#[macro_use]
+extern crate lazy_static;
 
-// Branch TODO's
-// Store currency exponent information as configuration data. 
-// Implement multiple rounding types (halfup, halfdown).
-// Implement for USD, GBP, + 1 currency with different exponent. 
+// TODO
+// Move config data into json.
+// Currencies - only pass around references, don't go creating new ones.
 
-const USD_CURRENCY: Currency = Currency { name: "USD", exponent: 2 };
-const GBP_CURRENCY: Currency = Currency { name: "GBP", exponent: 2 };
-const ZBD_CURRENCY: Currency = Currency { name: "ZBD", exponent: 3 };
+lazy_static! {
+    static ref CURRENCIES: HashMap<String, Currency> = serde_json::from_str(DATA).unwrap();
+}
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+const DATA: &str = r#"{
+    "usd": {
+        "exponent": 2,
+        "name": "USD"
+    },
+    "gbp": {
+        "exponent": 2,
+        "name": "GBP"
+    },
+    "zbd": {
+        "exponent": 3,
+        "name": "GBP"
+    }
+}"#;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct Currency {
     name: &'static str,
     exponent: u32,
@@ -63,11 +81,9 @@ impl fmt::Display for Currency {
 
 impl Currency {
     pub fn new(name: String) -> Currency {
-        match &*name {
-            "USD" => USD_CURRENCY,
-            "GBP" => GBP_CURRENCY,
-            "ZBD" => ZBD_CURRENCY,
-            _ => panic!(),
+        match CURRENCIES.get(&name.to_lowercase()) {
+            Some(c) => *c,
+            None => panic!("{} is not a known currency", name), //TODO - more helpful message
         }
     }
 }
@@ -140,7 +156,10 @@ macro_rules! money {
 
 impl Money {
     pub fn new(amount: Decimal, currency: Currency) -> Money {
-        Money { amount: amount.round_dp(currency.exponent), currency: currency }
+        Money {
+            amount: amount.round_dp(currency.exponent),
+            currency,
+        }
     }
 
     pub fn from_string(amount: String, currency: String) -> Money {
@@ -253,6 +272,25 @@ impl Money {
 mod tests {
     use super::*;
 
+    //
+    // Currency Tests
+    //
+    #[test]
+    fn currency_known_can_be_created() {
+        let c = Currency::new("USD".to_string());
+        assert_eq!(c.name, "USD");
+        assert_eq!(c.exponent, 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn currency_unknown_raises_error() {
+        Currency::new("fake".to_string());
+    }
+
+    //
+    // Money Tests
+    //
     #[test]
     fn money_rounds_exponent() {
         // 19.999 rounds to 20 for USD
@@ -260,7 +298,7 @@ mod tests {
         let expected_money = Money::new(Decimal::new(20, 0), Currency::new("USD".to_string()));
         assert_eq!(money, expected_money);
         let expected_string = "20.00";
-        let actual_string = money.amount().to_string(); 
+        let actual_string = money.amount().to_string();
         assert_eq!(actual_string, expected_string);
 
         // 29.111 rounds to 29.11 for USD
@@ -270,13 +308,12 @@ mod tests {
         let expected_string = "29.11";
         assert_eq!(money.amount().to_string(), expected_string);
 
-
         // 39.1155 rounds to 39.116 for USD
         let money = Money::new(dec!(39.1155), Currency::new("ZBD".to_string()));
         let expected_money = Money::new(dec!(39.116), Currency::new("ZBD".to_string()));
         assert_eq!(money, expected_money);
         let expected_string = "39.116";
-        assert_eq!(money.amount().to_string(), expected_string);        
+        assert_eq!(money.amount().to_string(), expected_string);
     }
 
     #[test]
