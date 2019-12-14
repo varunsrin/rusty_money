@@ -40,12 +40,19 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-const USD_CURRENCY: Currency = Currency { name: "USD" };
-const GBP_CURRENCY: Currency = Currency { name: "GBP" };
+// Branch TODO's
+// Store currency exponent information as configuration data. 
+// Implement multiple rounding types (halfup, halfdown).
+// Implement for USD, GBP, + 1 currency with different exponent. 
+
+const USD_CURRENCY: Currency = Currency { name: "USD", exponent: 2 };
+const GBP_CURRENCY: Currency = Currency { name: "GBP", exponent: 2 };
+const ZBD_CURRENCY: Currency = Currency { name: "ZBD", exponent: 3 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Currency {
     name: &'static str,
+    exponent: u32,
 }
 
 impl fmt::Display for Currency {
@@ -59,6 +66,7 @@ impl Currency {
         match &*name {
             "USD" => USD_CURRENCY,
             "GBP" => GBP_CURRENCY,
+            "ZBD" => ZBD_CURRENCY,
             _ => panic!(),
         }
     }
@@ -132,14 +140,14 @@ macro_rules! money {
 
 impl Money {
     pub fn new(amount: Decimal, currency: Currency) -> Money {
-        Money { amount, currency }
+        Money { amount: amount.round_dp(currency.exponent), currency: currency }
     }
 
     pub fn from_string(amount: String, currency: String) -> Money {
         // TODO fetch these values from the current metadata when implemented.
         let separator: char = ',';
         let delimiter: char = '.';
-        let significant_digits = 2;
+        let currency = Currency::new(currency);
 
         let amount_parts: Vec<&str> = amount.split(delimiter).collect();
 
@@ -156,7 +164,7 @@ impl Money {
 
         if amount_parts.len() == 1 {
             parsed_decimal += ".";
-            for _ in 0..significant_digits {
+            for _ in 0..currency.exponent {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
@@ -168,8 +176,8 @@ impl Money {
 
         let decimal = Decimal::from_str(&parsed_decimal)
             .unwrap()
-            .round_dp(significant_digits);
-        Money::new(decimal, Currency::new(currency))
+            .round_dp(currency.exponent);
+        Money::new(decimal, currency)
     }
 
     pub fn amount(&self) -> Decimal {
@@ -246,6 +254,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn money_rounds_exponent() {
+        // 19.999 rounds to 20 for USD
+        let money = Money::new(dec!(19.9999), Currency::new("USD".to_string()));
+        let expected_money = Money::new(Decimal::new(20, 0), Currency::new("USD".to_string()));
+        assert_eq!(money, expected_money);
+        let expected_string = "20.00";
+        let actual_string = money.amount().to_string(); 
+        assert_eq!(actual_string, expected_string);
+
+        // 29.111 rounds to 29.11 for USD
+        let money = Money::new(dec!(29.111), Currency::new("USD".to_string()));
+        let expected_money = Money::new(dec!(29.11), Currency::new("USD".to_string()));
+        assert_eq!(money, expected_money);
+        let expected_string = "29.11";
+        assert_eq!(money.amount().to_string(), expected_string);
+
+
+        // 39.1155 rounds to 39.116 for USD
+        let money = Money::new(dec!(39.1155), Currency::new("ZBD".to_string()));
+        let expected_money = Money::new(dec!(39.116), Currency::new("ZBD".to_string()));
+        assert_eq!(money, expected_money);
+        let expected_string = "39.116";
+        assert_eq!(money.amount().to_string(), expected_string);        
+    }
+
+    #[test]
     fn money_from_string_parses_correctly() {
         let expected_money = Money::new(Decimal::new(2999, 2), Currency::new("GBP".to_string()));
         let money = Money::from_string("29.99".to_string(), "GBP".to_string());
@@ -264,9 +298,20 @@ mod tests {
     }
 
     #[test]
-    fn money_from_string_rounds_significant_digits() {
-        let expected_money = Money::new(Decimal::new(30, 0), Currency::new("GBP".to_string()));
-        let money = Money::from_string("29.9999".to_string(), "GBP".to_string());
+    fn money_from_string_rounds_exponent() {
+        // 19.999 rounds to 20 for USD
+        let expected_money = Money::new(Decimal::new(20, 0), Currency::new("USD".to_string()));
+        let money = Money::from_string("19.9999".to_string(), "USD".to_string());
+        assert_eq!(money, expected_money);
+
+        // 29.111 rounds to 29.11 for USD
+        let expected_money = Money::new(Decimal::new(2911, 2), Currency::new("USD".to_string()));
+        let money = Money::from_string("29.111".to_string(), "USD".to_string());
+        assert_eq!(money, expected_money);
+
+        // 39.1155 rounds to 39.116 for ZBD
+        let expected_money = Money::new(dec!(39.116), Currency::new("ZBD".to_string()));
+        let money = Money::from_string("39.1155".to_string(), "ZBD".to_string());
         assert_eq!(money, expected_money);
     }
 
