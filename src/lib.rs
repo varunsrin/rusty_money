@@ -123,11 +123,9 @@ impl Money {
 
     pub fn from_string(amount: String, currency: String) -> Money {
         // TODO fetch these values from the current metadata when implemented.
-        let separator: char = ',';
-        let delimiter: char = '.';
         let currency = Currency::find(currency);
 
-        let amount_parts: Vec<&str> = amount.split(delimiter).collect();
+        let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
 
         fn panic_unless_integer(value: &str) {
             match i32::from_str(value) {
@@ -137,7 +135,7 @@ impl Money {
             }
         }
 
-        let mut parsed_decimal = amount_parts[0].replace(separator, "");
+        let mut parsed_decimal = amount_parts[0].replace(currency.digit_separator, "");
         panic_unless_integer(&parsed_decimal);
 
         if amount_parts.len() == 1 {

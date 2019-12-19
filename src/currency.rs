@@ -24,6 +24,8 @@ lazy_static! {
 pub struct Currency {
     pub name: &'static str,
     pub exponent: u32,
+    pub digit_separator: char,
+    pub exponent_separator: char,
 }
 
 impl fmt::Display for Currency {

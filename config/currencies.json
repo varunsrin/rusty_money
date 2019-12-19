@@ -1,14 +1,20 @@
 {
 	"usd": {
+		"digit_separator": ",",
 		"exponent": 2,
+		"exponent_separator": ".",
 		"name": "USD"
 	},
 	"gbp": {
+		"digit_separator": ",",
 		"exponent": 2,
+		"exponent_separator": ".",
 		"name": "GBP"
 	},
 	"zbd": {
+		"digit_separator": ",",
 		"exponent": 3,
+		"exponent_separator": ".",
 		"name": "GBP"
 	}
 }
