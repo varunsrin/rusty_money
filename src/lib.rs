@@ -1,7 +1,7 @@
 //! Handle money and currency conversions.
 //!
 //! Money lets you handle currencies in Rust easily  and takes care of rounding, currency tracking
-//! and parsing monetary symbols according to ISO standards. 
+//! and parsing monetary symbols according to ISO standards.
 //!
 //! # Use
 //!
@@ -17,12 +17,12 @@
 //! ```edition2018
 //! money = money!("-200.009", "USD");
 //! println!("{:?}", money) // -200.01 USD
-//! 
+//!
 //! TODO - show a currency with different exponent
 //! ```
 //!   
-//! You can perform basic operations on money like: 
-//! 
+//! You can perform basic operations on money like:
+//!
 //! ```edition2018
 //! hundred = money!("100", "USD");
 //! thousand = money!("1000", "USD")
@@ -30,22 +30,32 @@
 //! println!("{:?}", thousand > hundred)     // false
 //! println!("{:?}", thousand.is_positive()) // true
 //! ```
-//! 
+//!
 //! Currency is still a work in progress, but has hardcoded values for USD and GBP.
 
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
+#[macro_use]
+extern crate lazy_static;
+use std::fs;
 
-const USD_CURRENCY: Currency = Currency { name: "USD" };
-const GBP_CURRENCY: Currency = Currency { name: "GBP" };
+lazy_static! {
+    static ref CURRENCY_CONFIG: String =
+        fs::read_to_string("config/currencies.json".to_string()).unwrap();
+    static ref CURRENCIES: HashMap<String, Currency> =
+        serde_json::from_str(&CURRENCY_CONFIG).unwrap();
+}
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct Currency {
     name: &'static str,
+    exponent: u32,
 }
 
 impl fmt::Display for Currency {
@@ -55,11 +65,10 @@ impl fmt::Display for Currency {
 }
 
 impl Currency {
-    pub fn new(name: String) -> Currency {
-        match &*name {
-            "USD" => USD_CURRENCY,
-            "GBP" => GBP_CURRENCY,
-            _ => panic!(),
+    pub fn find(name: String) -> Currency {
+        match CURRENCIES.get(&name.to_lowercase()) {
+            Some(c) => *c,
+            None => panic!("{} is not a known currency", name), //TODO - more helpful message
         }
     }
 }
@@ -132,14 +141,17 @@ macro_rules! money {
 
 impl Money {
     pub fn new(amount: Decimal, currency: Currency) -> Money {
-        Money { amount, currency }
+        Money {
+            amount: amount.round_dp(currency.exponent),
+            currency,
+        }
     }
 
     pub fn from_string(amount: String, currency: String) -> Money {
         // TODO fetch these values from the current metadata when implemented.
         let separator: char = ',';
         let delimiter: char = '.';
-        let significant_digits = 2;
+        let currency = Currency::find(currency);
 
         let amount_parts: Vec<&str> = amount.split(delimiter).collect();
 
@@ -156,7 +168,7 @@ impl Money {
 
         if amount_parts.len() == 1 {
             parsed_decimal += ".";
-            for _ in 0..significant_digits {
+            for _ in 0..currency.exponent {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
@@ -168,8 +180,8 @@ impl Money {
 
         let decimal = Decimal::from_str(&parsed_decimal)
             .unwrap()
-            .round_dp(significant_digits);
-        Money::new(decimal, Currency::new(currency))
+            .round_dp(currency.exponent);
+        Money::new(decimal, currency)
     }
 
     pub fn amount(&self) -> Decimal {
@@ -245,34 +257,90 @@ impl Money {
 mod tests {
     use super::*;
 
+    //
+    // Currency Tests
+    //
+    #[test]
+    fn currency_known_can_be_found() {
+        let c = Currency::find("USD".to_string());
+        assert_eq!(c.name, "USD");
+        assert_eq!(c.exponent, 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn currency_unknown_raises_error() {
+        Currency::find("fake".to_string());
+    }
+
+    //
+    // Money Tests
+    //
+    #[test]
+    fn money_rounds_exponent() {
+        // 19.999 rounds to 20 for USD
+        let money = Money::new(dec!(19.9999), Currency::find("USD".to_string()));
+        let expected_money = Money::new(Decimal::new(20, 0), Currency::find("USD".to_string()));
+        assert_eq!(money, expected_money);
+        let expected_string = "20.00";
+        let actual_string = money.amount().to_string();
+        assert_eq!(actual_string, expected_string);
+
+        // 29.111 rounds to 29.11 for USD
+        let money = Money::new(dec!(29.111), Currency::find("USD".to_string()));
+        let expected_money = Money::new(dec!(29.11), Currency::find("USD".to_string()));
+        assert_eq!(money, expected_money);
+        let expected_string = "29.11";
+        assert_eq!(money.amount().to_string(), expected_string);
+
+        // 39.1155 rounds to 39.116 for USD
+        let money = Money::new(dec!(39.1155), Currency::find("ZBD".to_string()));
+        let expected_money = Money::new(dec!(39.116), Currency::find("ZBD".to_string()));
+        assert_eq!(money, expected_money);
+        let expected_string = "39.116";
+        assert_eq!(money.amount().to_string(), expected_string);
+    }
+
     #[test]
     fn money_from_string_parses_correctly() {
-        let expected_money = Money::new(Decimal::new(2999, 2), Currency::new("GBP".to_string()));
+        let expected_money = Money::new(Decimal::new(2999, 2), Currency::find("GBP".to_string()));
         let money = Money::from_string("29.99".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parses_signs() {
-        let expected_money = Money::new(Decimal::new(-3, 0), Currency::new("GBP".to_string()));
+        let expected_money = Money::new(Decimal::new(-3, 0), Currency::find("GBP".to_string()));
         let money = Money::from_string("-3".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
 
-        let expected_money = Money::new(Decimal::new(3, 0), Currency::new("GBP".to_string()));
+        let expected_money = Money::new(Decimal::new(3, 0), Currency::find("GBP".to_string()));
         let money = Money::from_string("+3".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
     }
 
     #[test]
-    fn money_from_string_rounds_significant_digits() {
-        let expected_money = Money::new(Decimal::new(30, 0), Currency::new("GBP".to_string()));
-        let money = Money::from_string("29.9999".to_string(), "GBP".to_string());
+    fn money_from_string_rounds_exponent() {
+        // 19.999 rounds to 20 for USD
+        let expected_money = Money::new(Decimal::new(20, 0), Currency::find("USD".to_string()));
+        let money = Money::from_string("19.9999".to_string(), "USD".to_string());
+        assert_eq!(money, expected_money);
+
+        // 29.111 rounds to 29.11 for USD
+        let expected_money = Money::new(Decimal::new(2911, 2), Currency::find("USD".to_string()));
+        let money = Money::from_string("29.111".to_string(), "USD".to_string());
+        assert_eq!(money, expected_money);
+
+        // 39.1155 rounds to 39.116 for ZBD
+        let expected_money = Money::new(dec!(39.116), Currency::find("ZBD".to_string()));
+        let money = Money::from_string("39.1155".to_string(), "ZBD".to_string());
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_ignores_separators() {
-        let expected_money = Money::new(Decimal::new(1000000, 0), Currency::new("GBP".to_string()));
+        let expected_money =
+            Money::new(Decimal::new(1000000, 0), Currency::find("GBP".to_string()));
         let money = Money::from_string("1,000,000".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
     }
