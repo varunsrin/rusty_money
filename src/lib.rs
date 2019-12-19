@@ -30,48 +30,22 @@
 //! println!("{:?}", thousand > hundred)     // false
 //! println!("{:?}", thousand.is_positive()) // true
 //! ```
-//!
-//! Currency is still a work in progress, but has hardcoded values for USD and GBP.
 
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
-use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
+mod currency;
+use currency::Currency;
 #[macro_use]
 extern crate lazy_static;
-use std::fs;
 
-lazy_static! {
-    static ref CURRENCY_CONFIG: String =
-        fs::read_to_string("config/currencies.json".to_string()).unwrap();
-    static ref CURRENCIES: HashMap<String, Currency> =
-        serde_json::from_str(&CURRENCY_CONFIG).unwrap();
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub struct Currency {
-    name: &'static str,
-    exponent: u32,
-}
-
-impl fmt::Display for Currency {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-impl Currency {
-    pub fn find(name: String) -> Currency {
-        match CURRENCIES.get(&name.to_lowercase()) {
-            Some(c) => *c,
-            None => panic!("{} is not a known currency", name), //TODO - more helpful message
-        }
-    }
-}
+// Release TODO
+// 1. Import the 150 or so odd currencies with separator, delimiter and exponent.
+// x-1. Clear out TODO's
+// x. Update Docs
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
@@ -256,26 +230,6 @@ impl Money {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    //
-    // Currency Tests
-    //
-    #[test]
-    fn currency_known_can_be_found() {
-        let c = Currency::find("USD".to_string());
-        assert_eq!(c.name, "USD");
-        assert_eq!(c.exponent, 2);
-    }
-
-    #[test]
-    #[should_panic]
-    fn currency_unknown_raises_error() {
-        Currency::find("fake".to_string());
-    }
-
-    //
-    // Money Tests
-    //
     #[test]
     fn money_rounds_exponent() {
         // 19.999 rounds to 20 for USD

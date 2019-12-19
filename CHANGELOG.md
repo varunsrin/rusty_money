@@ -6,9 +6,8 @@
 
 ## [Planned]
 
-### v0.2.0
+### v0.2.x
 * Currency supports handling all ISO standard currencies. 
-
-### v0.3.0
+* Print currencies with the correct separators.  
 * Add support for Money multiplication, division.
 * Add support for parsing currency symbols in Money::from_str
