@@ -43,29 +43,17 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
 #[macro_use]
 extern crate lazy_static;
+use std::fs;
 
 // TODO
-// Move config data into json.
 // Currencies - only pass around references, don't go creating new ones.
 
 lazy_static! {
-    static ref CURRENCIES: HashMap<String, Currency> = serde_json::from_str(DATA).unwrap();
+    static ref CURRENCY_CONFIG: String =
+        fs::read_to_string("config/currencies.json".to_string()).unwrap();
+    static ref CURRENCIES: HashMap<String, Currency> =
+        serde_json::from_str(&CURRENCY_CONFIG).unwrap();
 }
-
-const DATA: &str = r#"{
-    "usd": {
-        "exponent": 2,
-        "name": "USD"
-    },
-    "gbp": {
-        "exponent": 2,
-        "name": "GBP"
-    },
-    "zbd": {
-        "exponent": 3,
-        "name": "GBP"
-    }
-}"#;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct Currency {

@@ -1,0 +1,14 @@
+{
+	"usd": {
+		"exponent": 2,
+		"name": "USD"
+	},
+	"gbp": {
+		"exponent": 2,
+		"name": "GBP"
+	},
+	"zbd": {
+		"exponent": 3,
+		"name": "GBP"
+	}
+}
