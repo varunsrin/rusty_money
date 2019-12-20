@@ -1,20 +1,34 @@
 {
 	"usd": {
 		"digit_separator": ",",
+		"digit_separator_sequence": "3, 3, 3",
 		"exponent": 2,
 		"exponent_separator": ".",
-		"name": "USD"
+		"name": "USD",
+		"symbol": "$"
 	},
 	"gbp": {
 		"digit_separator": ",",
+		"digit_separator_sequence": "3, 3, 3",
 		"exponent": 2,
 		"exponent_separator": ".",
-		"name": "GBP"
+		"name": "GBP",
+		"symbol": "£"
+	},
+	"inr" : {
+		"digit_separator": ",",
+		"digit_separator_sequence": "3, 2, 2",
+		"exponent": 2,
+		"exponent_separator": ".",
+		"name": "INR",
+		"symbol": "₹"
 	},
 	"zbd": {
 		"digit_separator": ",",
+		"digit_separator_sequence": "3, 3, 3",
 		"exponent": 3,
 		"exponent_separator": ".",
-		"name": "GBP"
+		"name": "ZBD",
+		"symbol": "$"
 	}
 }

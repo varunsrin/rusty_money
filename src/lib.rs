@@ -102,7 +102,34 @@ impl SubAssign for Money {
 
 impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.amount, self.currency)
+        let currency = self.currency;
+        let amount = format!("{}", self.amount);
+        let amount_split: Vec<&str> = amount.split(currency.exponent_separator).collect();
+        let exponent = amount_split[1];
+        let mut digits = amount_split[0].to_string();
+        digits.retain(|c| c != '-'); // Remove the - sign
+
+        // Insert digit separators into the digit string
+        let mut current_position: usize = 0;
+        for position in currency.digit_separator_sequence().iter() {
+            current_position += position;
+            if digits.len() > current_position {
+                digits.insert(digits.len() - current_position, currency.digit_separator);
+                current_position += 1;
+            }
+        }
+
+        // Add - if negative
+        let mut currency_sign = "";
+        if self.is_negative() {
+            currency_sign = "-";
+        }
+
+        write!(
+            f,
+            "{}{}{}.{}",
+            currency_sign, currency.symbol, digits, exponent
+        )
     }
 }
 
@@ -122,9 +149,7 @@ impl Money {
     }
 
     pub fn from_string(amount: String, currency: String) -> Money {
-        // TODO fetch these values from the current metadata when implemented.
         let currency = Currency::find(currency);
-
         let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
 
         fn panic_unless_integer(value: &str) {
@@ -406,5 +431,32 @@ mod tests {
     #[should_panic]
     fn money_allocate_to_panics_if_zero() {
         money!(1, "USD").allocate_to(0);
+    }
+
+    #[test]
+    fn money_fmt_separates_digits() {
+        let usd = money!(0, "USD"); // Zero Dollars
+        let expected_usd_fmt = "$0.00";
+        assert_eq!(format!("{}", usd), expected_usd_fmt);
+
+        let usd = money!(100000, "USD"); // - One Hundred Thousand Dollars
+        let expected_usd_fmt = "$100,000.00";
+        assert_eq!(format!("{}", usd), expected_usd_fmt);
+
+        let usd = money!(-100000, "USD"); // - One Hundred Thousand Dollars
+        let expected_usd_fmt = "-$100,000.00";
+        assert_eq!(format!("{}", usd), expected_usd_fmt);
+
+        let usd = money!(1000000000, "USD"); // 1 Billion Dollars
+        let expected_usd_fmt = "$1,000,000,000.00";
+        assert_eq!(format!("{}", usd), expected_usd_fmt);
+
+        let inr = money!(100000, "INR"); // 1 Lakh Rupees
+        let expected_inr_fmt = "₹1,00,000.00";
+        assert_eq!(format!("{}", inr), expected_inr_fmt);
+
+        let inr = money!(-10000000, "INR"); // - 1 Crore Rupees
+        let expected_inr_fmt = "-₹1,00,00,000.00";
+        assert_eq!(format!("{}", inr), expected_inr_fmt);
     }
 }

@@ -4,8 +4,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-
 use std::fs;
+use std::str::FromStr;
 
 // Release TODO
 // 1. Refactor lib.rs into separate files.
@@ -22,10 +22,12 @@ lazy_static! {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct Currency {
-    pub name: &'static str,
-    pub exponent: u32,
     pub digit_separator: char,
+    digit_separator_sequence: &'static str,
+    pub exponent: u32,
     pub exponent_separator: char,
+    pub name: &'static str,
+    pub symbol: &'static str,
 }
 
 impl fmt::Display for Currency {
@@ -40,6 +42,11 @@ impl Currency {
             Some(c) => *c,
             None => panic!("{} is not a known currency", name), //TODO - more helpful message
         }
+    }
+
+    pub fn digit_separator_sequence(self) -> Vec<usize> {
+        let v: Vec<&str> = self.digit_separator_sequence.split(", ").collect();
+        v.iter().map(|x| usize::from_str(x).unwrap()).collect()
     }
 }
 
