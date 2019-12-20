@@ -1,4 +1,14 @@
 {
+	"aed": {
+		"digit_separator": ",",
+		"digit_separator_sequence": "3, 3, 3",
+		"exponent": 2,
+		"exponent_separator": ".",
+		"iso_alpha_code": "AED",
+		"iso_numeric_code": "784",
+		"symbol": "د.إ",
+		"symbol_first": false
+	},
 	"bhd": {
 		"digit_separator": ",",
 		"digit_separator_sequence": "3, 3, 3",
@@ -6,7 +16,8 @@
 		"exponent_separator": ".",
 		"iso_alpha_code": "BHD",
 		"iso_numeric_code": "048",
-		"symbol": "$"
+		"symbol": "$",
+		"symbol_first": true
 	},
 	"gbp": {
 		"digit_separator": ",",
@@ -15,7 +26,8 @@
 		"exponent_separator": ".",
 		"iso_alpha_code": "GBP",
 		"iso_numeric_code": "826",
-		"symbol": "£"
+		"symbol": "£",
+		"symbol_first": true
 	},
 	"inr" : {
 		"digit_separator": ",",
@@ -24,7 +36,8 @@
 		"exponent_separator": ".",
 		"iso_alpha_code": "INR",
 		"iso_numeric_code": "356",
-		"symbol": "₹"
+		"symbol": "₹",
+		"symbol_first": true
 	},
 	"usd": {
 		"digit_separator": ",",
@@ -33,6 +46,7 @@
 		"exponent_separator": ".",
 		"iso_alpha_code": "USD",
 		"iso_numeric_code": "840",
-		"symbol": "$"
+		"symbol": "$",
+		"symbol_first": true
 	}
 }

@@ -29,6 +29,7 @@ pub struct Currency {
     pub iso_alpha_code: &'static str,
     pub iso_numeric_code: &'static str,
     pub symbol: &'static str,
+    pub symbol_first: bool,
 }
 
 impl fmt::Display for Currency {

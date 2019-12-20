@@ -43,13 +43,12 @@ use currency::Currency;
 extern crate lazy_static;
 
 // Release TODO
-// 1. Currencies should know where to display the sign relative to the number. 
-// 2. Import interesting edge case currencies.
-// 3. Build parser util to identify missing currencies or deltas.
-// 4. Add function to find currencies by code.
-// 4. Refactor our money into separate folder. 
-// x-1. Clear out TODO's
-// x. Update Docs
+// 1. Import interesting edge case currencies.
+// 2. Build parser util to identify missing currencies or deltas.
+// 3. Add function to find currencies by iso codes.
+// 4. Refactor our money into separate folder.
+// 5. Clear out TODO's
+// 6. Update Docs
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
@@ -124,16 +123,13 @@ impl fmt::Display for Money {
         }
 
         // Add - if negative
-        let mut currency_sign = "";
-        if self.is_negative() {
-            currency_sign = "-";
-        }
+        let sign = if self.is_negative() { "-" } else { "" };
 
-        write!(
-            f,
-            "{}{}{}.{}",
-            currency_sign, currency.symbol, digits, exponent
-        )
+        if currency.symbol_first {
+            write!(f, "{}{}{}.{}", sign, currency.symbol, digits, exponent)
+        } else {
+            write!(f, "{}{}.{}{}", sign, digits, exponent, currency.symbol)
+        }
     }
 }
 
@@ -462,5 +458,16 @@ mod tests {
         let inr = money!(-10000000, "INR"); // - 1 Crore Rupees
         let expected_inr_fmt = "-₹1,00,00,000.00";
         assert_eq!(format!("{}", inr), expected_inr_fmt);
+    }
+
+    #[test]
+    fn money_fmt_places_symbols_correctly() {
+        let money = money!(0, "USD");
+        let expected_fmt = "$0.00";
+        assert_eq!(format!("{}", money), expected_fmt);
+
+        let money = money!(0, "AED");
+        let expected_fmt = "0.00د.إ";
+        assert_eq!(format!("{}", money), expected_fmt);
     }
 }
