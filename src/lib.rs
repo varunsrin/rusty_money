@@ -1,7 +1,7 @@
 //! Handle money and currency conversions.
 //!
 //! Money lets you handle currencies in Rust easily  and takes care of rounding, currency tracking
-//! and parsing monetary symbols according to ISO standards.
+//! and parsing monetary symbols according to ISO 4217 standards.
 //!
 //! # Use
 //!
@@ -12,13 +12,14 @@
 //! money = money!(-200, "USD");
 //! ```
 //!
-//! Money handles rounding for you based on the properties of the currency:    
+//! Money handles rounding and formatting for you based on the properties of the currency:    
 //!
 //! ```edition2018
-//! money = money!("-200.009", "USD");
-//! println!("{:?}", money) // -200.01 USD
+//! money = money!("-2000.009", "USD");
+//! println!("{}", money) // -$2,000.01
 //!
-//! TODO - show a currency with different exponent
+//! money = money!("-2000.009", "EUR");
+//! println!("{}", money) // -€2,000.01
 //! ```
 //!   
 //! You can perform basic operations on money like:
@@ -26,9 +27,9 @@
 //! ```edition2018
 //! hundred = money!("100", "USD");
 //! thousand = money!("1000", "USD")
-//! println!("{:?}", hundred + thousand)     // 1000 USD
-//! println!("{:?}", thousand > hundred)     // false
-//! println!("{:?}", thousand.is_positive()) // true
+//! println!("{}", hundred + thousand)     // $,1000 USD
+//! println!("{}", thousand > hundred)     // false
+//! println!("{}", thousand.is_positive()) // true
 //! ```
 
 use rust_decimal::Decimal;
@@ -43,6 +44,7 @@ use currency::Currency;
 extern crate lazy_static;
 
 // Release TODO
+// 1. Add EUR + tests
 // 2. Refactor out money into separate folder.
 // 3. Clear out TODO's
 // 4. Update Docs
@@ -104,7 +106,7 @@ impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
         let amount = format!("{}", self.amount);
-        let amount_split: Vec<&str> = amount.split(currency.exponent_separator).collect();
+        let amount_split: Vec<&str> = amount.split('.').collect();
         let exponent = amount_split[1];
         let mut digits = amount_split[0].to_string();
         digits.retain(|c| c != '-'); // Remove the - sign
@@ -123,9 +125,17 @@ impl fmt::Display for Money {
         let sign = if self.is_negative() { "-" } else { "" };
 
         if currency.symbol_first {
-            write!(f, "{}{}{}.{}", sign, currency.symbol, digits, exponent)
+            write!(
+                f,
+                "{}{}{}{}{}",
+                sign, currency.symbol, digits, currency.exponent_separator, exponent
+            )
         } else {
-            write!(f, "{}{}.{}{}", sign, digits, exponent, currency.symbol)
+            write!(
+                f,
+                "{}{}{}{}{}",
+                sign, digits, currency.exponent_separator, exponent, currency.symbol
+            )
         }
     }
 }
@@ -183,7 +193,7 @@ impl Money {
     }
 
     pub fn currency(&self) -> &str {
-        &self.currency.iso_alpha_code // TODO - is this the right value?
+        &self.currency.iso_alpha_code
     }
 
     pub fn allocate_to(&self, number: i32) -> Vec<Money> {
@@ -465,6 +475,13 @@ mod tests {
 
         let money = money!(0, "AED");
         let expected_fmt = "0.00د.إ";
+        assert_eq!(format!("{}", money), expected_fmt);
+    }
+
+    #[test]
+    fn money_fmt_uses_correct_separators() {
+        let money = money!(1000, "EUR");
+        let expected_fmt = "€1.000,00";
         assert_eq!(format!("{}", money), expected_fmt);
     }
 }

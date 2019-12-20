@@ -16,7 +16,17 @@
 		"exponent_separator": ".",
 		"iso_alpha_code": "BHD",
 		"iso_numeric_code": "048",
-		"symbol": "$",
+		"symbol": "ب.د",
+		"symbol_first": true
+	},
+	"eur": {
+		"digit_separator": ".",
+		"digit_separator_sequence": "3, 3, 3",
+		"exponent": 2,
+		"exponent_separator": ",",
+		"iso_alpha_code": "EUR",
+		"iso_numeric_code": "978",
+		"symbol": "€",
 		"symbol_first": true
 	},
 	"gbp": {
