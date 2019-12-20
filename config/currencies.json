@@ -1,10 +1,11 @@
 {
-	"usd": {
+	"bhd": {
 		"digit_separator": ",",
 		"digit_separator_sequence": "3, 3, 3",
-		"exponent": 2,
+		"exponent": 3,
 		"exponent_separator": ".",
-		"name": "USD",
+		"iso_alpha_code": "BHD",
+		"iso_numeric_code": "048",
 		"symbol": "$"
 	},
 	"gbp": {
@@ -12,7 +13,8 @@
 		"digit_separator_sequence": "3, 3, 3",
 		"exponent": 2,
 		"exponent_separator": ".",
-		"name": "GBP",
+		"iso_alpha_code": "GBP",
+		"iso_numeric_code": "826",
 		"symbol": "£"
 	},
 	"inr" : {
@@ -20,15 +22,17 @@
 		"digit_separator_sequence": "3, 2, 2",
 		"exponent": 2,
 		"exponent_separator": ".",
-		"name": "INR",
+		"iso_alpha_code": "INR",
+		"iso_numeric_code": "356",
 		"symbol": "₹"
 	},
-	"bhd": {
+	"usd": {
 		"digit_separator": ",",
 		"digit_separator_sequence": "3, 3, 3",
-		"exponent": 3,
+		"exponent": 2,
 		"exponent_separator": ".",
-		"name": "BHD",
+		"iso_alpha_code": "USD",
+		"iso_numeric_code": "840",
 		"symbol": "$"
 	}
 }

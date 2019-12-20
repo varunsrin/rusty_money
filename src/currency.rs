@@ -26,13 +26,14 @@ pub struct Currency {
     digit_separator_sequence: &'static str,
     pub exponent: u32,
     pub exponent_separator: char,
-    pub name: &'static str,
+    pub iso_alpha_code: &'static str,
+    pub iso_numeric_code: &'static str,
     pub symbol: &'static str,
 }
 
 impl fmt::Display for Currency {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.iso_alpha_code)
     }
 }
 
@@ -56,7 +57,7 @@ mod tests {
     #[test]
     fn currency_known_can_be_found() {
         let c = Currency::find("USD".to_string());
-        assert_eq!(c.name, "USD");
+        assert_eq!(c.iso_alpha_code, "USD");
         assert_eq!(c.exponent, 2);
     }
 

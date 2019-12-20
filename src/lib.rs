@@ -43,10 +43,10 @@ use currency::Currency;
 extern crate lazy_static;
 
 // Release TODO
-// 0. Currency JSON should include iso_alpha_code, iso_numeric_code.
 // 1. Currencies should know where to display the sign relative to the number. 
 // 2. Import interesting edge case currencies.
 // 3. Build parser util to identify missing currencies or deltas.
+// 4. Add function to find currencies by code.
 // 4. Refactor our money into separate folder. 
 // x-1. Clear out TODO's
 // x. Update Docs
@@ -190,7 +190,7 @@ impl Money {
     }
 
     pub fn currency(&self) -> &str {
-        &self.currency.name
+        &self.currency.iso_alpha_code // TODO - is this the right value?
     }
 
     pub fn allocate_to(&self, number: i32) -> Vec<Money> {
