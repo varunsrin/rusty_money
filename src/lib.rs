@@ -43,12 +43,9 @@ use currency::Currency;
 extern crate lazy_static;
 
 // Release TODO
-// 1. Import interesting edge case currencies.
-// 2. Build parser util to identify missing currencies or deltas.
-// 3. Add function to find currencies by iso codes.
-// 4. Refactor our money into separate folder.
-// 5. Clear out TODO's
-// 6. Update Docs
+// 2. Refactor out money into separate folder.
+// 3. Clear out TODO's
+// 4. Update Docs
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
