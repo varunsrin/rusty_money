@@ -43,7 +43,11 @@ use currency::Currency;
 extern crate lazy_static;
 
 // Release TODO
-// 1. Import the 150 or so odd currencies with separator, delimiter and exponent.
+// 0. Currency JSON should include iso_alpha_code, iso_numeric_code.
+// 1. Currencies should know where to display the sign relative to the number. 
+// 2. Import interesting edge case currencies.
+// 3. Build parser util to identify missing currencies or deltas.
+// 4. Refactor our money into separate folder. 
 // x-1. Clear out TODO's
 // x. Update Docs
 
@@ -271,8 +275,8 @@ mod tests {
         assert_eq!(money.amount().to_string(), expected_string);
 
         // 39.1155 rounds to 39.116 for USD
-        let money = Money::new(dec!(39.1155), Currency::find("ZBD".to_string()));
-        let expected_money = Money::new(dec!(39.116), Currency::find("ZBD".to_string()));
+        let money = Money::new(dec!(39.1155), Currency::find("BHD".to_string()));
+        let expected_money = Money::new(dec!(39.116), Currency::find("BHD".to_string()));
         assert_eq!(money, expected_money);
         let expected_string = "39.116";
         assert_eq!(money.amount().to_string(), expected_string);
@@ -308,9 +312,9 @@ mod tests {
         let money = Money::from_string("29.111".to_string(), "USD".to_string());
         assert_eq!(money, expected_money);
 
-        // 39.1155 rounds to 39.116 for ZBD
-        let expected_money = Money::new(dec!(39.116), Currency::find("ZBD".to_string()));
-        let money = Money::from_string("39.1155".to_string(), "ZBD".to_string());
+        // 39.1155 rounds to 39.116 for BHD
+        let expected_money = Money::new(dec!(39.116), Currency::find("BHD".to_string()));
+        let money = Money::from_string("39.1155".to_string(), "BHD".to_string());
         assert_eq!(money, expected_money);
     }
 

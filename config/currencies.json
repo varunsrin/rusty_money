@@ -23,12 +23,12 @@
 		"name": "INR",
 		"symbol": "₹"
 	},
-	"zbd": {
+	"bhd": {
 		"digit_separator": ",",
 		"digit_separator_sequence": "3, 3, 3",
 		"exponent": 3,
 		"exponent_separator": ".",
-		"name": "ZBD",
+		"name": "BHD",
 		"symbol": "$"
 	}
 }
