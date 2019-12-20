@@ -1,11 +1,10 @@
+use crate::currency::Currency;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
-use crate::currency::Currency;
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
