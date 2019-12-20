@@ -8,6 +8,10 @@
 //! The easiest way to create Money is by using the flexible money! macro:
 //!
 //! ```edition2018
+//! use rusty_money::money;
+//! use rusty_money::Money;
+//! use rusty_money::Currency;
+//! 
 //! money = money!("-200.00", "USD");
 //! money = money!(-200, "USD");
 //! ```
@@ -16,20 +20,20 @@
 //!
 //! ```edition2018
 //! money = money!("-2000.009", "USD");
-//! println!("{}", money) // -$2,000.01
+//! println!("{}", money) // -$2,000.01;
 //!
 //! money = money!("-2000.009", "EUR");
-//! println!("{}", money) // -€2,000.01
+//! println!("{}", money) // -€2,000.01;
 //! ```
 //!   
 //! You can perform basic operations on money like:
 //!
 //! ```edition2018
 //! hundred = money!("100", "USD");
-//! thousand = money!("1000", "USD")
-//! println!("{}", hundred + thousand)     // $1,000.00 USD
-//! println!("{}", thousand > hundred)     // false
-//! println!("{}", thousand.is_positive()) // true
+//! thousand = money!("1000", "USD");
+//! println!("{}", hundred + thousand);     // $1,000.00 USD
+//! println!("{}", thousand > hundred);     // false
+//! println!("{}", thousand.is_positive()); // true
 //! ```
 
 pub mod currency;
