@@ -1,6 +1,6 @@
 //! Handle money and currency conversions.
 //!
-//! Money lets you handle currencies in Rust easily  and takes care of rounding, currency tracking
+//! Money lets you handle currencies in Rust easily and takes care of rounding, currency tracking
 //! and parsing monetary symbols according to ISO 4217 standards.
 //!
 //! # Use
@@ -27,7 +27,7 @@
 //! ```edition2018
 //! hundred = money!("100", "USD");
 //! thousand = money!("1000", "USD")
-//! println!("{}", hundred + thousand)     // $,1000 USD
+//! println!("{}", hundred + thousand)     // $1,000.00 USD
 //! println!("{}", thousand > hundred)     // false
 //! println!("{}", thousand.is_positive()) // true
 //! ```
@@ -43,11 +43,6 @@ use currency::Currency;
 #[macro_use]
 extern crate lazy_static;
 
-// Release TODO
-// 1. Add EUR + tests
-// 2. Refactor out money into separate folder.
-// 3. Clear out TODO's
-// 4. Update Docs
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {

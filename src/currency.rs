@@ -1,17 +1,8 @@
-//!
-//! Currency is still a work in progress, but has hardcoded values for USD and GBP.
-//!
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::str::FromStr;
-
-// Release TODO
-// 1. Refactor lib.rs into separate files.
-// 2. Import the 150 or so odd currencies with separator, delimiter and exponent.
-// x-1. Clear out TODO's
-// x. Update Docs
 
 lazy_static! {
     static ref CURRENCY_CONFIG: String =

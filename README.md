@@ -1,6 +1,7 @@
 # Rusty-Money
 
-Rusty-Money handles currencies in Rust and helps with rounding, currency tracking and parsing. 
+Money lets you handle currencies in Rust easily and takes care of rounding, currency tracking
+and parsing monetary symbols according to ISO 4217 standards.
 
 ## Example
 
@@ -14,7 +15,7 @@ use rusty-money::Currency;
 fn main() {
     let hundred_dollars = money!(100, "USD");
     let thousand_dollars = money!("1000", "USD");
-    let hundred_pounts = money!(100, "GBP");
+    let hundred_pounds = money!(100, "GBP");
 
 ```
 
@@ -22,7 +23,11 @@ Money handles rounding for you based on the properties of the currency:
 
  ```rust
 money = money!("-200.009", "USD");
-println!("{:?}", money) // -200.01 USD
+println!("{}", money) // -$2,000.01
+
+money = money!("-200.009", "USD");
+println!("{}", money) // -€2,000.01
+
 ```
 
 You can perform basic operations on money like: 
@@ -30,9 +35,7 @@ You can perform basic operations on money like:
 ```rust
  hundred = money!("100", "USD");
  thousand = money!("1000", "USD")
- println!("{:?}", hundred + thousand)     // 1000 USD
- println!("{:?}", thousand > hundred)     // true
- println!("{:?}", thousand.is_positive()) // true
+ println!("{}", hundred + thousand)     // $1,000.00
+ println!("{}", thousand > hundred)     // true
+ println!("{}", thousand.is_positive()) // true
 ```
- 
-Currency is still a work in progress, but has hardcoded values for USD and GBP.
