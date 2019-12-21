@@ -1,4 +1,10 @@
-# Rusty-Money
+# Rusty-Money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+
+[Build Status]: https://travis-ci.com/varunsrin/rusty_money.svg?branch=master
+[travis]: https://travis-ci.com/varunsrin/rusty_money
+[Latest Version]: https://img.shields.io/crates/v/rusty-money.svg
+[crates.io]: https://crates.io/crates/rusty-money
+
 
 Money lets you handle currencies in Rust easily and takes care of rounding, currency tracking
 and parsing monetary symbols according to ISO 4217 standards.
