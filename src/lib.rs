@@ -1,7 +1,5 @@
-//! Handle money and currency conversions.
-//!
-//! Money lets you handle currencies in Rust easily and takes care of rounding, currency tracking
-//! and parsing monetary symbols according to ISO 4217 standards.
+//! rusty_money takes care of calculating, rounding, displaying, and parsing units of money according 
+//! to ISO 4217 standards.
 //!
 //! # Use
 //!
@@ -11,8 +9,8 @@
 //! use rusty_money::money;
 //! use rusty_money::Money;
 //!
-//! money = money!("-200.00", "USD");
-//! money = money!(-200, "USD");
+//! let usd = money!("-200.00", "USD");
+//! let usd = money!(-200, "USD");
 //! ```
 //!
 //! Money handles rounding and formatting for you based on the properties of the currency:    
@@ -20,12 +18,12 @@
 //! ```edition2018
 //! use rusty_money::money;
 //! use rusty_money::Money;
-//! 
-//! money = money!("-2000.009", "USD");
-//! println!("{}", money); // -$2,000.01
 //!
-//! money = money!("-2000.009", "EUR");
-//! println!("{}", money) // -€2,000.01;
+//! let usd = money!("-2000.009", "USD");
+//! println!("{}", usd); // -$2,000.01
+//!
+//! let eur = money!("-2000.009", "EUR");
+//! println!("{}", eur) // -€2.000,01;
 //! ```
 //!   
 //! You can perform basic operations on money like:
@@ -33,19 +31,18 @@
 //! ```edition2018
 //! use rusty_money::money;
 //! use rusty_money::Money;
-//! 
-//! hundred = money!("100", "USD");
-//! thousand = money!("1000", "USD");
-//! println!("{}", hundred + thousand);     // $1,000.00 USD
+//!
+//! let hundred = money!(100, "USD");
+//! let thousand = money!(1000, "USD");
 //! println!("{}", thousand > hundred);     // false
 //! println!("{}", thousand.is_positive()); // true
+//! println!("{}", hundred + thousand);     // $1,000.00 USD
 //! ```
 
-mod money;
 mod currency;
-pub use money::*;
+mod money;
 pub use currency::*;
+pub use money::*;
 
 #[macro_use]
 extern crate lazy_static;
-
