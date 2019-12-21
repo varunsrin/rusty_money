@@ -1,6 +1,6 @@
 [package]
 name = "rusty-money"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Varun Srinivasan <varunsrin@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -10,7 +10,9 @@ documentation = "https://docs.rs/rusty-money"
 description = """
 Handle currencies in Rust.
 """
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["money", "currency", "iso-4217"]
+categories = ["data-structures", "rust-patterns"]
+
 
 [dependencies]
 rust_decimal = "1.0.3"

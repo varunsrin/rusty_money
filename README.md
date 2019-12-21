@@ -1,9 +1,11 @@
-# Rusty-Money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+# Rusty-Money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Docs]][docs.rs] 
 
 [Build Status]: https://travis-ci.com/varunsrin/rusty_money.svg?branch=master
 [travis]: https://travis-ci.com/varunsrin/rusty_money
 [Latest Version]: https://img.shields.io/crates/v/rusty-money.svg
 [crates.io]: https://crates.io/crates/rusty-money
+[Docs]: https://docs.rs/rusty-money/badge.svg
+[docs.rs]: https://docs.rs/rusty-money
 
 rusty_money takes care of calculating, rounding, displaying, and parsing units of money according to ISO 4217 standards.
 

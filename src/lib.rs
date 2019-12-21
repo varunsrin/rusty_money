@@ -1,5 +1,5 @@
-//! rusty_money takes care of calculating, rounding, displaying, and parsing units of money according 
-//! to ISO 4217 standards.
+//! A library that handles calculating, rounding, displaying, and parsing units of money according
+//! to ISO 4217 standards. The main item exported by the library is `Money`.
 //!
 //! # Use
 //!

@@ -10,6 +10,7 @@ lazy_static! {
     static ref CURRENCIES: HashMap<String, Currency> = serde_json::from_str(CURRENCY_JSON).unwrap();
 }
 
+/// The `Currency` type, which stores metadata about an ISO-4127 currency.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct Currency {
     pub digit_separator: char,
@@ -29,6 +30,7 @@ impl fmt::Display for Currency {
 }
 
 impl Currency {
+    /// Finds a currency type given an alphabetic ISO-4217 currency code. 
     pub fn find(name: String) -> Currency {
         match CURRENCIES.get(&name.to_lowercase()) {
             Some(c) => *c,
@@ -36,6 +38,7 @@ impl Currency {
         }
     }
 
+    /// Returns a vector indicating where digit separators should be applied for a given currency.  
     pub fn digit_separator_sequence(self) -> Vec<usize> {
         let v: Vec<&str> = self.digit_separator_sequence.split(", ").collect();
         v.iter().map(|x| usize::from_str(x).unwrap()).collect()
