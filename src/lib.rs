@@ -18,7 +18,7 @@
 //! Money handles rounding and formatting for you based on the properties of the currency:    
 //!
 //! ```edition2018
-//! //! use rusty_money::money;
+//! use rusty_money::money;
 //! use rusty_money::Money;
 //! 
 //! money = money!("-2000.009", "USD");
@@ -31,7 +31,7 @@
 //! You can perform basic operations on money like:
 //!
 //! ```edition2018
-//! //! use rusty_money::money;
+//! use rusty_money::money;
 //! use rusty_money::Money;
 //! 
 //! hundred = money!("100", "USD");
@@ -41,7 +41,11 @@
 //! println!("{}", thousand.is_positive()); // true
 //! ```
 
-pub mod currency;
-pub mod money;
+mod money;
+mod currency;
+pub use money::*;
+pub use currency::*;
+
 #[macro_use]
 extern crate lazy_static;
+

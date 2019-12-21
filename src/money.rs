@@ -12,6 +12,13 @@ pub struct Money {
     currency: Currency,
 }
 
+#[macro_export]
+macro_rules! money {
+    ($x:expr, $y:expr) => {
+        Money::from_string($x.to_string(), $y.to_string());
+    };
+}
+
 impl Add for Money {
     type Output = Money;
     fn add(self, other: Money) -> Money {
@@ -95,13 +102,6 @@ impl fmt::Display for Money {
             )
         }
     }
-}
-
-#[macro_export]
-macro_rules! money {
-    ($x:expr, $y:expr) => {
-        Money::from_string($x.to_string(), $y.to_string());
-    };
 }
 
 impl Money {

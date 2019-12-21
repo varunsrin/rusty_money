@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use std::fs;
 use std::str::FromStr;
+use std::include_str;
+
+static CURRENCY_JSON: &str = include_str!("../config/currencies.json");
 
 lazy_static! {
-    static ref CURRENCY_CONFIG: String =
-        fs::read_to_string("config/currencies.json".to_string()).unwrap();
     static ref CURRENCIES: HashMap<String, Currency> =
-        serde_json::from_str(&CURRENCY_CONFIG).unwrap();
+        serde_json::from_str(CURRENCY_JSON).unwrap();
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
