@@ -3,13 +3,13 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
 /// The `Money` type, which contains an amount and a currency.
 ///
 /// Money contains logic to parse amounts from a string, handle rounding,
-/// and display amounts with the right regional formatting and symbols. 
+/// and display amounts with the right regional formatting and symbols.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
     amount: Decimal,
@@ -18,7 +18,7 @@ pub struct Money {
 
 /// Create `Money` from an amount and an ISO currency code.
 ///
-/// The amount can be provided as a string or an integer. 
+/// The amount can be provided as a string or an integer.
 #[macro_export]
 macro_rules! money {
     ($x:expr, $y:expr) => {
@@ -33,12 +33,101 @@ impl Add for Money {
     }
 }
 
+impl AddAssign for Money {
+    fn add_assign(&mut self, other: Self) {
+        *self = Self {
+            amount: self.amount + other.amount,
+            currency: self.currency,
+        };
+    }
+}
+
 impl Sub for Money {
     type Output = Money;
     fn sub(self, other: Money) -> Money {
         Money::new(self.amount - other.amount, self.currency)
     }
 }
+
+impl SubAssign for Money {
+    fn sub_assign(&mut self, other: Self) {
+        *self = Self {
+            amount: self.amount - other.amount,
+            currency: self.currency,
+        };
+    }
+}
+
+macro_rules! impl_mul_div {
+    ($type:ty) => {
+        impl Mul<$type> for Money {
+            type Output = Money;
+
+            fn mul(self, rhs: $type) -> Money {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                Money::new(self.amount * rhs, self.currency)
+            }
+        }
+
+        impl Mul<Money> for $type {
+            type Output = Money;
+
+            fn mul(self, rhs: Money) -> Money {
+                let lhs = Decimal::from_str(&self.to_string()).unwrap();
+                Money::new(rhs.amount * lhs, rhs.currency)
+            }
+        }
+
+        impl MulAssign<$type> for Money {
+            fn mul_assign(&mut self, rhs: $type) {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                *self = Self {
+                    amount: self.amount * rhs,
+                    currency: self.currency,
+                };
+            }
+        }
+
+        impl Div<$type> for Money {
+            type Output = Money;
+
+            fn div(self, rhs: $type) -> Money {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                Money::new(self.amount / rhs, self.currency)
+            }
+        }
+
+        impl Div<Money> for $type {
+            type Output = Money;
+
+            fn div(self, rhs: Money) -> Money {
+                let lhs = Decimal::from_str(&self.to_string()).unwrap();
+                Money::new(lhs / rhs.amount, rhs.currency)
+            }
+        }
+
+        impl DivAssign<$type> for Money {
+            fn div_assign(&mut self, rhs: $type) {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                *self = Self {
+                    amount: self.amount / rhs,
+                    currency: self.currency,
+                };
+            }
+        }
+    };
+}
+
+impl_mul_div!(isize);
+impl_mul_div!(i8);
+impl_mul_div!(i16);
+impl_mul_div!(i32);
+impl_mul_div!(i64);
+impl_mul_div!(usize);
+impl_mul_div!(u8);
+impl_mul_div!(u16);
+impl_mul_div!(u32);
+impl_mul_div!(u64);
 
 impl PartialOrd for Money {
     fn partial_cmp(&self, other: &Money) -> Option<Ordering> {
@@ -52,24 +141,6 @@ impl Ord for Money {
             panic!();
         }
         self.amount.cmp(&other.amount)
-    }
-}
-
-impl AddAssign for Money {
-    fn add_assign(&mut self, other: Self) {
-        *self = Self {
-            amount: self.amount + other.amount,
-            currency: self.currency,
-        };
-    }
-}
-
-impl SubAssign for Money {
-    fn sub_assign(&mut self, other: Self) {
-        *self = Self {
-            amount: self.amount - other.amount,
-            currency: self.currency,
-        };
     }
 }
 
@@ -112,7 +183,7 @@ impl fmt::Display for Money {
 }
 
 impl Money {
-    /// Creates a Money object given a decimal amount value and a currency type. 
+    /// Creates a Money object given a decimal amount value and a currency type.
     pub fn new(amount: Decimal, currency: Currency) -> Money {
         Money {
             amount: amount.round_dp(currency.exponent),
@@ -121,7 +192,7 @@ impl Money {
     }
 
     /// Creates a Money object given an amount string and a currency string.
-    /// 
+    ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     pub fn from_string(amount: String, currency: String) -> Money {
         let currency = Currency::find(currency);
@@ -179,10 +250,10 @@ impl Money {
         self.amount.is_sign_negative() && self.amount != dec!(0.0)
     }
 
-    /// Divides money equally into n shares. 
-    /// 
-    /// If the divison cannot be applied perfectly, it allocates the remainder 
-    /// to some of the shares. 
+    /// Divides money equally into n shares.
+    ///
+    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// to some of the shares.
     pub fn allocate_to(&self, number: i32) -> Vec<Money> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
         self.allocate(ratios)
@@ -190,8 +261,8 @@ impl Money {
 
     /// Divides money into n shares according to a particular ratio.
     ///  
-    /// If the divison cannot be applied perfectly, it allocates the remainder 
-    /// to some of the shares. 
+    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Vec<Money> {
         if ratios.is_empty() {
             panic!();
@@ -345,11 +416,39 @@ mod tests {
     }
 
     #[test]
-    fn money_ops() {
+    fn money_addition_and_subtraction() {
         // Addition
         assert_eq!(money!(2, "USD"), money!(1, "USD") + money!(1, "USD"));
         // Subtraction
         assert_eq!(money!(0, "USD"), money!(1, "USD") - money!(1, "USD"));
+    }
+
+    #[test]
+    fn money_multiplication_and_division() {
+        // Multiplication
+        assert_eq!(money!(2, "USD"), money!(1, "USD") * 2);
+        assert_eq!(money!(2, "USD"), money!(-1, "USD") * -2);
+        assert_eq!(money!(2, "USD"), -2 * money!(-1, "USD"));
+
+        // Division
+        assert_eq!(money!(2, "USD"), money!(4, "USD") / 2);
+        assert_eq!(money!(2, "USD"), money!(-4, "USD") / -2);
+        assert_eq!(money!("0.5", "USD"), -1 / money!(-2, "USD"));
+        assert_eq!(money!("2.0", "USD"), money!(-2, "USD") / -1);
+
+        //MulAssign
+        let mut money = money!(1, "USD");
+        money *= 2;
+        assert_eq!(money!(2, "USD"), money);
+
+        //DivAssign
+        let mut money = money!(1, "USD");
+        money /= -2;
+        assert_eq!(money!("-0.5", "USD"), money);
+    }
+
+    #[test]
+    fn money_comparison() {
         // Greater Than
         assert_eq!(true, money!(2, "USD") > money!(1, "USD"));
         // Less Than
@@ -361,12 +460,10 @@ mod tests {
         assert_eq!(true, money!(1, "USD").is_positive());
         assert_eq!(false, money!(0, "USD").is_positive());
         assert_eq!(false, money!(-1, "USD").is_positive());
-
         // is zero
         assert_eq!(true, money!(0, "USD").is_zero());
         assert_eq!(false, money!(1, "USD").is_zero());
         assert_eq!(false, money!(-1, "USD").is_zero());
-
         // is negative
         assert_eq!(true, money!(-1, "USD").is_negative());
         assert_eq!(false, money!(1, "USD").is_negative());
