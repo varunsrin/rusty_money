@@ -21,4 +21,3 @@
 * Currencies can be converted from one to another. 
 * Add support for crypto currencies.  
 * More thorough examples that use all features. 
-

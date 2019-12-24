@@ -40,8 +40,10 @@
 //! ```
 
 mod currency;
+mod exchange;
 mod money;
 pub use currency::*;
+pub use exchange::*;
 pub use money::*;
 
 #[macro_use]
