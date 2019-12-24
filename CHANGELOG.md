@@ -1,7 +1,11 @@
 # Change Log
 
+### Unreleased
+* Currencies can be looked up by ISO code, country code. 
+* Money can be multiplied and divided.
+
 ## [0.2.0] - 2019-12-21
-* Currency::new was renamed to Currency::from (breaking change)
+* Currency::new was renamed to Currency::find (breaking change)
 * Crate include and use structure was tweaked (breaking change)
 * AED, BHD, EUR and INR Currencies are now supported.
 * Supported currencies are printed with separators, symbols and signs. (e.g. -$2,000 USD)
@@ -14,10 +18,7 @@
 
 ### v0.2.1
 * Add all ISO standard currencies. 
-* Money::from_str can now parse currency symbols and signs.
-* Money can be multiplied and divided.
 * Currencies can be converted from one to another. 
 * Add support for crypto currencies.  
-* Currencies can be looked up by ISO code, country code. 
 * More thorough examples that use all features. 
 
