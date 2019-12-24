@@ -58,43 +58,76 @@ impl SubAssign for Money {
     }
 }
 
-impl Mul<i32> for Money {
-    type Output = Money;
+macro_rules! impl_mul_div {
+    ($type:ty) => {
+        impl Mul<$type> for Money {
+            type Output = Money;
 
-    fn mul(self, int: i32) -> Money {
-        let rhs = Decimal::from_str(&int.to_string()).unwrap();
-        Money::new(self.amount * rhs, self.currency)
-    }
+            fn mul(self, rhs: $type) -> Money {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                Money::new(self.amount * rhs, self.currency)
+            }
+        }
+
+        impl Mul<Money> for $type {
+            type Output = Money;
+
+            fn mul(self, rhs: Money) -> Money {
+                let lhs = Decimal::from_str(&self.to_string()).unwrap();
+                Money::new(rhs.amount * lhs, rhs.currency)
+            }
+        }
+
+        impl MulAssign<$type> for Money {
+            fn mul_assign(&mut self, rhs: $type) {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                *self = Self {
+                    amount: self.amount * rhs,
+                    currency: self.currency,
+                };
+            }
+        }
+
+        impl Div<$type> for Money {
+            type Output = Money;
+
+            fn div(self, rhs: $type) -> Money {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                Money::new(self.amount / rhs, self.currency)
+            }
+        }
+
+        impl Div<Money> for $type {
+            type Output = Money;
+
+            fn div(self, rhs: Money) -> Money {
+                let lhs = Decimal::from_str(&self.to_string()).unwrap();
+                Money::new(lhs / rhs.amount, rhs.currency)
+            }
+        }
+
+        impl DivAssign<$type> for Money {
+            fn div_assign(&mut self, rhs: $type) {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                *self = Self {
+                    amount: self.amount / rhs,
+                    currency: self.currency,
+                };
+            }
+        }
+    };
 }
 
-impl MulAssign<i32> for Money {
-    fn mul_assign(&mut self, int: i32) {
-        let rhs = Decimal::from_str(&int.to_string()).unwrap();
-        *self = Self {
-            amount: self.amount * rhs,
-            currency: self.currency,
-        };
-    }
-}
-
-impl Div<i32> for Money {
-    type Output = Money;
-
-    fn div(self, int: i32) -> Money {
-        let rhs = Decimal::from_str(&int.to_string()).unwrap();
-        Money::new(self.amount / rhs, self.currency)
-    }
-}
-
-impl DivAssign<i32> for Money {
-    fn div_assign(&mut self, int: i32) {
-        let rhs = Decimal::from_str(&int.to_string()).unwrap();
-        *self = Self {
-            amount: self.amount / rhs,
-            currency: self.currency,
-        };
-    }
-}
+impl_mul_div!(isize);
+impl_mul_div!(i8);
+impl_mul_div!(i16);
+impl_mul_div!(i32);
+impl_mul_div!(i64);
+impl_mul_div!(usize);
+impl_mul_div!(u8);
+impl_mul_div!(u16);
+impl_mul_div!(u32);
+impl_mul_div!(u64);
 
 impl PartialOrd for Money {
     fn partial_cmp(&self, other: &Money) -> Option<Ordering> {
@@ -383,26 +416,39 @@ mod tests {
     }
 
     #[test]
-    fn money_ops() {
+    fn money_addition_and_subtraction() {
         // Addition
         assert_eq!(money!(2, "USD"), money!(1, "USD") + money!(1, "USD"));
         // Subtraction
         assert_eq!(money!(0, "USD"), money!(1, "USD") - money!(1, "USD"));
+    }
+
+    #[test]
+    fn money_multiplication_and_division() {
         // Multiplication
         assert_eq!(money!(2, "USD"), money!(1, "USD") * 2);
         assert_eq!(money!(2, "USD"), money!(-1, "USD") * -2);
-        // Division
-        assert_eq!(money!(1, "USD"), money!(2, "USD") / 2);
-        assert_eq!(money!(2, "USD"), money!(-2, "USD") / -1);
-        //MulAssign
-        let mut m = money!(1, "USD");
-        m *= 2;
-        assert_eq!(money!(2, "USD"), m);
-        //DivAssign
-        let mut m = money!(1, "USD");
-        m /= 2;
-        assert_eq!(money!("0.5", "USD"), m);
+        assert_eq!(money!(2, "USD"), -2 * money!(-1, "USD"));
 
+        // Division
+        assert_eq!(money!(2, "USD"), money!(4, "USD") / 2);
+        assert_eq!(money!(2, "USD"), money!(-4, "USD") / -2);
+        assert_eq!(money!("0.5", "USD"), -1 / money!(-2, "USD"));
+        assert_eq!(money!("2.0", "USD"), money!(-2, "USD") / -1);
+
+        //MulAssign
+        let mut money = money!(1, "USD");
+        money *= 2;
+        assert_eq!(money!(2, "USD"), money);
+
+        //DivAssign
+        let mut money = money!(1, "USD");
+        money /= -2;
+        assert_eq!(money!("-0.5", "USD"), money);
+    }
+
+    #[test]
+    fn money_comparison() {
         // Greater Than
         assert_eq!(true, money!(2, "USD") > money!(1, "USD"));
         // Less Than
@@ -410,7 +456,6 @@ mod tests {
         // Equals
         assert_eq!(true, money!(1, "USD") == money!(1, "USD"));
         assert_eq!(false, money!(1, "USD") == money!(1, "GBP"));
-
         // is positive
         assert_eq!(true, money!(1, "USD").is_positive());
         assert_eq!(false, money!(0, "USD").is_positive());
