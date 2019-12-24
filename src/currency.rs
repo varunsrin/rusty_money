@@ -30,7 +30,7 @@ impl fmt::Display for Currency {
 }
 
 impl Currency {
-    /// Finds a currency type given an alphabetic ISO-4217 currency code. 
+    /// Finds a currency type given an alphabetic ISO-4217 currency code.
     pub fn find(name: String) -> Currency {
         match CURRENCIES.get(&name.to_lowercase()) {
             Some(c) => *c,

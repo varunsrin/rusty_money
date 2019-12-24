@@ -9,7 +9,7 @@ use std::str::FromStr;
 /// The `Money` type, which contains an amount and a currency.
 ///
 /// Money contains logic to parse amounts from a string, handle rounding,
-/// and display amounts with the right regional formatting and symbols. 
+/// and display amounts with the right regional formatting and symbols.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
     amount: Decimal,
@@ -18,7 +18,7 @@ pub struct Money {
 
 /// Create `Money` from an amount and an ISO currency code.
 ///
-/// The amount can be provided as a string or an integer. 
+/// The amount can be provided as a string or an integer.
 #[macro_export]
 macro_rules! money {
     ($x:expr, $y:expr) => {
@@ -112,7 +112,7 @@ impl fmt::Display for Money {
 }
 
 impl Money {
-    /// Creates a Money object given a decimal amount value and a currency type. 
+    /// Creates a Money object given a decimal amount value and a currency type.
     pub fn new(amount: Decimal, currency: Currency) -> Money {
         Money {
             amount: amount.round_dp(currency.exponent),
@@ -121,7 +121,7 @@ impl Money {
     }
 
     /// Creates a Money object given an amount string and a currency string.
-    /// 
+    ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     pub fn from_string(amount: String, currency: String) -> Money {
         let currency = Currency::find(currency);
@@ -179,10 +179,10 @@ impl Money {
         self.amount.is_sign_negative() && self.amount != dec!(0.0)
     }
 
-    /// Divides money equally into n shares. 
-    /// 
-    /// If the divison cannot be applied perfectly, it allocates the remainder 
-    /// to some of the shares. 
+    /// Divides money equally into n shares.
+    ///
+    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// to some of the shares.
     pub fn allocate_to(&self, number: i32) -> Vec<Money> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
         self.allocate(ratios)
@@ -190,8 +190,8 @@ impl Money {
 
     /// Divides money into n shares according to a particular ratio.
     ///  
-    /// If the divison cannot be applied perfectly, it allocates the remainder 
-    /// to some of the shares. 
+    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Vec<Money> {
         if ratios.is_empty() {
             panic!();
@@ -305,6 +305,11 @@ mod tests {
         let expected_money =
             Money::new(Decimal::new(1000000, 0), Currency::find("GBP".to_string()));
         let money = Money::from_string("1,000,000".to_string(), "GBP".to_string());
+        assert_eq!(money, expected_money);
+
+        let expected_money =
+            Money::new(Decimal::new(1000000, 0), Currency::find("EUR".to_string()));
+        let money = Money::from_string("1.000.000".to_string(), "EUR".to_string());
         assert_eq!(money, expected_money);
     }
 
