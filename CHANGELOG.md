@@ -3,6 +3,7 @@
 ### Unreleased
 * Currencies can be looked up by ISO code, country code. 
 * Money can be multiplied and divided.
+* Currencies can be converted from one to another. 
 
 ## [0.2.0] - 2019-12-21
 * Currency::new was renamed to Currency::find (breaking change)
@@ -18,7 +19,5 @@
 
 ### v0.2.1
 * Add all ISO standard currencies. 
-* Currencies can be converted from one to another. 
 * Add support for crypto currencies.  
 * More thorough examples that use all features. 
-

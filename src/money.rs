@@ -231,8 +231,8 @@ impl Money {
         self.amount
     }
 
-    pub fn currency(&self) -> &str {
-        &self.currency.iso_alpha_code
+    pub fn currency(&self) -> Currency {
+        self.currency
     }
 
     /// Returns true if the amount is == 0.
