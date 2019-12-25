@@ -5,14 +5,12 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::collections::HashMap;
 
-// Exchange - Collection of Exchange Rates
-// Application must explicitly register an exchange rate
+/// An Exchange Type which stores a collection of exchange rates pairs between currencies.
 #[derive(Debug)]
 pub struct Exchange {
     map: HashMap<String, ExchangeRate>,
 }
 
-/// An Exchange Type which stores a collection of exchange rates pairs between currencies.
 impl Exchange {
     pub fn new() -> Exchange {
         Exchange {
@@ -26,7 +24,7 @@ impl Exchange {
         self.map.insert(key, rate);
     }
 
-    // Return the ExchangeRate given the currency pair.
+    /// Return the ExchangeRate given the currency pair.
     pub fn get_rate(self, from: Currency, to: Currency) -> ExchangeRate {
         let key = Exchange::generate_key(from, to);
         match self.map.get(&key) {
