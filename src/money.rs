@@ -29,7 +29,7 @@ macro_rules! money {
 impl Add for Money {
     type Output = Money;
     fn add(self, other: Money) -> Money {
-        Money::new(self.amount + other.amount, self.currency)
+        Money::from_decimal(self.amount + other.amount, self.currency)
     }
 }
 
@@ -45,7 +45,7 @@ impl AddAssign for Money {
 impl Sub for Money {
     type Output = Money;
     fn sub(self, other: Money) -> Money {
-        Money::new(self.amount - other.amount, self.currency)
+        Money::from_decimal(self.amount - other.amount, self.currency)
     }
 }
 
@@ -65,7 +65,7 @@ macro_rules! impl_mul_div {
 
             fn mul(self, rhs: $type) -> Money {
                 let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::new(self.amount * rhs, self.currency)
+                Money::from_decimal(self.amount * rhs, self.currency)
             }
         }
 
@@ -74,7 +74,7 @@ macro_rules! impl_mul_div {
 
             fn mul(self, rhs: Money) -> Money {
                 let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::new(rhs.amount * lhs, rhs.currency)
+                Money::from_decimal(rhs.amount * lhs, rhs.currency)
             }
         }
 
@@ -93,7 +93,7 @@ macro_rules! impl_mul_div {
 
             fn div(self, rhs: $type) -> Money {
                 let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::new(self.amount / rhs, self.currency)
+                Money::from_decimal(self.amount / rhs, self.currency)
             }
         }
 
@@ -102,7 +102,7 @@ macro_rules! impl_mul_div {
 
             fn div(self, rhs: Money) -> Money {
                 let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::new(lhs / rhs.amount, rhs.currency)
+                Money::from_decimal(lhs / rhs.amount, rhs.currency)
             }
         }
 
@@ -147,7 +147,7 @@ impl Ord for Money {
 impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
-        let amount = format!("{}", self.amount);
+        let amount = format!("{}", self.amount.round_dp(currency.exponent));
         let amount_split: Vec<&str> = amount.split('.').collect();
         let exponent = amount_split[1];
         let mut digits = amount_split[0].to_string();
@@ -183,31 +183,52 @@ impl fmt::Display for Money {
 }
 
 impl Money {
-    /// Creates a Money object given a decimal amount value and a currency type.
-    pub fn new(amount: Decimal, currency: Currency) -> Money {
-        Money {
-            amount: amount.round_dp(currency.exponent),
-            currency,
-        }
+    /// Creates a Money object given an integer and a currency type.
+    ///
+    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
+    pub fn new(amount: i64, currency: &str) -> Money {
+        Money::from_minor(amount, currency)
+    }
+
+    /// Creates a Money object given an integer and a currency type.
+    ///
+    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
+    pub fn from_minor(amount: i64, currency: &str) -> Money {
+        let currency = Currency::find(currency);
+        let amount = Decimal::new(amount, currency.exponent);
+        Money { amount, currency }
+    }
+
+    /// Creates a Money object given an integer and a currency type.
+    ///
+    /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
+    pub fn from_major(amount: i64, currency: &str) -> Money {
+        let currency = Currency::find(currency);
+        let amount = Decimal::new(amount, 0);
+        Money { amount, currency }
+    }
+
+    /// Creates a Money object given a decimal amount and a currency type.
+    pub fn from_decimal(amount: Decimal, currency: Currency) -> Money {
+        Money { amount, currency }
+    }
+
+    /// Creates a Money object given an amount str and a currency str.
+    ///
+    /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
+    pub fn from_str(amount: &str, currency: &str) -> Money {
+        Money::from_string(amount.to_string(), currency.to_string())
     }
 
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     pub fn from_string(amount: String, currency: String) -> Money {
-        let currency = Currency::find(currency);
+        let currency = Currency::from_string(currency);
         let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
 
-        fn panic_unless_integer(value: &str) {
-            match i32::from_str(value) {
-                Ok(_) => (),
-                // TODO update to match the right error cases
-                Err(_) => panic!("Could not parse"),
-            }
-        }
-
         let mut parsed_decimal = amount_parts[0].replace(currency.digit_separator, "");
-        panic_unless_integer(&parsed_decimal);
+        Money::panic_unless_integer(&parsed_decimal);
 
         if amount_parts.len() == 1 {
             parsed_decimal += ".";
@@ -215,22 +236,30 @@ impl Money {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            panic_unless_integer(&amount_parts[1]);
+            Money::panic_unless_integer(&amount_parts[1]);
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
             panic!()
         }
 
-        let decimal = Decimal::from_str(&parsed_decimal)
-            .unwrap()
-            .round_dp(currency.exponent);
-        Money::new(decimal, currency)
+        let decimal = Decimal::from_str(&parsed_decimal).unwrap();
+        Money::from_decimal(decimal, currency)
     }
 
+    fn panic_unless_integer(value: &str) {
+        match i32::from_str(value) {
+            Ok(_) => (),
+            // TODO update to match the right error cases
+            Err(_) => panic!("Could not parse"),
+        }
+    }
+
+    /// Returns the amount as a decimal
     pub fn amount(&self) -> Decimal {
         self.amount
     }
 
+    /// Returns the currency type.
     pub fn currency(&self) -> Currency {
         self.currency
     }
@@ -285,7 +314,7 @@ impl Money {
 
             let share = (self.amount * ratio / ratio_total).floor();
 
-            allocations.push(Money::new(share, self.currency));
+            allocations.push(Money::from_decimal(share, self.currency));
             remainder -= share;
         }
 
@@ -305,76 +334,44 @@ impl Money {
         }
         allocations
     }
+
+    /// Rounds the amount down to the currency's exponent.
+    pub fn round(&mut self) {
+        self.amount = self.amount.round_dp(self.currency.exponent);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn money_rounds_exponent() {
-        // 19.999 rounds to 20 for USD
-        let money = Money::new(dec!(19.9999), Currency::find("USD".to_string()));
-        let expected_money = Money::new(Decimal::new(20, 0), Currency::find("USD".to_string()));
-        assert_eq!(money, expected_money);
-        let expected_string = "20.00";
-        let actual_string = money.amount().to_string();
-        assert_eq!(actual_string, expected_string);
-
-        // 29.111 rounds to 29.11 for USD
-        let money = Money::new(dec!(29.111), Currency::find("USD".to_string()));
-        let expected_money = Money::new(dec!(29.11), Currency::find("USD".to_string()));
-        assert_eq!(money, expected_money);
-        let expected_string = "29.11";
-        assert_eq!(money.amount().to_string(), expected_string);
-
-        // 39.1155 rounds to 39.116 for USD
-        let money = Money::new(dec!(39.1155), Currency::find("BHD".to_string()));
-        let expected_money = Money::new(dec!(39.116), Currency::find("BHD".to_string()));
-        assert_eq!(money, expected_money);
-        let expected_string = "39.116";
-        assert_eq!(money.amount().to_string(), expected_string);
+    fn money_major_minor() {
+        assert_eq!(Money::from_major(10, "USD"), Money::from_minor(1000, "USD"));
+        assert_eq!(Money::from_major(10, "USD"), Money::new(1000, "USD"));
     }
 
     #[test]
     fn money_from_string_parses_correctly() {
-        let expected_money = Money::new(Decimal::new(2999, 2), Currency::find("GBP".to_string()));
+        let expected_money = Money::new(2999, "GBP");
         let money = Money::from_string("29.99".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parses_signs() {
-        let expected_money = Money::new(Decimal::new(-3, 0), Currency::find("GBP".to_string()));
+        let expected_money = Money::new(-300, "GBP");
         let money = Money::from_string("-3".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
 
-        let expected_money = Money::new(Decimal::new(3, 0), Currency::find("GBP".to_string()));
+        let expected_money = Money::new(300, "GBP");
         let money = Money::from_string("+3".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
     }
 
     #[test]
-    fn money_from_string_rounds_exponent() {
-        // 19.999 rounds to 20 for USD
-        let expected_money = Money::new(Decimal::new(20, 0), Currency::find("USD".to_string()));
-        let money = Money::from_string("19.9999".to_string(), "USD".to_string());
-        assert_eq!(money, expected_money);
-
-        // 29.111 rounds to 29.11 for USD
-        let expected_money = Money::new(Decimal::new(2911, 2), Currency::find("USD".to_string()));
-        let money = Money::from_string("29.111".to_string(), "USD".to_string());
-        assert_eq!(money, expected_money);
-
-        // 39.1155 rounds to 39.116 for BHD
-        let expected_money = Money::new(dec!(39.116), Currency::find("BHD".to_string()));
-        let money = Money::from_string("39.1155".to_string(), "BHD".to_string());
-        assert_eq!(money, expected_money);
-    }
-
-    #[test]
     fn money_from_string_ignores_separators() {
-        let expected_money =
-            Money::new(Decimal::new(1000000, 0), Currency::find("GBP".to_string()));
+        let expected_money = Money::new(100000000, "GBP");
         let money = Money::from_string("1,000,000".to_string(), "GBP".to_string());
         assert_eq!(money, expected_money);
     }
@@ -413,6 +410,21 @@ mod tests {
     #[should_panic]
     fn money_from_string_panics_if_only_separators_and_delimiters() {
         Money::from_string(",,.".to_string(), "GBP".to_string());
+    }
+
+    #[test]
+    fn money_format_rounds_exponent() {
+        // // 19.999 rounds to 20 for USD
+        let money = Money::from_str("19.9999", "USD");
+        assert_eq!("$20.00", format!("{}", money));
+
+        // // 29.111 rounds to 29.11 for USD
+        let money = Money::from_str("29.111", "USD");
+        assert_eq!("$29.11", format!("{}", money));
+
+        // // 39.1155 rounds to 39.116 for BHD
+        let money = Money::from_str("39.1155", "BHD");
+        assert_eq!("ب.د39.116", format!("{}", money));
     }
 
     #[test]
@@ -559,5 +571,21 @@ mod tests {
         let money = money!(1000, "EUR");
         let expected_fmt = "€1.000,00";
         assert_eq!(format!("{}", money), expected_fmt);
+    }
+
+    #[test]
+    // Dividing 20 by 3 rounds to 6.67 in USD and 6.667 in BHD
+    fn money_precision_and_rounding() {
+        let expected_money = Money::new(667, "USD");
+        let mut money = Money::new(2000, "USD");
+        money /= 3;
+        money.round();
+        assert_eq!(money, expected_money);
+
+        let expected_money = Money::new(6667, "BHD");
+        let mut money = Money::new(20000, "BHD");
+        money /= 3;
+        money.round();
+        assert_eq!(money, expected_money);
     }
 }
