@@ -67,7 +67,7 @@ mod exchange;
 mod money;
 
 pub use currency::*;
-pub use error::CurrencyError;
+pub use error::MoneyError;
 pub use exchange::*;
 pub use money::*;
 

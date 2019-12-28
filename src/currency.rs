@@ -1,5 +1,5 @@
 mod iso_currencies;
-use crate::CurrencyError;
+use crate::MoneyError;
 use iso_currencies::ISO_CURRENCIES;
 use std::collections::HashMap;
 use std::fmt;
@@ -33,18 +33,18 @@ impl fmt::Display for Currency {
 
 impl Currency {
     /// Returns a Currency given an ISO-4217 currency code as an str.
-    pub fn find(code: &str) -> Result<Currency, CurrencyError> {
+    pub fn find(code: &str) -> Result<Currency, MoneyError> {
         Currency::from_string(code.to_string())
     }
 
     /// Returns a Currency given an ISO-4217 currency code as a string.
-    pub fn from_string(code: String) -> Result<Currency, CurrencyError> {
+    pub fn from_string(code: String) -> Result<Currency, MoneyError> {
         if code.chars().all(char::is_alphabetic) {
-            Currency::find_by_alpha_iso(code).ok_or(CurrencyError::InvalidCurrency)
+            Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else if code.chars().all(char::is_numeric) {
-            Currency::find_by_numeric_iso(code).ok_or(CurrencyError::InvalidCurrency)
+            Currency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else {
-            Err(CurrencyError::InvalidCurrency)
+            Err(MoneyError::InvalidCurrency)
         }
     }
 
@@ -107,12 +107,12 @@ mod tests {
     fn currency_unknown_iso_codes_raise_invalid_currency_error() {
         assert_eq!(
             Currency::find("fake").unwrap_err(),
-            CurrencyError::InvalidCurrency,
+            MoneyError::InvalidCurrency,
         );
 
         assert_eq!(
             Currency::find("123").unwrap_err(),
-            CurrencyError::InvalidCurrency,
+            MoneyError::InvalidCurrency,
         );
     }
 }

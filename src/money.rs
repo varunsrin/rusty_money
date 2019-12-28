@@ -1,5 +1,5 @@
 use crate::currency::*;
-use crate::CurrencyError;
+use crate::MoneyError;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::cmp::Ordering;
@@ -187,14 +187,14 @@ impl Money {
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn new(amount: i64, currency: &str) -> Result<Money, CurrencyError> {
+    pub fn new(amount: i64, currency: &str) -> Result<Money, MoneyError> {
         Money::from_minor(amount, currency)
     }
 
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn from_minor(amount: i64, currency: &str) -> Result<Money, CurrencyError> {
+    pub fn from_minor(amount: i64, currency: &str) -> Result<Money, MoneyError> {
         let currency = Currency::find(currency)?;
         let amount = Decimal::new(amount, currency.exponent);
         Ok(Money { amount, currency })
@@ -203,7 +203,7 @@ impl Money {
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
-    pub fn from_major(amount: i64, currency: &str) -> Result<Money, CurrencyError> {
+    pub fn from_major(amount: i64, currency: &str) -> Result<Money, MoneyError> {
         let currency = Currency::find(currency)?;
         let amount = Decimal::new(amount, 0);
         Ok(Money { amount, currency })
@@ -217,14 +217,14 @@ impl Money {
     /// Creates a Money object given an amount str and a currency str.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    pub fn from_str(amount: &str, currency: &str) -> Result<Money, CurrencyError> {
+    pub fn from_str(amount: &str, currency: &str) -> Result<Money, MoneyError> {
         Money::from_string(amount.to_string(), currency.to_string())
     }
 
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    pub fn from_string(amount: String, currency: String) -> Result<Money, CurrencyError> {
+    pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
         let currency = Currency::from_string(currency)?;
         let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
 
@@ -240,7 +240,7 @@ impl Money {
             i32::from_str(&amount_parts[1])?;
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
-            return Err(CurrencyError::InvalidAmount);
+            return Err(MoneyError::InvalidAmount);
         }
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
@@ -276,7 +276,7 @@ impl Money {
     ///
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate_to(&self, number: i32) -> Result<Vec<Money>, CurrencyError> {
+    pub fn allocate_to(&self, number: i32) -> Result<Vec<Money>, MoneyError> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
         self.allocate(ratios)
     }
@@ -285,9 +285,9 @@ impl Money {
     ///  
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money>, CurrencyError> {
+    pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money>, MoneyError> {
         if ratios.is_empty() {
-            return Err(CurrencyError::InvalidRatio);
+            return Err(MoneyError::InvalidRatio);
         }
 
         let ratios_dec: Vec<Decimal> = ratios
@@ -302,7 +302,7 @@ impl Money {
 
         for ratio in ratios_dec {
             if ratio <= dec!(0.0) {
-                return Err(CurrencyError::InvalidRatio);
+                return Err(MoneyError::InvalidRatio);
             }
 
             let share = (self.amount * ratio / ratio_total).floor();
@@ -376,23 +376,23 @@ mod tests {
     fn money_from_string_parse_errs() {
         // If the delimiter preceeds the separators
         let money = Money::from_string("1.0000,000".to_string(), "GBP".to_string());
-        assert_eq!(money.unwrap_err(), CurrencyError::InvalidAmount);
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
         // If there are multiple delimiters
         let money = Money::from_string("1.0000.000".to_string(), "GBP".to_string());
-        assert_eq!(money.unwrap_err(), CurrencyError::InvalidAmount);
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
         // If there is an unrecognized character
         let money = Money::from_string("1.0000!000".to_string(), "GBP".to_string());
-        assert_eq!(money.unwrap_err(), CurrencyError::InvalidAmount);
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
         // If there are no characters other than separators
         let exponent_separator_only = Money::from_string(",".to_string(), "GBP".to_string());
         let amount_separator_only = Money::from_string(".".to_string(), "GBP".to_string());
         let both_separators = Money::from_string(",,.".to_string(), "GBP".to_string());
-        assert_eq!(exponent_separator_only.unwrap_err(), CurrencyError::InvalidAmount);
-        assert_eq!(amount_separator_only.unwrap_err(), CurrencyError::InvalidAmount);
-        assert_eq!(both_separators.unwrap_err(), CurrencyError::InvalidAmount);
+        assert_eq!(exponent_separator_only.unwrap_err(), MoneyError::InvalidAmount);
+        assert_eq!(amount_separator_only.unwrap_err(), MoneyError::InvalidAmount);
+        assert_eq!(both_separators.unwrap_err(), MoneyError::InvalidAmount);
     }
 
     #[test]
@@ -486,11 +486,11 @@ mod tests {
 
         // Error if the ratio vector is empty
         let monies = money!(1, "USD").allocate(Vec::new());
-        assert_eq!(monies.unwrap_err(), CurrencyError::InvalidRatio);
+        assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
 
         // Error if any ratio is zero
         let monies = money!(1, "USD").allocate(vec![1, 0]);
-        assert_eq!(monies.unwrap_err(), CurrencyError::InvalidRatio);
+        assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
     }
 
     #[test]
@@ -501,7 +501,7 @@ mod tests {
         assert_eq!(expected_results, monies);
 
         let monies = money!(1, "USD").allocate_to(0); 
-        assert_eq!(monies.unwrap_err(), CurrencyError::InvalidRatio);
+        assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
     }
 
     #[test]
