@@ -42,6 +42,7 @@ impl Currency {
         } else if code.chars().all(char::is_numeric) {
             Currency::find_by_numeric_iso(code)
         } else {
+            // TODO - Error not panic
             panic!("{} is not a known currency", code);
         }
     }
@@ -50,6 +51,7 @@ impl Currency {
     pub fn find_by_alpha_iso(code: String) -> Currency {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
             Some(c) => *c,
+            // TODO - Error not panic
             None => panic!("{} is not a known currency", code), //TODO - more helpful message
         }
     }
@@ -58,6 +60,7 @@ impl Currency {
     pub fn find_by_numeric_iso(code: String) -> Currency {
         match CURRENCIES_BY_NUM_CODE.get(&code) {
             Some(c) => *c,
+            // TODO - Error not panic
             None => panic!("{} is not a known currency", code), //TODO - more helpful message
         }
     }

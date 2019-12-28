@@ -23,12 +23,11 @@ impl Exchange {
     }
 
     /// Return the ExchangeRate given the currency pair.
-    pub fn get_rate(self, from: Currency, to: Currency) -> ExchangeRate {
+    pub fn get_rate(self, from: Currency, to: Currency) -> Option<ExchangeRate> {
         let key = Exchange::generate_key(from, to);
         match self.map.get(&key) {
-            Some(v) => *v,
-            // TODO - Add Error Type
-            None => panic!(0),
+            Some(v) => Some(*v),
+            None => None,
         }
     }
 
@@ -45,18 +44,23 @@ pub struct ExchangeRate {
     rate: Decimal,
 }
 
+#[derive(Debug)]
+pub enum CurrencyError {
+    InvalidCurrency,
+}
+
 impl ExchangeRate {
     pub fn new(from: Currency, to: Currency, rate: Decimal) -> ExchangeRate {
         ExchangeRate { from, to, rate }
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
-    pub fn convert(&self, amount: Money) -> Money {
+    pub fn convert(&self, amount: Money) -> Result<Money, CurrencyError> {
         if amount.currency() != self.from {
-            panic!();
+            return Err(CurrencyError::InvalidCurrency);
         }
         let converted_amount = amount.amount() * self.rate;
-        Money::from_decimal(converted_amount, self.to)
+        Ok(Money::from_decimal(converted_amount, self.to))
     }
 }
 
@@ -74,7 +78,7 @@ mod tests {
 
         let mut exchange = Exchange::new();
         exchange.add_or_update_rate(&rate);
-        let fetched_rate = exchange.get_rate(usd, eur);
+        let fetched_rate = exchange.get_rate(usd, eur).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.5));
     }
 
@@ -83,14 +87,14 @@ mod tests {
         let rate = ExchangeRate::new(Currency::find("USD"), Currency::find("EUR"), dec!(1.5));
         let amount = money!(10, "USD");
         let expected_amount = money!("15", "EUR");
-        assert_eq!(rate.convert(amount), expected_amount);
+        let converted_rate = rate.convert(amount).unwrap();
+        assert_eq!(converted_rate, expected_amount);
     }
 
     #[test]
-    #[should_panic]
-    fn rate_fails_if_currencies_dont_match() {
+    fn rate_errors_if_currencies_dont_match() {
         let rate = ExchangeRate::new(Currency::find("GBP"), Currency::find("EUR"), dec!(1.5));
         let amount = money!(10, "USD");
-        rate.convert(amount);
+        assert!(rate.convert(amount).is_err());
     }
 }

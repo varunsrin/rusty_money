@@ -137,6 +137,7 @@ impl PartialOrd for Money {
 
 impl Ord for Money {
     fn cmp(&self, other: &Money) -> Ordering {
+        // TODO - Error not panic
         if self.currency != other.currency {
             panic!();
         }
@@ -246,6 +247,7 @@ impl Money {
         Money::from_decimal(decimal, currency)
     }
 
+    // TODO - Error, not panic
     fn panic_unless_integer(value: &str) {
         match i32::from_str(value) {
             Ok(_) => (),
@@ -294,6 +296,7 @@ impl Money {
     /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Vec<Money> {
         if ratios.is_empty() {
+            // TODO - Error not panic
             panic!();
         }
 
@@ -309,6 +312,7 @@ impl Money {
 
         for ratio in ratios_dec {
             if ratio <= dec!(0.0) {
+                // TODO - Error not panic
                 panic!("Ratio was zero or negative, should be positive");
             }
 
