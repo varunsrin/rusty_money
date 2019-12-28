@@ -1,7 +1,7 @@
 mod iso_currencies;
+use crate::CurrencyError;
 use iso_currencies::ISO_CURRENCIES;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
@@ -10,31 +10,6 @@ lazy_static! {
         Currency::generate_currencies_by_alpha_code();
     static ref CURRENCIES_BY_NUM_CODE: HashMap<String, Currency> =
         Currency::generate_currencies_by_num_code();
-}
-
-#[derive(Debug)]
-pub struct CurrencyError {
-    details: String,
-}
-
-impl CurrencyError {
-    pub fn new(msg: &str) -> CurrencyError {
-        CurrencyError {
-            details: msg.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for CurrencyError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl Error for CurrencyError {
-    fn description(&self) -> &str {
-        &self.details
-    }
 }
 
 /// The `Currency` type, which stores metadata about an ISO-4127 currency.
@@ -57,26 +32,19 @@ impl fmt::Display for Currency {
 }
 
 impl Currency {
-    /// Returns a Currency given an ISO-4217 currency code.
+    /// Returns a Currency given an ISO-4217 currency code as an str.
     pub fn find(code: &str) -> Result<Currency, CurrencyError> {
         Currency::from_string(code.to_string())
     }
 
+    /// Returns a Currency given an ISO-4217 currency code as a string.
     pub fn from_string(code: String) -> Result<Currency, CurrencyError> {
-        // TODO -  Refactor If/Match for Brevity
-
         if code.chars().all(char::is_alphabetic) {
-            match Currency::find_by_alpha_iso(code) {
-                Some(currency) => Ok(currency),
-                None => Err(CurrencyError::new("Invalid ISO Alphabetic Code")),
-            }
+            Currency::find_by_alpha_iso(code).ok_or(CurrencyError::InvalidCurrency)
         } else if code.chars().all(char::is_numeric) {
-            match Currency::find_by_numeric_iso(code) {
-                Some(currency) => Ok(currency),
-                None => Err(CurrencyError::new("Invalid ISO Numeric Code")),
-            }
+            Currency::find_by_numeric_iso(code).ok_or(CurrencyError::InvalidCurrency)
         } else {
-            Err(CurrencyError::new("Invalid ISO Code"))
+            Err(CurrencyError::InvalidCurrency)
         }
     }
 
@@ -136,12 +104,15 @@ mod tests {
     }
 
     #[test]
-    fn currency_unknown_iso_alpha_code_raises_error() {
-        assert!(Currency::find("fake").is_err());
-    }
+    fn currency_unknown_iso_codes_raise_invalid_currency_error() {
+        assert_eq!(
+            Currency::find("fake").unwrap_err(),
+            CurrencyError::InvalidCurrency,
+        );
 
-    #[test]
-    fn currency_unknown_iso_num_code_raises_error() {
-        assert!(Currency::find("123").is_err());
+        assert_eq!(
+            Currency::find("123").unwrap_err(),
+            CurrencyError::InvalidCurrency,
+        );
     }
 }

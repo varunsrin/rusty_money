@@ -1,5 +1,6 @@
 use crate::currency::*;
 use crate::money::Money;
+use crate::CurrencyError;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 
@@ -52,7 +53,7 @@ impl ExchangeRate {
     /// Converts a Money from one Currency to another using the exchange rate.
     pub fn convert(&self, amount: Money) -> Result<Money, CurrencyError> {
         if amount.currency() != self.from {
-            return Err(CurrencyError::new("Invalid currency"));
+            return Err(CurrencyError::InvalidCurrency);
         }
         let converted_amount = amount.amount() * self.rate;
         Ok(Money::from_decimal(converted_amount, self.to))
@@ -98,6 +99,10 @@ mod tests {
             dec!(1.5),
         );
         let amount = money!(10, "USD");
-        assert!(rate.convert(amount).is_err());
+
+        assert_eq!(
+            rate.convert(amount).unwrap_err(),
+            CurrencyError::InvalidCurrency,
+        );
     }
 }

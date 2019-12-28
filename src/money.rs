@@ -1,4 +1,5 @@
 use crate::currency::*;
+use crate::CurrencyError;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::cmp::Ordering;
@@ -137,7 +138,6 @@ impl PartialOrd for Money {
 
 impl Ord for Money {
     fn cmp(&self, other: &Money) -> Ordering {
-        // TODO - Error not panic
         if self.currency != other.currency {
             panic!();
         }
@@ -229,7 +229,7 @@ impl Money {
         let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
 
         let mut parsed_decimal = amount_parts[0].replace(currency.digit_separator, "");
-        Money::error_unless_integer(&parsed_decimal)?;
+        i32::from_str(&parsed_decimal)?;
 
         if amount_parts.len() == 1 {
             parsed_decimal += ".";
@@ -237,21 +237,14 @@ impl Money {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            Money::error_unless_integer(&amount_parts[1])?;
+            i32::from_str(&amount_parts[1])?;
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
-            return Err(CurrencyError::new("Multiple separators in amount"));
+            return Err(CurrencyError::InvalidAmount);
         }
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
         Ok(Money::from_decimal(decimal, currency))
-    }
-
-    fn error_unless_integer(value: &str) -> Result<bool, CurrencyError> {
-        match i32::from_str(value) {
-            Ok(_) => Ok(true),
-            Err(_) => Err(CurrencyError::new("Could not parse as decimal")),
-        }
     }
 
     /// Returns the amount as a decimal
@@ -294,7 +287,7 @@ impl Money {
     /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money>, CurrencyError> {
         if ratios.is_empty() {
-            return Err(CurrencyError::new("Ratio was missing"));
+            return Err(CurrencyError::InvalidRatio);
         }
 
         let ratios_dec: Vec<Decimal> = ratios
@@ -309,7 +302,7 @@ impl Money {
 
         for ratio in ratios_dec {
             if ratio <= dec!(0.0) {
-                return Err(CurrencyError::new("Ratio was not positive"));
+                return Err(CurrencyError::InvalidRatio);
             }
 
             let share = (self.amount * ratio / ratio_total).floor();
@@ -383,20 +376,23 @@ mod tests {
     fn money_from_string_parse_errs() {
         // If the delimiter preceeds the separators
         let money = Money::from_string("1.0000,000".to_string(), "GBP".to_string());
-        assert!(money.is_err());
+        assert_eq!(money.unwrap_err(), CurrencyError::InvalidAmount);
 
         // If there are multiple delimiters
         let money = Money::from_string("1.0000.000".to_string(), "GBP".to_string());
-        assert!(money.is_err());
+        assert_eq!(money.unwrap_err(), CurrencyError::InvalidAmount);
 
         // If there is an unrecognized character
         let money = Money::from_string("1.0000!000".to_string(), "GBP".to_string());
-        assert!(money.is_err());
+        assert_eq!(money.unwrap_err(), CurrencyError::InvalidAmount);
 
-        // If there are no characters other than separators and delimiters
-        assert!(Money::from_string(",".to_string(), "GBP".to_string()).is_err());
-        assert!(Money::from_string(".".to_string(), "GBP".to_string()).is_err());
-        assert!(Money::from_string(",,.".to_string(), "GBP".to_string()).is_err());
+        // If there are no characters other than separators
+        let exponent_separator_only = Money::from_string(",".to_string(), "GBP".to_string());
+        let amount_separator_only = Money::from_string(".".to_string(), "GBP".to_string());
+        let both_separators = Money::from_string(",,.".to_string(), "GBP".to_string());
+        assert_eq!(exponent_separator_only.unwrap_err(), CurrencyError::InvalidAmount);
+        assert_eq!(amount_separator_only.unwrap_err(), CurrencyError::InvalidAmount);
+        assert_eq!(both_separators.unwrap_err(), CurrencyError::InvalidAmount);
     }
 
     #[test]
@@ -487,28 +483,25 @@ mod tests {
         let allocs = money.allocate(vec![1, 1, 1]).unwrap();
         let expected_results = vec![money!(4, "USD"), money!(4, "USD"), money!(3, "USD")];
         assert_eq!(expected_results, allocs);
-    }
 
-    #[test]
-    fn money_allocate_errs() {
-        // If the ratio vector is empty
-        assert!(money!(1, "USD").allocate(Vec::new()).is_err());
+        // Error if the ratio vector is empty
+        let monies = money!(1, "USD").allocate(Vec::new());
+        assert_eq!(monies.unwrap_err(), CurrencyError::InvalidRatio);
 
-        // If any ratio is zero
-        assert!(money!(1, "USD").allocate(vec![1, 0]).is_err());
+        // Error if any ratio is zero
+        let monies = money!(1, "USD").allocate(vec![1, 0]);
+        assert_eq!(monies.unwrap_err(), CurrencyError::InvalidRatio);
     }
 
     #[test]
     fn money_allocate_to() {
         let money = money!(11, "USD");
-        let allocs = money.allocate_to(3).unwrap();
+        let monies = money.allocate_to(3).unwrap();
         let expected_results = vec![money!(4, "USD"), money!(4, "USD"), money!(3, "USD")];
-        assert_eq!(expected_results, allocs);
-    }
+        assert_eq!(expected_results, monies);
 
-    #[test]
-    fn money_allocate_to_panics_if_zero() {
-        assert!(money!(1, "USD").allocate_to(0).is_err());
+        let monies = money!(1, "USD").allocate_to(0); 
+        assert_eq!(monies.unwrap_err(), CurrencyError::InvalidRatio);
     }
 
     #[test]

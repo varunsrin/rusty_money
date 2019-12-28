@@ -62,9 +62,12 @@
 //! ```
 
 mod currency;
+mod error;
 mod exchange;
 mod money;
+
 pub use currency::*;
+pub use error::CurrencyError;
 pub use exchange::*;
 pub use money::*;
 
