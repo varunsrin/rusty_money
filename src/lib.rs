@@ -18,10 +18,10 @@
 //!
 //! // Money objects can be initialized in a few other convenient ways:
 //!
-//! Money::new(200000, "USD");             // amount = 2000 USD
-//! Money::from_major(2000, "USD");        // amount = 2000 USD
-//! Money::from_minor(200000, "USD");      // amount = 2000 USD
-//! Money::from_str("2,000.00", "USD");    // amount = 2000 USD
+//! Money::new(200000, "USD").unwrap();             // amount = 2000 USD
+//! Money::from_major(2000, "USD").unwrap();        // amount = 2000 USD
+//! Money::from_minor(200000, "USD").unwrap();      // amount = 2000 USD
+//! Money::from_str("2,000.00", "USD").unwrap();    // amount = 2000 USD
 //!
 //! // Money objects support arithmetic operations:
 //!
@@ -51,20 +51,23 @@
 //!
 //! // Money objects can be exchange from one currency to another by setting up an ExchangeRate:
 //!
-//! let rate = ExchangeRate::new(Currency::find("USD"), Currency::find("EUR"), dec!(1.1));
+//! let rate = ExchangeRate::new(Currency::find("USD").unwrap(), Currency::find("EUR").unwrap(), dec!(1.1));
 //! rate.convert(money!(1000, "USD")); // 1,100 EUR
 //!
 //! // ExchangeRate objects can be stored and retrieved from a central Exchange:
 //!
 //! let mut exchange = Exchange::new();
 //! exchange.add_or_update_rate(&rate);
-//! exchange.get_rate(Currency::find("USD"), Currency::find("EUR"));
+//! exchange.get_rate(Currency::find("USD").unwrap(), Currency::find("EUR").unwrap());
 //! ```
 
 mod currency;
+mod error;
 mod exchange;
 mod money;
+
 pub use currency::*;
+pub use error::MoneyError;
 pub use exchange::*;
 pub use money::*;
 

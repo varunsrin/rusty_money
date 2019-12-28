@@ -1,4 +1,5 @@
 mod iso_currencies;
+use crate::MoneyError;
 use iso_currencies::ISO_CURRENCIES;
 use std::collections::HashMap;
 use std::fmt;
@@ -31,34 +32,35 @@ impl fmt::Display for Currency {
 }
 
 impl Currency {
-    /// Returns a Currency given an ISO-4217 currency code.
-    pub fn find(code: &str) -> Currency {
+    /// Returns a Currency given an ISO-4217 currency code as an str.
+    pub fn find(code: &str) -> Result<Currency, MoneyError> {
         Currency::from_string(code.to_string())
     }
 
-    pub fn from_string(code: String) -> Currency {
+    /// Returns a Currency given an ISO-4217 currency code as a string.
+    pub fn from_string(code: String) -> Result<Currency, MoneyError> {
         if code.chars().all(char::is_alphabetic) {
-            Currency::find_by_alpha_iso(code)
+            Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else if code.chars().all(char::is_numeric) {
-            Currency::find_by_numeric_iso(code)
+            Currency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else {
-            panic!("{} is not a known currency", code);
+            Err(MoneyError::InvalidCurrency)
         }
     }
 
     /// Returns a Currency given an alphabetic ISO-4217 currency code.
-    pub fn find_by_alpha_iso(code: String) -> Currency {
+    pub fn find_by_alpha_iso(code: String) -> Option<Currency> {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
-            Some(c) => *c,
-            None => panic!("{} is not a known currency", code), //TODO - more helpful message
+            Some(c) => Some(*c),
+            None => None,
         }
     }
 
     /// Returns a currency given a numeric ISO-4217 currency code.
-    pub fn find_by_numeric_iso(code: String) -> Currency {
+    pub fn find_by_numeric_iso(code: String) -> Option<Currency> {
         match CURRENCIES_BY_NUM_CODE.get(&code) {
-            Some(c) => *c,
-            None => panic!("{} is not a known currency", code), //TODO - more helpful message
+            Some(c) => Some(*c),
+            None => None,
         }
     }
 
@@ -92,24 +94,25 @@ mod tests {
     use super::*;
     #[test]
     fn currency_known_can_be_found() {
-        let currency_by_alpha = Currency::find("USD");
+        let currency_by_alpha = Currency::find("USD").unwrap();
         assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
         assert_eq!(currency_by_alpha.exponent, 2);
         assert_eq!(currency_by_alpha.symbol, "$");
 
-        let currency_by_numeric = Currency::find("840");
+        let currency_by_numeric = Currency::find("840").unwrap();
         assert_eq!(currency_by_alpha, currency_by_numeric);
     }
 
     #[test]
-    #[should_panic]
-    fn currency_unknown_iso_alpha_code_raises_error() {
-        Currency::find("fake");
-    }
+    fn currency_unknown_iso_codes_raise_invalid_currency_error() {
+        assert_eq!(
+            Currency::find("fake").unwrap_err(),
+            MoneyError::InvalidCurrency,
+        );
 
-    #[test]
-    #[should_panic]
-    fn currency_unknown_iso_num_code_raises_error() {
-        Currency::find("123");
+        assert_eq!(
+            Currency::find("123").unwrap_err(),
+            MoneyError::InvalidCurrency,
+        );
     }
 }
