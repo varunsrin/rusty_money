@@ -1,6 +1,7 @@
 mod iso_currencies;
 use iso_currencies::ISO_CURRENCIES;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
@@ -9,6 +10,31 @@ lazy_static! {
         Currency::generate_currencies_by_alpha_code();
     static ref CURRENCIES_BY_NUM_CODE: HashMap<String, Currency> =
         Currency::generate_currencies_by_num_code();
+}
+
+#[derive(Debug)]
+pub struct CurrencyError {
+    details: String,
+}
+
+impl CurrencyError {
+    pub fn new(msg: &str) -> CurrencyError {
+        CurrencyError {
+            details: msg.to_string(),
+        }
+    }
+}
+
+impl fmt::Display for CurrencyError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl Error for CurrencyError {
+    fn description(&self) -> &str {
+        &self.details
+    }
 }
 
 /// The `Currency` type, which stores metadata about an ISO-4127 currency.
@@ -32,36 +58,41 @@ impl fmt::Display for Currency {
 
 impl Currency {
     /// Returns a Currency given an ISO-4217 currency code.
-    pub fn find(code: &str) -> Currency {
+    pub fn find(code: &str) -> Result<Currency, CurrencyError> {
         Currency::from_string(code.to_string())
     }
 
-    pub fn from_string(code: String) -> Currency {
+    pub fn from_string(code: String) -> Result<Currency, CurrencyError> {
+        // TODO -  Refactor If/Match for Brevity
+
         if code.chars().all(char::is_alphabetic) {
-            Currency::find_by_alpha_iso(code)
+            match Currency::find_by_alpha_iso(code) {
+                Some(currency) => Ok(currency),
+                None => Err(CurrencyError::new("Invalid ISO Alphabetic Code")),
+            }
         } else if code.chars().all(char::is_numeric) {
-            Currency::find_by_numeric_iso(code)
+            match Currency::find_by_numeric_iso(code) {
+                Some(currency) => Ok(currency),
+                None => Err(CurrencyError::new("Invalid ISO Numeric Code")),
+            }
         } else {
-            // TODO - Error not panic
-            panic!("{} is not a known currency", code);
+            Err(CurrencyError::new("Invalid ISO Code"))
         }
     }
 
     /// Returns a Currency given an alphabetic ISO-4217 currency code.
-    pub fn find_by_alpha_iso(code: String) -> Currency {
+    pub fn find_by_alpha_iso(code: String) -> Option<Currency> {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
-            Some(c) => *c,
-            // TODO - Error not panic
-            None => panic!("{} is not a known currency", code), //TODO - more helpful message
+            Some(c) => Some(*c),
+            None => None,
         }
     }
 
     /// Returns a currency given a numeric ISO-4217 currency code.
-    pub fn find_by_numeric_iso(code: String) -> Currency {
+    pub fn find_by_numeric_iso(code: String) -> Option<Currency> {
         match CURRENCIES_BY_NUM_CODE.get(&code) {
-            Some(c) => *c,
-            // TODO - Error not panic
-            None => panic!("{} is not a known currency", code), //TODO - more helpful message
+            Some(c) => Some(*c),
+            None => None,
         }
     }
 
@@ -95,24 +126,22 @@ mod tests {
     use super::*;
     #[test]
     fn currency_known_can_be_found() {
-        let currency_by_alpha = Currency::find("USD");
+        let currency_by_alpha = Currency::find("USD").unwrap();
         assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
         assert_eq!(currency_by_alpha.exponent, 2);
         assert_eq!(currency_by_alpha.symbol, "$");
 
-        let currency_by_numeric = Currency::find("840");
+        let currency_by_numeric = Currency::find("840").unwrap();
         assert_eq!(currency_by_alpha, currency_by_numeric);
     }
 
     #[test]
-    #[should_panic]
     fn currency_unknown_iso_alpha_code_raises_error() {
-        Currency::find("fake");
+        assert!(Currency::find("fake").is_err());
     }
 
     #[test]
-    #[should_panic]
     fn currency_unknown_iso_num_code_raises_error() {
-        Currency::find("123");
+        assert!(Currency::find("123").is_err());
     }
 }

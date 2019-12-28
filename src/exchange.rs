@@ -1,4 +1,4 @@
-use crate::currency::Currency;
+use crate::currency::*;
 use crate::money::Money;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -44,11 +44,6 @@ pub struct ExchangeRate {
     rate: Decimal,
 }
 
-#[derive(Debug)]
-pub enum CurrencyError {
-    InvalidCurrency,
-}
-
 impl ExchangeRate {
     pub fn new(from: Currency, to: Currency, rate: Decimal) -> ExchangeRate {
         ExchangeRate { from, to, rate }
@@ -57,7 +52,7 @@ impl ExchangeRate {
     /// Converts a Money from one Currency to another using the exchange rate.
     pub fn convert(&self, amount: Money) -> Result<Money, CurrencyError> {
         if amount.currency() != self.from {
-            return Err(CurrencyError::InvalidCurrency);
+            return Err(CurrencyError::new("Invalid currency"));
         }
         let converted_amount = amount.amount() * self.rate;
         Ok(Money::from_decimal(converted_amount, self.to))
@@ -72,8 +67,8 @@ mod tests {
 
     #[test]
     fn exchange_stores_rates() {
-        let usd = Currency::find("USD");
-        let eur = Currency::find("EUR");
+        let usd = Currency::find("USD").unwrap();
+        let eur = Currency::find("EUR").unwrap();
         let rate = ExchangeRate::new(usd, eur, dec!(1.5));
 
         let mut exchange = Exchange::new();
@@ -84,7 +79,11 @@ mod tests {
 
     #[test]
     fn rate_converts_money() {
-        let rate = ExchangeRate::new(Currency::find("USD"), Currency::find("EUR"), dec!(1.5));
+        let rate = ExchangeRate::new(
+            Currency::find("USD").unwrap(),
+            Currency::find("EUR").unwrap(),
+            dec!(1.5),
+        );
         let amount = money!(10, "USD");
         let expected_amount = money!("15", "EUR");
         let converted_rate = rate.convert(amount).unwrap();
@@ -93,7 +92,11 @@ mod tests {
 
     #[test]
     fn rate_errors_if_currencies_dont_match() {
-        let rate = ExchangeRate::new(Currency::find("GBP"), Currency::find("EUR"), dec!(1.5));
+        let rate = ExchangeRate::new(
+            Currency::find("GBP").unwrap(),
+            Currency::find("EUR").unwrap(),
+            dec!(1.5),
+        );
         let amount = money!(10, "USD");
         assert!(rate.convert(amount).is_err());
     }

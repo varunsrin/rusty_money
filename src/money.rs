@@ -1,4 +1,4 @@
-use crate::currency::Currency;
+use crate::currency::*;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::cmp::Ordering;
@@ -22,7 +22,7 @@ pub struct Money {
 #[macro_export]
 macro_rules! money {
     ($x:expr, $y:expr) => {
-        Money::from_string($x.to_string(), $y.to_string());
+        Money::from_string($x.to_string(), $y.to_string()).unwrap();
     };
 }
 
@@ -187,26 +187,26 @@ impl Money {
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn new(amount: i64, currency: &str) -> Money {
+    pub fn new(amount: i64, currency: &str) -> Result<Money, CurrencyError> {
         Money::from_minor(amount, currency)
     }
 
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn from_minor(amount: i64, currency: &str) -> Money {
-        let currency = Currency::find(currency);
+    pub fn from_minor(amount: i64, currency: &str) -> Result<Money, CurrencyError> {
+        let currency = Currency::find(currency)?;
         let amount = Decimal::new(amount, currency.exponent);
-        Money { amount, currency }
+        Ok(Money { amount, currency })
     }
 
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
-    pub fn from_major(amount: i64, currency: &str) -> Money {
-        let currency = Currency::find(currency);
+    pub fn from_major(amount: i64, currency: &str) -> Result<Money, CurrencyError> {
+        let currency = Currency::find(currency)?;
         let amount = Decimal::new(amount, 0);
-        Money { amount, currency }
+        Ok(Money { amount, currency })
     }
 
     /// Creates a Money object given a decimal amount and a currency type.
@@ -217,19 +217,19 @@ impl Money {
     /// Creates a Money object given an amount str and a currency str.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    pub fn from_str(amount: &str, currency: &str) -> Money {
+    pub fn from_str(amount: &str, currency: &str) -> Result<Money, CurrencyError> {
         Money::from_string(amount.to_string(), currency.to_string())
     }
 
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    pub fn from_string(amount: String, currency: String) -> Money {
-        let currency = Currency::from_string(currency);
+    pub fn from_string(amount: String, currency: String) -> Result<Money, CurrencyError> {
+        let currency = Currency::from_string(currency)?;
         let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
 
         let mut parsed_decimal = amount_parts[0].replace(currency.digit_separator, "");
-        Money::panic_unless_integer(&parsed_decimal);
+        Money::error_unless_integer(&parsed_decimal)?;
 
         if amount_parts.len() == 1 {
             parsed_decimal += ".";
@@ -237,22 +237,20 @@ impl Money {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            Money::panic_unless_integer(&amount_parts[1]);
+            Money::error_unless_integer(&amount_parts[1])?;
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
-            panic!()
+            return Err(CurrencyError::new("Multiple separators in amount"));
         }
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
-        Money::from_decimal(decimal, currency)
+        Ok(Money::from_decimal(decimal, currency))
     }
 
-    // TODO - Error, not panic
-    fn panic_unless_integer(value: &str) {
+    fn error_unless_integer(value: &str) -> Result<bool, CurrencyError> {
         match i32::from_str(value) {
-            Ok(_) => (),
-            // TODO update to match the right error cases
-            Err(_) => panic!("Could not parse"),
+            Ok(_) => Ok(true),
+            Err(_) => Err(CurrencyError::new("Could not parse as decimal")),
         }
     }
 
@@ -285,7 +283,7 @@ impl Money {
     ///
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate_to(&self, number: i32) -> Vec<Money> {
+    pub fn allocate_to(&self, number: i32) -> Result<Vec<Money>, CurrencyError> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
         self.allocate(ratios)
     }
@@ -294,10 +292,9 @@ impl Money {
     ///  
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate(&self, ratios: Vec<i32>) -> Vec<Money> {
+    pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money>, CurrencyError> {
         if ratios.is_empty() {
-            // TODO - Error not panic
-            panic!();
+            return Err(CurrencyError::new("Ratio was missing"));
         }
 
         let ratios_dec: Vec<Decimal> = ratios
@@ -312,8 +309,7 @@ impl Money {
 
         for ratio in ratios_dec {
             if ratio <= dec!(0.0) {
-                // TODO - Error not panic
-                panic!("Ratio was zero or negative, should be positive");
+                return Err(CurrencyError::new("Ratio was not positive"));
             }
 
             let share = (self.amount * ratio / ratio_total).floor();
@@ -336,7 +332,7 @@ impl Money {
             remainder -= dec!(1.0);
             i += 1;
         }
-        allocations
+        Ok(allocations)
     }
 
     /// Rounds the amount down to the currency's exponent.
@@ -351,83 +347,70 @@ mod tests {
 
     #[test]
     fn money_major_minor() {
-        assert_eq!(Money::from_major(10, "USD"), Money::from_minor(1000, "USD"));
-        assert_eq!(Money::from_major(10, "USD"), Money::new(1000, "USD"));
+        let major_usd = Money::from_major(10, "USD").unwrap();
+        let minor_usd = Money::from_minor(1000, "USD").unwrap();
+        let new_usd = Money::new(1000, "USD").unwrap();
+        assert_eq!(major_usd, minor_usd);
+        assert_eq!(major_usd, new_usd);
     }
 
     #[test]
     fn money_from_string_parses_correctly() {
-        let expected_money = Money::new(2999, "GBP");
-        let money = Money::from_string("29.99".to_string(), "GBP".to_string());
+        let expected_money = Money::new(2999, "GBP").unwrap();
+        let money = Money::from_string("29.99".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parses_signs() {
-        let expected_money = Money::new(-300, "GBP");
-        let money = Money::from_string("-3".to_string(), "GBP".to_string());
+        let expected_money = Money::new(-300, "GBP").unwrap();
+        let money = Money::from_string("-3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
 
-        let expected_money = Money::new(300, "GBP");
-        let money = Money::from_string("+3".to_string(), "GBP".to_string());
+        let expected_money = Money::new(300, "GBP").unwrap();
+        let money = Money::from_string("+3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_ignores_separators() {
-        let expected_money = Money::new(100000000, "GBP");
-        let money = Money::from_string("1,000,000".to_string(), "GBP".to_string());
+        let expected_money = Money::new(100000000, "GBP").unwrap();
+        let money = Money::from_string("1,000,000".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
-    #[should_panic]
-    fn money_from_string_panics_if_delimiter_preceeds_separator() {
-        Money::from_string("1.0000,000".to_string(), "GBP".to_string());
-    }
+    fn money_from_string_parse_errs() {
+        // If the delimiter preceeds the separators
+        let money = Money::from_string("1.0000,000".to_string(), "GBP".to_string());
+        assert!(money.is_err());
 
-    #[test]
-    #[should_panic]
-    fn money_from_string_panics_if_multiple_delimiters() {
-        Money::from_string("1.0000.000".to_string(), "GBP".to_string());
-    }
+        // If there are multiple delimiters
+        let money = Money::from_string("1.0000.000".to_string(), "GBP".to_string());
+        assert!(money.is_err());
 
-    #[test]
-    #[should_panic]
-    fn money_from_string_panics_if_unrecognized_character() {
-        Money::from_string("1.0000!000".to_string(), "GBP".to_string());
-    }
+        // If there is an unrecognized character
+        let money = Money::from_string("1.0000!000".to_string(), "GBP".to_string());
+        assert!(money.is_err());
 
-    #[test]
-    #[should_panic]
-    fn money_from_string_panics_if_only_separator() {
-        Money::from_string(",".to_string(), "GBP".to_string());
-    }
-
-    #[test]
-    #[should_panic]
-    fn money_from_string_panics_if_no_digits() {
-        Money::from_string(".".to_string(), "GBP".to_string());
-    }
-
-    #[test]
-    #[should_panic]
-    fn money_from_string_panics_if_only_separators_and_delimiters() {
-        Money::from_string(",,.".to_string(), "GBP".to_string());
+        // If there are no characters other than separators and delimiters
+        assert!(Money::from_string(",".to_string(), "GBP".to_string()).is_err());
+        assert!(Money::from_string(".".to_string(), "GBP".to_string()).is_err());
+        assert!(Money::from_string(",,.".to_string(), "GBP".to_string()).is_err());
     }
 
     #[test]
     fn money_format_rounds_exponent() {
         // // 19.999 rounds to 20 for USD
-        let money = Money::from_str("19.9999", "USD");
+        let money = money!("19.9999", "USD");
         assert_eq!("$20.00", format!("{}", money));
 
         // // 29.111 rounds to 29.11 for USD
-        let money = Money::from_str("29.111", "USD");
+        let money = money!("29.111", "USD");
         assert_eq!("$29.11", format!("{}", money));
 
         // // 39.1155 rounds to 39.116 for BHD
-        let money = Money::from_str("39.1155", "BHD");
+        let money = money!("39.1155", "BHD");
         assert_eq!("ب.د39.116", format!("{}", money));
     }
 
@@ -501,35 +484,31 @@ mod tests {
     #[test]
     fn money_allocate() {
         let money = money!(11, "USD");
-        let allocs = money.allocate(vec![1, 1, 1]);
+        let allocs = money.allocate(vec![1, 1, 1]).unwrap();
         let expected_results = vec![money!(4, "USD"), money!(4, "USD"), money!(3, "USD")];
         assert_eq!(expected_results, allocs);
     }
 
     #[test]
-    #[should_panic]
-    fn money_allocate_panics_if_empty() {
-        money!(1, "USD").allocate(Vec::new());
-    }
+    fn money_allocate_errs() {
+        // If the ratio vector is empty
+        assert!(money!(1, "USD").allocate(Vec::new()).is_err());
 
-    #[test]
-    #[should_panic]
-    fn money_allocate_panics_any_ratio_is_zero() {
-        money!(1, "USD").allocate(vec![1, 0]);
+        // If any ratio is zero
+        assert!(money!(1, "USD").allocate(vec![1, 0]).is_err());
     }
 
     #[test]
     fn money_allocate_to() {
         let money = money!(11, "USD");
-        let allocs = money.allocate_to(3);
+        let allocs = money.allocate_to(3).unwrap();
         let expected_results = vec![money!(4, "USD"), money!(4, "USD"), money!(3, "USD")];
         assert_eq!(expected_results, allocs);
     }
 
     #[test]
-    #[should_panic]
     fn money_allocate_to_panics_if_zero() {
-        money!(1, "USD").allocate_to(0);
+        assert!(money!(1, "USD").allocate_to(0).is_err());
     }
 
     #[test]
@@ -580,14 +559,14 @@ mod tests {
     #[test]
     // Dividing 20 by 3 rounds to 6.67 in USD and 6.667 in BHD
     fn money_precision_and_rounding() {
-        let expected_money = Money::new(667, "USD");
-        let mut money = Money::new(2000, "USD");
+        let expected_money = money!("6.67", "USD");
+        let mut money = money!("20.00", "USD");
         money /= 3;
         money.round();
         assert_eq!(money, expected_money);
 
-        let expected_money = Money::new(6667, "BHD");
-        let mut money = Money::new(20000, "BHD");
+        let expected_money = money!("6.667", "BHD");
+        let mut money = money!("20", "BHD");
         money /= 3;
         money.round();
         assert_eq!(money, expected_money);
