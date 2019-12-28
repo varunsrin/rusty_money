@@ -33,8 +33,12 @@ impl fmt::Display for Currency {
 }
 
 impl Currency {
-    /// Finds a currency type given an ISO-4217 currency code.
-    pub fn find(code: String) -> Currency {
+    /// Returns a Currency given an ISO-4217 currency code.
+    pub fn find(code: &str) -> Currency {
+        Currency::from_string(code.to_string())
+    }
+
+    pub fn from_string(code: String) -> Currency {
         if code.chars().all(char::is_alphabetic) {
             Currency::find_by_alpha_iso(code)
         } else if code.chars().all(char::is_numeric) {
@@ -44,7 +48,7 @@ impl Currency {
         }
     }
 
-    /// Finds a currency type given an alphabetic currency code.
+    /// Returns a Currency given an alphabetic ISO-4217 currency code.
     pub fn find_by_alpha_iso(code: String) -> Currency {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_lowercase()) {
             Some(c) => *c,
@@ -52,7 +56,7 @@ impl Currency {
         }
     }
 
-    /// Finds a currency type given a numeric ISO-4217 currency code.
+    /// Returns a currency given a numeric ISO-4217 currency code.
     pub fn find_by_numeric_iso(code: String) -> Currency {
         match CURRENCIES_BY_NUM_CODE.get(&code.to_lowercase()) {
             Some(c) => *c,
@@ -66,7 +70,7 @@ impl Currency {
         v.iter().map(|x| usize::from_str(x).unwrap()).collect()
     }
 
-    /// Returns a hashmap of currencies indexed by their ISO numeric code.
+    /// Returns a Currency Hashmap, keyed by ISO numeric code.
     fn generate_currencies_by_num_code() -> HashMap<String, Currency> {
         let mut num_map: HashMap<String, Currency> = HashMap::new();
         for (_k, v) in CURRENCIES_BY_ALPHA_CODE.iter() {
@@ -81,24 +85,24 @@ mod tests {
     use super::*;
     #[test]
     fn currency_known_can_be_found() {
-        let currency_by_alpha = Currency::find("USD".to_string());
+        let currency_by_alpha = Currency::find("USD");
         assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
         assert_eq!(currency_by_alpha.exponent, 2);
         assert_eq!(currency_by_alpha.symbol, "$");
 
-        let currency_by_numeric = Currency::find("840".to_string());
+        let currency_by_numeric = Currency::find("840");
         assert_eq!(currency_by_alpha, currency_by_numeric);
     }
 
     #[test]
     #[should_panic]
     fn currency_unknown_iso_alpha_code_raises_error() {
-        Currency::find("fake".to_string());
+        Currency::find("fake");
     }
 
     #[test]
     #[should_panic]
     fn currency_unknown_iso_num_code_raises_error() {
-        Currency::find("123".to_string());
+        Currency::find("123");
     }
 }

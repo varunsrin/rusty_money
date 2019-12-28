@@ -10,7 +10,7 @@ documentation = "https://docs.rs/rusty-money"
 description = """
 Handle currencies in Rust.
 """
-keywords = ["money", "currency", "iso-4217"]
+keywords = ["money", "currency", "iso-4217", "exchange"]
 categories = ["data-structures", "rust-patterns"]
 
 

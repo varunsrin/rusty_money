@@ -1,9 +1,13 @@
 # Change Log
 
 ### Unreleased
+* Money::new now accepts i64 minor units instead of Decimal (breaking change)
+* Money objects do not round amounts unless .round() or .format!() are called. (breaking change)
+* Currency::find takes strs instead of strings (breaking change)
+* Money objects can be multiplied and divided.
+* Money can be converted using Exchange and ExchangeRate.  
 * Currencies can be looked up by ISO code, country code. 
-* Money can be multiplied and divided.
-* Currencies can be converted from one to another. 
+
 
 ## [0.2.0] - 2019-12-21
 * Currency::new was renamed to Currency::find (breaking change)
@@ -18,6 +22,9 @@
 ## [Planned]
 
 ### v0.2.1
+* Add rounding modes. 
 * Add all ISO standard currencies. 
 * Add support for crypto currencies.  
 * More thorough examples that use all features. 
+
+
