@@ -1,20 +1,18 @@
-use serde::{Deserialize, Serialize};
+mod iso_currencies;
+use iso_currencies::ISO_CURRENCIES;
 use std::collections::HashMap;
 use std::fmt;
-use std::include_str;
 use std::str::FromStr;
-
-static CURRENCY_JSON: &str = include_str!("../config/currencies.json");
 
 lazy_static! {
     static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, Currency> =
-        serde_json::from_str(CURRENCY_JSON).unwrap();
+        Currency::generate_currencies_by_alpha_code();
     static ref CURRENCIES_BY_NUM_CODE: HashMap<String, Currency> =
         Currency::generate_currencies_by_num_code();
 }
 
 /// The `Currency` type, which stores metadata about an ISO-4127 currency.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Currency {
     pub digit_separator: char,
     digit_separator_sequence: &'static str,
@@ -50,7 +48,7 @@ impl Currency {
 
     /// Returns a Currency given an alphabetic ISO-4217 currency code.
     pub fn find_by_alpha_iso(code: String) -> Currency {
-        match CURRENCIES_BY_ALPHA_CODE.get(&code.to_lowercase()) {
+        match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
             Some(c) => *c,
             None => panic!("{} is not a known currency", code), //TODO - more helpful message
         }
@@ -58,7 +56,7 @@ impl Currency {
 
     /// Returns a currency given a numeric ISO-4217 currency code.
     pub fn find_by_numeric_iso(code: String) -> Currency {
-        match CURRENCIES_BY_NUM_CODE.get(&code.to_lowercase()) {
+        match CURRENCIES_BY_NUM_CODE.get(&code) {
             Some(c) => *c,
             None => panic!("{} is not a known currency", code), //TODO - more helpful message
         }
@@ -70,11 +68,20 @@ impl Currency {
         v.iter().map(|x| usize::from_str(x).unwrap()).collect()
     }
 
+    /// Returns a Currency Hashmap, keyed by ISO alphabetic code.
+    fn generate_currencies_by_alpha_code() -> HashMap<String, Currency> {
+        let mut num_map: HashMap<String, Currency> = HashMap::new();
+        for c in ISO_CURRENCIES.iter() {
+            num_map.insert(c.iso_alpha_code.to_string(), *c);
+        }
+        num_map
+    }
+
     /// Returns a Currency Hashmap, keyed by ISO numeric code.
     fn generate_currencies_by_num_code() -> HashMap<String, Currency> {
         let mut num_map: HashMap<String, Currency> = HashMap::new();
-        for (_k, v) in CURRENCIES_BY_ALPHA_CODE.iter() {
-            num_map.insert(v.iso_numeric_code.to_string(), *v);
+        for c in ISO_CURRENCIES.iter() {
+            num_map.insert(c.iso_numeric_code.to_string(), *c);
         }
         num_map
     }
