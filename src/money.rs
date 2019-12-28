@@ -390,8 +390,14 @@ mod tests {
         let exponent_separator_only = Money::from_string(",".to_string(), "GBP".to_string());
         let amount_separator_only = Money::from_string(".".to_string(), "GBP".to_string());
         let both_separators = Money::from_string(",,.".to_string(), "GBP".to_string());
-        assert_eq!(exponent_separator_only.unwrap_err(), MoneyError::InvalidAmount);
-        assert_eq!(amount_separator_only.unwrap_err(), MoneyError::InvalidAmount);
+        assert_eq!(
+            exponent_separator_only.unwrap_err(),
+            MoneyError::InvalidAmount
+        );
+        assert_eq!(
+            amount_separator_only.unwrap_err(),
+            MoneyError::InvalidAmount
+        );
         assert_eq!(both_separators.unwrap_err(), MoneyError::InvalidAmount);
     }
 
@@ -500,7 +506,7 @@ mod tests {
         let expected_results = vec![money!(4, "USD"), money!(4, "USD"), money!(3, "USD")];
         assert_eq!(expected_results, monies);
 
-        let monies = money!(1, "USD").allocate_to(0); 
+        let monies = money!(1, "USD").allocate_to(0);
         assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
     }
 
