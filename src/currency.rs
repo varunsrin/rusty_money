@@ -13,6 +13,9 @@ lazy_static! {
 }
 
 /// The `Currency` type, which stores metadata about an ISO-4127 currency.
+///
+/// Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol.
+/// Operations on Currencies pass around references, since they are unchanging.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Currency {
     pub digit_separator: char,

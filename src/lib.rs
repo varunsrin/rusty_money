@@ -25,9 +25,9 @@
 //! // Money objects support arithmetic operations:
 //!
 //! money!(100, "USD") + money!(100, "USD"); // amount = 200 USD
-//! money!(100, "USD") + money!(100, "USD"); // amount = 0 USD
+//! money!(100, "USD") - money!(100, "USD"); // amount = 0 USD
 //! money!(1, "USD") * 3;                    // amount = 3 USD
-//! money!(3, "USD") / 3;                    // amount = 0.333333333 USD
+//! money!(3, "USD") / 3;                    // amount = 0.333333333... USD
 //!
 //! // Money objects can be compared:
 //!

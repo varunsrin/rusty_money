@@ -1,13 +1,14 @@
 # Change Log
 
 ### Unreleased
-* Most interfaces now return Result<T, MoneyError> instead of panicking or returning <T> (breaking change)
-* Money::new now accepts i64 minor units instead of Decimal (breaking change)
-* Money objects do not round amounts unless .round() or .format!() are called. (breaking change)
-* Currency::find takes strs instead of strings (breaking change)
-* Money objects can be multiplied and divided.
-* Money can be converted using Exchange and ExchangeRate.  
-* Currencies can be looked up by ISO code, country code. 
+* Feature: Money objects do not round amounts unless .round() or .format!() are called. (breaking change)
+* Feature: Money objects can be multiplied and divided.
+* Feature: Money can be converted using Exchange and ExchangeRate.  
+* Feature: Currencies can be looked up by ISO code, country code. 
+* Refactor: Most interfaces now return Result<T, MoneyError> instead of panicking or returning <T> (breaking change)
+* Refactor: Money::new now accepts i64 minor units instead of Decimal (breaking change)
+* Refactor: Currency::find takes strs instead of strings (breaking change)
+
 
 ## [0.2.0] - 2019-12-21
 * Currency::new was renamed to Currency::find (breaking change)
