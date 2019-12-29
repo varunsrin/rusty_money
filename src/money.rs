@@ -187,26 +187,24 @@ impl Money {
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn new(amount: i64, currency: &str) -> Result<Money, MoneyError> {
+    pub fn new(amount: i64, currency: Currency) -> Money {
         Money::from_minor(amount, currency)
     }
 
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn from_minor(amount: i64, currency: &str) -> Result<Money, MoneyError> {
-        let currency = Currency::find(currency)?;
+    pub fn from_minor(amount: i64, currency: Currency) -> Money {
         let amount = Decimal::new(amount, currency.exponent);
-        Ok(Money { amount, currency })
+        Money { amount, currency }
     }
 
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
-    pub fn from_major(amount: i64, currency: &str) -> Result<Money, MoneyError> {
-        let currency = Currency::find(currency)?;
+    pub fn from_major(amount: i64, currency: Currency) -> Money {
         let amount = Decimal::new(amount, 0);
-        Ok(Money { amount, currency })
+        Money { amount, currency }
     }
 
     /// Creates a Money object given a decimal amount and a currency type.
@@ -337,37 +335,38 @@ impl Money {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Iso::*;
 
     #[test]
     fn money_major_minor() {
-        let major_usd = Money::from_major(10, "USD").unwrap();
-        let minor_usd = Money::from_minor(1000, "USD").unwrap();
-        let new_usd = Money::new(1000, "USD").unwrap();
+        let major_usd = Money::from_major(10, Currency::get(USD));
+        let minor_usd = Money::from_minor(1000, Currency::get(USD));
+        let new_usd = Money::new(1000, Currency::get(USD));
         assert_eq!(major_usd, minor_usd);
         assert_eq!(major_usd, new_usd);
     }
 
     #[test]
     fn money_from_string_parses_correctly() {
-        let expected_money = Money::new(2999, "GBP").unwrap();
+        let expected_money = Money::new(2999, Currency::get(GBP));
         let money = Money::from_string("29.99".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parses_signs() {
-        let expected_money = Money::new(-300, "GBP").unwrap();
+        let expected_money = Money::new(-300, Currency::get(GBP));
         let money = Money::from_string("-3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
 
-        let expected_money = Money::new(300, "GBP").unwrap();
+        let expected_money = Money::new(300, Currency::get(GBP));
         let money = Money::from_string("+3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_ignores_separators() {
-        let expected_money = Money::new(100000000, "GBP").unwrap();
+        let expected_money = Money::new(100000000, Currency::get(GBP));
         let money = Money::from_string("1,000,000".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }

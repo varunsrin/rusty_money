@@ -1,6 +1,6 @@
-mod iso_currencies;
+mod iso;
 use crate::MoneyError;
-use iso_currencies::ISO_CURRENCIES;
+pub use iso::Iso;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
@@ -35,6 +35,11 @@ impl Currency {
     /// Returns a Currency given an ISO-4217 currency code as an str.
     pub fn find(code: &str) -> Result<Currency, MoneyError> {
         Currency::from_string(code.to_string())
+    }
+
+    /// Returns a Currency given a Currency enumeration.
+    pub fn get(code: Iso) -> Currency {
+        Currency::from_string(code.to_string()).unwrap()
     }
 
     /// Returns a Currency given an ISO-4217 currency code as a string.
@@ -73,8 +78,10 @@ impl Currency {
     /// Returns a Currency Hashmap, keyed by ISO alphabetic code.
     fn generate_currencies_by_alpha_code() -> HashMap<String, Currency> {
         let mut num_map: HashMap<String, Currency> = HashMap::new();
-        for c in ISO_CURRENCIES.iter() {
-            num_map.insert(c.iso_alpha_code.to_string(), *c);
+
+        for item in iso::ISO_CURRENCIES {
+            let currency = iso::from_enum(item);
+            num_map.insert(currency.iso_alpha_code.to_string(), currency);
         }
         num_map
     }
@@ -82,8 +89,9 @@ impl Currency {
     /// Returns a Currency Hashmap, keyed by ISO numeric code.
     fn generate_currencies_by_num_code() -> HashMap<String, Currency> {
         let mut num_map: HashMap<String, Currency> = HashMap::new();
-        for c in ISO_CURRENCIES.iter() {
-            num_map.insert(c.iso_numeric_code.to_string(), *c);
+        for item in iso::ISO_CURRENCIES {
+            let currency = iso::from_enum(item);
+            num_map.insert(currency.iso_numeric_code.to_string(), currency);
         }
         num_map
     }
@@ -92,8 +100,9 @@ impl Currency {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use iso::Iso::*;
     #[test]
-    fn currency_known_can_be_found() {
+    fn currency_find_known_can_be_found() {
         let currency_by_alpha = Currency::find("USD").unwrap();
         assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
         assert_eq!(currency_by_alpha.exponent, 2);
@@ -104,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn currency_unknown_iso_codes_raise_invalid_currency_error() {
+    fn currency_find_unknown_iso_codes_raise_invalid_currency_error() {
         assert_eq!(
             Currency::find("fake").unwrap_err(),
             MoneyError::InvalidCurrency,
@@ -114,5 +123,10 @@ mod tests {
             Currency::find("123").unwrap_err(),
             MoneyError::InvalidCurrency,
         );
+    }
+
+    #[test]
+    fn currency_get() {
+        assert_eq!(Currency::get(USD), Currency::find("USD").unwrap());
     }
 }
