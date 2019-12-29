@@ -37,7 +37,7 @@ impl Currency {
         Currency::from_string(code.to_string())
     }
 
-    /// Returns a Currency from an enum.
+    /// Returns a Currency given a Currency enumeration.
     pub fn get(code: Iso) -> Currency {
         Currency::from_string(code.to_string()).unwrap()
     }
