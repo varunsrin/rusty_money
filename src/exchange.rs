@@ -46,7 +46,11 @@ pub struct ExchangeRate {
 }
 
 impl ExchangeRate {
-    pub fn new(from: &'static Currency, to: &'static Currency, rate: Decimal) -> Result<ExchangeRate, MoneyError> {
+    pub fn new(
+        from: &'static Currency,
+        to: &'static Currency,
+        rate: Decimal,
+    ) -> Result<ExchangeRate, MoneyError> {
         if from == to {
             return Err(MoneyError::InvalidCurrency);
         }

@@ -184,7 +184,7 @@ impl fmt::Display for Money {
 }
 
 impl Money {
-    /// Creates a Money object given an integer and a currency type.
+    /// Creates a Money object given an integer and a currency reference.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
     pub fn new(amount: i64, currency: &'static Currency) -> Money {
@@ -207,7 +207,7 @@ impl Money {
         Money { amount, currency }
     }
 
-    /// Creates a Money object given a decimal amount and a currency type.
+    /// Creates a Money object given a decimal amount and a currency reference.
     pub fn from_decimal(amount: Decimal, currency: &'static Currency) -> Money {
         Money { amount, currency }
     }
@@ -245,9 +245,9 @@ impl Money {
         Ok(Money::from_decimal(decimal, currency))
     }
 
-    /// Returns the amount as a decimal
-    pub fn amount(&self) -> Decimal {
-        self.amount
+    /// Returns a reference to the Decimal amount.
+    pub fn amount(&self) -> &Decimal {
+        &self.amount
     }
 
     /// Returns the currency type.
@@ -288,17 +288,17 @@ impl Money {
             return Err(MoneyError::InvalidRatio);
         }
 
-        let ratios_dec: Vec<Decimal> = ratios
+        let ratios: Vec<Decimal> = ratios
             .iter()
-            .map(|x| Decimal::from_str(&x.to_string()).unwrap().round_dp(0))
+            .map(|x| Decimal::from_str(&x.to_string()).unwrap())
             .collect();
 
         let mut remainder = self.amount;
-        let ratio_total: Decimal = ratios_dec.iter().fold(dec!(0.0), |acc, x| acc + x);
+        let ratio_total: Decimal = ratios.iter().fold(dec!(0.0), |acc, x| acc + x);
 
         let mut allocations: Vec<Money> = Vec::new();
 
-        for ratio in ratios_dec {
+        for ratio in ratios {
             if ratio <= dec!(0.0) {
                 return Err(MoneyError::InvalidRatio);
             }
@@ -317,9 +317,9 @@ impl Money {
             panic!("Remainder is not an integer, should be an integer");
         }
 
-        let mut i = 0;
+        let mut i: usize = 0;
         while remainder > dec!(0.0) {
-            allocations[i as usize].amount += dec!(1.0);
+            allocations[i].amount += dec!(1.0);
             remainder -= dec!(1.0);
             i += 1;
         }
