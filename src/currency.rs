@@ -21,6 +21,7 @@ pub struct Currency {
     pub exponent_separator: char,
     pub iso_alpha_code: &'static str,
     pub iso_numeric_code: &'static str,
+    pub name: &'static str,
     pub symbol: &'static str,
     pub symbol_first: bool,
 }
