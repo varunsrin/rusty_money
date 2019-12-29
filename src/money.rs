@@ -14,7 +14,7 @@ use std::str::FromStr;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
     amount: Decimal,
-    currency: Currency,
+    currency: &'static Currency,
 }
 
 /// Create `Money` from an amount and an ISO currency code.
@@ -187,28 +187,28 @@ impl Money {
     /// Creates a Money object given an integer and a currency type.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn new(amount: i64, currency: Currency) -> Money {
+    pub fn new(amount: i64, currency: &'static Currency) -> Money {
         Money::from_minor(amount, currency)
     }
 
-    /// Creates a Money object given an integer and a currency type.
+    /// Creates a Money object given an integer and a currency reference.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn from_minor(amount: i64, currency: Currency) -> Money {
+    pub fn from_minor(amount: i64, currency: &'static Currency) -> Money {
         let amount = Decimal::new(amount, currency.exponent);
         Money { amount, currency }
     }
 
-    /// Creates a Money object given an integer and a currency type.
+    /// Creates a Money object given an integer and a currency reference.
     ///
     /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
-    pub fn from_major(amount: i64, currency: Currency) -> Money {
+    pub fn from_major(amount: i64, currency: &'static Currency) -> Money {
         let amount = Decimal::new(amount, 0);
         Money { amount, currency }
     }
 
     /// Creates a Money object given a decimal amount and a currency type.
-    pub fn from_decimal(amount: Decimal, currency: Currency) -> Money {
+    pub fn from_decimal(amount: Decimal, currency: &'static Currency) -> Money {
         Money { amount, currency }
     }
 
@@ -251,7 +251,7 @@ impl Money {
     }
 
     /// Returns the currency type.
-    pub fn currency(&self) -> Currency {
+    pub fn currency(&self) -> &'static Currency {
         self.currency
     }
 

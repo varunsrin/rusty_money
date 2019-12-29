@@ -13,7 +13,7 @@ lazy_static! {
 }
 
 /// The `Currency` type, which stores metadata about an ISO-4127 currency.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Currency {
     pub digit_separator: char,
     digit_separator_sequence: &'static str,
@@ -34,17 +34,17 @@ impl fmt::Display for Currency {
 
 impl Currency {
     /// Returns a Currency given an ISO-4217 currency code as an str.
-    pub fn find(code: &str) -> Result<Currency, MoneyError> {
+    pub fn find(code: &str) -> Result<&'static Currency, MoneyError> {
         Currency::from_string(code.to_string())
     }
 
     /// Returns a Currency given a Currency enumeration.
-    pub fn get(code: Iso) -> Currency {
+    pub fn get(code: Iso) -> &'static Currency {
         Currency::from_string(code.to_string()).unwrap()
     }
 
     /// Returns a Currency given an ISO-4217 currency code as a string.
-    pub fn from_string(code: String) -> Result<Currency, MoneyError> {
+    pub fn from_string(code: String) -> Result<&'static Currency, MoneyError> {
         if code.chars().all(char::is_alphabetic) {
             Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else if code.chars().all(char::is_numeric) {
@@ -55,23 +55,23 @@ impl Currency {
     }
 
     /// Returns a Currency given an alphabetic ISO-4217 currency code.
-    pub fn find_by_alpha_iso(code: String) -> Option<Currency> {
+    pub fn find_by_alpha_iso(code: String) -> Option<&'static Currency> {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
-            Some(c) => Some(*c),
+            Some(c) => Some(c),
             None => None,
         }
     }
 
     /// Returns a currency given a numeric ISO-4217 currency code.
-    pub fn find_by_numeric_iso(code: String) -> Option<Currency> {
+    pub fn find_by_numeric_iso(code: String) -> Option<&'static Currency> {
         match CURRENCIES_BY_NUM_CODE.get(&code) {
-            Some(c) => Some(*c),
+            Some(c) => Some(c),
             None => None,
         }
     }
 
     /// Returns a vector indicating where digit separators should be applied for a given currency.  
-    pub fn digit_separator_sequence(self) -> Vec<usize> {
+    pub fn digit_separator_sequence(&self) -> Vec<usize> {
         let v: Vec<&str> = self.digit_separator_sequence.split(", ").collect();
         v.iter().map(|x| usize::from_str(x).unwrap()).collect()
     }

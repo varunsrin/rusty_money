@@ -24,7 +24,7 @@ impl Exchange {
     }
 
     /// Return the ExchangeRate given the currency pair.
-    pub fn get_rate(self, from: Currency, to: Currency) -> Option<ExchangeRate> {
+    pub fn get_rate(self, from: &'static Currency, to: &'static Currency) -> Option<ExchangeRate> {
         let key = Exchange::generate_key(from, to);
         match self.map.get(&key) {
             Some(v) => Some(*v),
@@ -32,21 +32,21 @@ impl Exchange {
         }
     }
 
-    fn generate_key(from: Currency, to: Currency) -> String {
+    fn generate_key(from: &'static Currency, to: &'static Currency) -> String {
         from.to_string() + "-" + &to.to_string()
     }
 }
 
 /// An ExchangeRate Type which stores a rate of conversion between two currencies.
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct ExchangeRate {
-    pub from: Currency,
-    pub to: Currency,
+    pub from: &'static Currency,
+    pub to: &'static Currency,
     rate: Decimal,
 }
 
 impl ExchangeRate {
-    pub fn new(from: Currency, to: Currency, rate: Decimal) -> Result<ExchangeRate, MoneyError> {
+    pub fn new(from: &'static Currency, to: &'static Currency, rate: Decimal) -> Result<ExchangeRate, MoneyError> {
         if from == to {
             return Err(MoneyError::InvalidCurrency);
         }
