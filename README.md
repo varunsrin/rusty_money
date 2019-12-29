@@ -62,7 +62,7 @@ use rusty_money::Exchange;
 use rusty_money::ExchangeRate;
 use rust_decimal_macros::*;
 
-let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.1));
+let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.1)).unwrap();
 rate.convert(money!(1000, "USD")); // 1,100 EUR
 
 // ExchangeRate objects can be stored and retrieved from a central Exchange:

@@ -46,8 +46,11 @@ pub struct ExchangeRate {
 }
 
 impl ExchangeRate {
-    pub fn new(from: Currency, to: Currency, rate: Decimal) -> ExchangeRate {
-        ExchangeRate { from, to, rate }
+    pub fn new(from: Currency, to: Currency, rate: Decimal) -> Result<ExchangeRate, MoneyError> {
+        if from == to {
+            return Err(MoneyError::InvalidCurrency);
+        }
+        Ok(ExchangeRate { from, to, rate })
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
@@ -71,7 +74,7 @@ mod tests {
     fn exchange_stores_rates() {
         let usd = Currency::get(USD);
         let eur = Currency::get(EUR);
-        let rate = ExchangeRate::new(usd, eur, dec!(1.5));
+        let rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
 
         let mut exchange = Exchange::new();
         exchange.add_or_update_rate(&rate);
@@ -80,8 +83,8 @@ mod tests {
     }
 
     #[test]
-    fn rate_converts_money() {
-        let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.5));
+    fn rate_convert() {
+        let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.5)).unwrap();
         let amount = money!(10, "USD");
         let expected_amount = money!("15", "EUR");
         let converted_rate = rate.convert(amount).unwrap();
@@ -89,13 +92,20 @@ mod tests {
     }
 
     #[test]
-    fn rate_errors_if_currencies_dont_match() {
-        let rate = ExchangeRate::new(Currency::get(Iso::GBP), Currency::get(Iso::EUR), dec!(1.5));
+    fn rate_convert_errors_if_currencies_dont_match() {
+        let rate =
+            ExchangeRate::new(Currency::get(Iso::GBP), Currency::get(Iso::EUR), dec!(1.5)).unwrap();
         let amount = money!(10, "USD");
 
         assert_eq!(
             rate.convert(amount).unwrap_err(),
             MoneyError::InvalidCurrency,
         );
+    }
+
+    #[test]
+    fn rate_new_errors_if_currencies_are_equal() {
+        let rate = ExchangeRate::new(Currency::get(Iso::GBP), Currency::get(Iso::GBP), dec!(1.5));
+        assert_eq!(rate.unwrap_err(), MoneyError::InvalidCurrency,);
     }
 }
