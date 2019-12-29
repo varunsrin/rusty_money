@@ -100,6 +100,7 @@ impl Currency {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use iso::Iso::*;
     #[test]
     fn currency_find_known_can_be_found() {
         let currency_by_alpha = Currency::find("USD").unwrap();
@@ -126,6 +127,6 @@ mod tests {
 
     #[test]
     fn currency_get() {
-        assert_eq!(Currency::get(Iso::USD), Currency::find("USD").unwrap());
+        assert_eq!(Currency::get(USD), Currency::find("USD").unwrap());
     }
 }

@@ -14,21 +14,20 @@ to ISO 4217 standards.
 ```rust
 use rusty_money::money;
 use rusty_money::Money;
-use rusty_money::Currency;
-use rusty_money::Exchange;
-use rusty_money::ExchangeRate;
-use rust_decimal_macros::*;
 
 // The easiest way to create Money objects is by using the money! macro
-// which accepts strings or integers:
+// which accepts amounts strings or integers and currencies as strings:
 
 money!("-200.00", "USD") == money!(-200, "USD"); // true
 
 // Money objects can be initialized in a few other convenient ways:
 
-Money::new(200000, "USD").unwrap();             // amount = 2000 USD
-Money::from_minor(200000, "USD").unwrap();      // amount = 2000 USD
-Money::from_major(2000, "USD").unwrap();        // amount = 2000 USD
+use rusty_money::Currency;
+use rusty_money::Iso::*;
+
+Money::new(200000, Currency::get(USD));         // amount = 2000 USD
+Money::from_major(2000, Currency::get(USD));    // amount = 2000 USD
+Money::from_minor(200000, Currency::get(USD));  // amount = 2000 USD
 Money::from_str("2,000.00", "USD").unwrap();    // amount = 2000 USD
 
 // Money objects support arithmetic operations:
@@ -59,12 +58,16 @@ usd.round();                               // amount = 2000.01
 
 // Money objects can be exchange from one currency to another by setting up an ExchangeRate:
 
-let rate = ExchangeRate::new(Currency::find("USD").unwrap(), Currency::find("EUR").unwrap(), dec!(1.1));
+use rusty_money::Exchange;
+use rusty_money::ExchangeRate;
+use rust_decimal_macros::*;
+
+let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.1));
 rate.convert(money!(1000, "USD")); // 1,100 EUR
 
 // ExchangeRate objects can be stored and retrieved from a central Exchange:
 
 let mut exchange = Exchange::new();
 exchange.add_or_update_rate(&rate);
-exchange.get_rate(Currency::find("USD").unwrap(), Currency::find("EUR").unwrap());
+exchange.get_rate(Currency::get(USD), Currency::get(EUR));
 ```

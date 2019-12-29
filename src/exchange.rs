@@ -64,12 +64,13 @@ impl ExchangeRate {
 mod tests {
     use super::*;
     use crate::money;
+    use crate::Iso::*;
     use rust_decimal_macros::*;
 
     #[test]
     fn exchange_stores_rates() {
-        let usd = Currency::get(Iso::USD);
-        let eur = Currency::get(Iso::EUR);
+        let usd = Currency::get(USD);
+        let eur = Currency::get(EUR);
         let rate = ExchangeRate::new(usd, eur, dec!(1.5));
 
         let mut exchange = Exchange::new();
@@ -80,7 +81,7 @@ mod tests {
 
     #[test]
     fn rate_converts_money() {
-        let rate = ExchangeRate::new(Currency::get(Iso::USD), Currency::get(Iso::EUR), dec!(1.5));
+        let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.5));
         let amount = money!(10, "USD");
         let expected_amount = money!("15", "EUR");
         let converted_rate = rate.convert(amount).unwrap();

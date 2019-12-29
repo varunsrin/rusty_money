@@ -335,7 +335,7 @@ impl Money {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::currency::Iso::*;
+    use crate::Iso::*;
 
     #[test]
     fn money_major_minor() {
