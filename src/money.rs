@@ -9,8 +9,9 @@ use std::str::FromStr;
 
 /// The `Money` type, which contains an amount and a currency.
 ///
-/// Money contains logic to parse amounts from a string, handle rounding,
-/// and display amounts with the right regional formatting and symbols.
+/// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
+/// Operations on Money objects always create new instances of Money, with the exception
+/// of `round()`.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Money {
     amount: Decimal,
