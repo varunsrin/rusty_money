@@ -1,9 +1,9 @@
 mod iso;
+pub use crate::locale::{LocalFormat, Locale};
 use crate::MoneyError;
 pub use iso::Iso;
 use std::collections::HashMap;
 use std::fmt;
-use std::str::FromStr;
 
 lazy_static! {
     static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, Currency> =
@@ -18,10 +18,8 @@ lazy_static! {
 /// Operations on Currencies pass around references, since they are unchanging.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Currency {
-    pub digit_separator: char,
-    digit_separator_sequence: &'static str,
+    pub default_locale: Locale,
     pub exponent: u32,
-    pub exponent_separator: char,
     pub iso_alpha_code: &'static str,
     pub iso_numeric_code: &'static str,
     pub name: &'static str,
@@ -71,12 +69,6 @@ impl Currency {
             Some(c) => Some(c),
             None => None,
         }
-    }
-
-    /// Returns a vector indicating where digit separators should be applied for a given currency.  
-    pub fn digit_separator_sequence(&self) -> Vec<usize> {
-        let v: Vec<&str> = self.digit_separator_sequence.split(", ").collect();
-        v.iter().map(|x| usize::from_str(x).unwrap()).collect()
     }
 
     /// Returns a Currency Hashmap, keyed by ISO alphabetic code.

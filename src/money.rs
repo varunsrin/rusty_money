@@ -1,5 +1,5 @@
 use crate::currency::*;
-use crate::format::*;
+use crate::format::{Formatter, Params, Position};
 use crate::MoneyError;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
@@ -186,11 +186,13 @@ impl Money {
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
+    /// TODO - Consider moving into Formatter
     pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
         let currency = Currency::from_string(currency)?;
-        let amount_parts: Vec<&str> = amount.split(currency.exponent_separator).collect();
+        let format = LocalFormat::from_locale(currency.default_locale);
+        let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
 
-        let mut parsed_decimal = amount_parts[0].replace(currency.digit_separator, "");
+        let mut parsed_decimal = amount_parts[0].replace(format.digit_separator, "");
         i32::from_str(&parsed_decimal)?;
 
         if amount_parts.len() == 1 {
@@ -299,23 +301,25 @@ impl Money {
 impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
+        let format = LocalFormat::from_locale(currency.default_locale);
 
         let mut format_params = Params {
-            digit_separator: currency.digit_separator,
-            exponent_separator: currency.exponent_separator,
-            separator_pattern: currency.digit_separator_sequence(),
+            digit_separator: format.digit_separator,
+            exponent_separator: format.exponent_separator,
+            separator_pattern: format.digit_separator_pattern(),
             rounding: Some(currency.exponent),
             symbol: Some(currency.symbol),
             code: Some(currency.iso_alpha_code),
+            locale: Some(currency.default_locale),
             ..Default::default()
         };
 
         if currency.symbol_first {
             format_params.positions = vec![Position::Sign, Position::Symbol, Position::Amount];
-            write!(f, "{}", format_money(self, format_params))
+            write!(f, "{}", Formatter::money(self, format_params))
         } else {
             format_params.positions = vec![Position::Sign, Position::Amount, Position::Symbol];
-            write!(f, "{}", format_money(self, format_params))
+            write!(f, "{}", Formatter::money(self, format_params))
         }
     }
 }
