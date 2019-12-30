@@ -1,4 +1,5 @@
 use crate::currency::*;
+use crate::format::*;
 use crate::MoneyError;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
@@ -143,44 +144,6 @@ impl Ord for Money {
             panic!();
         }
         self.amount.cmp(&other.amount)
-    }
-}
-
-impl fmt::Display for Money {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let currency = self.currency;
-        let amount = format!("{}", self.amount.round_dp(currency.exponent));
-        let amount_split: Vec<&str> = amount.split('.').collect();
-        let exponent = amount_split[1];
-        let mut digits = amount_split[0].to_string();
-        digits.retain(|c| c != '-'); // Remove the - sign
-
-        // Insert digit separators into the digit string
-        let mut current_position: usize = 0;
-        for position in currency.digit_separator_sequence().iter() {
-            current_position += position;
-            if digits.len() > current_position {
-                digits.insert(digits.len() - current_position, currency.digit_separator);
-                current_position += 1;
-            }
-        }
-
-        // Add - if negative
-        let sign = if self.is_negative() { "-" } else { "" };
-
-        if currency.symbol_first {
-            write!(
-                f,
-                "{}{}{}{}{}",
-                sign, currency.symbol, digits, currency.exponent_separator, exponent
-            )
-        } else {
-            write!(
-                f,
-                "{}{}{}{}{}",
-                sign, digits, currency.exponent_separator, exponent, currency.symbol
-            )
-        }
     }
 }
 
@@ -330,6 +293,30 @@ impl Money {
     /// Rounds the amount down to the currency's exponent.
     pub fn round(&mut self) {
         self.amount = self.amount.round_dp(self.currency.exponent);
+    }
+}
+
+impl fmt::Display for Money {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let currency = self.currency;
+
+        let mut format_params = Params {
+            digit_separator: currency.digit_separator,
+            exponent_separator: currency.exponent_separator,
+            separator_pattern: currency.digit_separator_sequence(),
+            rounding: Some(currency.exponent),
+            symbol: Some(currency.symbol),
+            code: Some(currency.iso_alpha_code),
+            ..Default::default()
+        };
+
+        if currency.symbol_first {
+            format_params.positions = vec![Position::Sign, Position::Symbol, Position::Amount];
+            write!(f, "{}", format_money(self, format_params))
+        } else {
+            format_params.positions = vec![Position::Sign, Position::Amount, Position::Symbol];
+            write!(f, "{}", format_money(self, format_params))
+        }
     }
 }
 
