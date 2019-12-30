@@ -67,11 +67,13 @@
 mod currency;
 mod error;
 mod exchange;
+mod format;
 mod money;
 
 pub use currency::*;
 pub use error::MoneyError;
 pub use exchange::*;
+pub use format::*;
 pub use money::*;
 
 #[macro_use]

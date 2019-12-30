@@ -1,4 +1,5 @@
 use crate::currency::*;
+use crate::format::*;
 use crate::MoneyError;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
@@ -143,28 +144,6 @@ impl Ord for Money {
             panic!();
         }
         self.amount.cmp(&other.amount)
-    }
-}
-
-impl fmt::Display for Money {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let currency = self.currency;
-
-        let amount = self.format_amount(
-            currency.digit_separator,
-            currency.exponent_separator,
-            currency.digit_separator_sequence(),
-            currency.exponent,
-        );
-
-        // Add - if negative
-        let sign = if self.is_negative() { "-" } else { "" };
-
-        if currency.symbol_first {
-            write!(f, "{}{}{}", sign, currency.symbol, amount)
-        } else {
-            write!(f, "{}{}{}", sign, amount, currency.symbol)
-        }
     }
 }
 
@@ -315,39 +294,30 @@ impl Money {
     pub fn round(&mut self) {
         self.amount = self.amount.round_dp(self.currency.exponent);
     }
+}
 
-    pub fn format_amount(
-        &self,
-        digit_sep: char,
-        exponent_sep: char,
-        sep_pattern: Vec<usize>,
-        round: u32,
-    ) -> String {
-        let amount = format!("{}", self.amount.round_dp(round));
-        let amount_split: Vec<&str> = amount.split('.').collect();
-        let exponent = amount_split[1];
-        let mut digits = amount_split[0].to_string();
-        digits.retain(|c| c != '-'); // Remove the - sign
+impl fmt::Display for Money {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let currency = self.currency;
 
-        // Insert digit separators into the digit string
-        let mut current_position: usize = 0;
-        for position in sep_pattern.iter() {
-            current_position += position;
-            if digits.len() > current_position {
-                digits.insert(digits.len() - current_position, digit_sep);
-                current_position += 1;
-            }
+        let mut format_params = Params {
+            digit_separator: currency.digit_separator,
+            exponent_separator: currency.exponent_separator,
+            separator_pattern: currency.digit_separator_sequence(),
+            rounding: Some(currency.exponent),
+            symbol: Some(currency.symbol),
+            code: Some(currency.iso_alpha_code),
+            ..Default::default()
+        };
+
+        if currency.symbol_first {
+            format_params.positions = vec![Position::Sign, Position::Symbol, Position::Amount];
+            write!(f, "{}", format_money(self, format_params))
+        } else {
+            format_params.positions = vec![Position::Sign, Position::Amount, Position::Symbol];
+            write!(f, "{}", format_money(self, format_params))
         }
-
-        digits.push(exponent_sep);
-        return digits + exponent;
     }
-
-    // digit_separator = any char
-    // decimal_separator = any char
-    // separation_pattern = [pattern]
-    // rounding = type, digits
-    // negative_sign = dash, parens
 }
 
 #[cfg(test)]
