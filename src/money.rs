@@ -149,37 +149,21 @@ impl Ord for Money {
 impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
-        let amount = format!("{}", self.amount.round_dp(currency.exponent));
-        let amount_split: Vec<&str> = amount.split('.').collect();
-        let exponent = amount_split[1];
-        let mut digits = amount_split[0].to_string();
-        digits.retain(|c| c != '-'); // Remove the - sign
 
-        // Insert digit separators into the digit string
-        let mut current_position: usize = 0;
-        for position in currency.digit_separator_sequence().iter() {
-            current_position += position;
-            if digits.len() > current_position {
-                digits.insert(digits.len() - current_position, currency.digit_separator);
-                current_position += 1;
-            }
-        }
+        let amount = self.format_amount(
+            currency.digit_separator,
+            currency.exponent_separator,
+            currency.digit_separator_sequence(),
+            currency.exponent,
+        );
 
         // Add - if negative
         let sign = if self.is_negative() { "-" } else { "" };
 
         if currency.symbol_first {
-            write!(
-                f,
-                "{}{}{}{}{}",
-                sign, currency.symbol, digits, currency.exponent_separator, exponent
-            )
+            write!(f, "{}{}{}", sign, currency.symbol, amount)
         } else {
-            write!(
-                f,
-                "{}{}{}{}{}",
-                sign, digits, currency.exponent_separator, exponent, currency.symbol
-            )
+            write!(f, "{}{}{}", sign, amount, currency.symbol)
         }
     }
 }
@@ -331,6 +315,39 @@ impl Money {
     pub fn round(&mut self) {
         self.amount = self.amount.round_dp(self.currency.exponent);
     }
+
+    pub fn format_amount(
+        &self,
+        digit_sep: char,
+        exponent_sep: char,
+        sep_pattern: Vec<usize>,
+        round: u32,
+    ) -> String {
+        let amount = format!("{}", self.amount.round_dp(round));
+        let amount_split: Vec<&str> = amount.split('.').collect();
+        let exponent = amount_split[1];
+        let mut digits = amount_split[0].to_string();
+        digits.retain(|c| c != '-'); // Remove the - sign
+
+        // Insert digit separators into the digit string
+        let mut current_position: usize = 0;
+        for position in sep_pattern.iter() {
+            current_position += position;
+            if digits.len() > current_position {
+                digits.insert(digits.len() - current_position, digit_sep);
+                current_position += 1;
+            }
+        }
+
+        digits.push(exponent_sep);
+        return digits + exponent;
+    }
+
+    // digit_separator = any char
+    // decimal_separator = any char
+    // separation_pattern = [pattern]
+    // rounding = type, digits
+    // negative_sign = dash, parens
 }
 
 #[cfg(test)]
