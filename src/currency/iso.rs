@@ -1,4 +1,5 @@
 use crate::currency::Currency;
+use crate::locale::Locale;
 use std::fmt;
 
 // Allows iterating over the Iso Enum
@@ -32,13 +33,12 @@ impl fmt::Display for Iso {
 /// Returns Currency given an Iso Enum.
 pub fn from_enum(code: &Iso) -> Currency {
     use Iso::*;
+    use Locale::*;
 
     match code {
         AED => Currency {
-            digit_separator: ',',
-            digit_separator_sequence: "3, 3, 3",
+            default_locale: EnUs,
             exponent: 2,
-            exponent_separator: '.',
             iso_alpha_code: "AED",
             iso_numeric_code: "784",
             name: "United Arab Emirates Dirham",
@@ -46,10 +46,8 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol_first: false,
         },
         BHD => Currency {
-            digit_separator: ',',
-            digit_separator_sequence: "3, 3, 3",
+            default_locale: EnUs,
             exponent: 3,
-            exponent_separator: '.',
             iso_alpha_code: "BHD",
             iso_numeric_code: "048",
             name: "Bahraini Dinar",
@@ -57,10 +55,8 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol_first: true,
         },
         EUR => Currency {
-            digit_separator: '.',
-            digit_separator_sequence: "3, 3, 3",
+            default_locale: EnEu,
             exponent: 2,
-            exponent_separator: ',',
             iso_alpha_code: "EUR",
             iso_numeric_code: "978",
             name: "Euro",
@@ -68,10 +64,8 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol_first: true,
         },
         GBP => Currency {
-            digit_separator: ',',
-            digit_separator_sequence: "3, 3, 3",
+            default_locale: EnUs,
             exponent: 2,
-            exponent_separator: '.',
             iso_alpha_code: "GBP",
             iso_numeric_code: "826",
             name: "British Pound",
@@ -79,10 +73,8 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol_first: true,
         },
         INR => Currency {
-            digit_separator: ',',
-            digit_separator_sequence: "3, 2, 2",
+            default_locale: EnIn,
             exponent: 2,
-            exponent_separator: '.',
             iso_alpha_code: "INR",
             iso_numeric_code: "356",
             name: "Indian Rupee",
@@ -90,10 +82,8 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol_first: true,
         },
         USD => Currency {
-            digit_separator: ',',
-            digit_separator_sequence: "3, 3, 3",
+            default_locale: EnUs,
             exponent: 2,
-            exponent_separator: '.',
             iso_alpha_code: "USD",
             iso_numeric_code: "840",
             name: "United States Dollar",
