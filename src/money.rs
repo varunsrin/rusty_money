@@ -189,7 +189,7 @@ impl Money {
     /// TODO - Consider moving into Formatter
     pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
         let currency = Currency::from_string(currency)?;
-        let format = LocalFormat::from_locale(currency.default_locale);
+        let format = LocalFormat::from_locale(currency.locale);
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
 
         let mut parsed_decimal = amount_parts[0].replace(format.digit_separator, "");
@@ -301,7 +301,7 @@ impl Money {
 impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
-        let format = LocalFormat::from_locale(currency.default_locale);
+        let format = LocalFormat::from_locale(currency.locale);
 
         let mut format_params = Params {
             digit_separator: format.digit_separator,
@@ -310,7 +310,7 @@ impl fmt::Display for Money {
             rounding: Some(currency.exponent),
             symbol: Some(currency.symbol),
             code: Some(currency.iso_alpha_code),
-            locale: Some(currency.default_locale),
+            locale: Some(currency.locale),
             ..Default::default()
         };
 
