@@ -5,6 +5,7 @@ pub enum Locale {
     EnUs,
     EnIn,
     EnEu,
+    EnBy,
 }
 
 /// The `LocalFormat` type
@@ -45,6 +46,12 @@ impl LocalFormat {
             EnEu => LocalFormat {
                 name: "en-eu",
                 digit_separator: '.',
+                digit_separator_pattern: "3, 3, 3",
+                exponent_separator: ',',
+            },
+            EnBy => LocalFormat {
+                name: "en-by",
+                digit_separator: ' ',
                 digit_separator_pattern: "3, 3, 3",
                 exponent_separator: ',',
             },
