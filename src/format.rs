@@ -1,11 +1,46 @@
 use crate::locale::Locale;
 use crate::money::Round;
 use crate::Money;
+use crate::Currency;
+use crate::LocalFormat;
+use crate::MoneyError; // Check this
+use std::str::FromStr;
+use rust_decimal::Decimal;
+
 
 /// `Formatter` turns Money objects into strings and parses Money objects from strings.
 pub struct Formatter;
 
 impl Formatter {
+
+    /// Creates a Money object given an amount string and a currency string.
+    ///
+    /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
+    pub fn parse(amount: String, currency: String) -> Result<Money, MoneyError> {
+        let currency = Currency::from_string(currency)?;
+        let format = LocalFormat::from_locale(currency.locale);
+        let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
+
+        let mut parsed_decimal = amount_parts[0].replace(format.digit_separator, "");
+        i32::from_str(&parsed_decimal)?;
+
+        if amount_parts.len() == 1 {
+            parsed_decimal += ".";
+            for _ in 0..currency.exponent {
+                parsed_decimal += "0";
+            }
+        } else if amount_parts.len() == 2 {
+            i32::from_str(&amount_parts[1])?;
+            parsed_decimal = parsed_decimal + "." + amount_parts[1];
+        } else {
+            return Err(MoneyError::InvalidAmount);
+        }
+
+        let decimal = Decimal::from_str(&parsed_decimal).unwrap();
+        Ok(Money::from_decimal(decimal, currency))
+    }
+
+
     /// Returns a formatted Money String given parameters and a Money object.  
     pub fn money(money: &Money, params: Params) -> String {
         let mut decimal = *money.amount();

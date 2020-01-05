@@ -25,7 +25,7 @@ pub struct Money {
 #[macro_export]
 macro_rules! money {
     ($x:expr, $y:expr) => {
-        Money::from_string($x.to_string(), $y.to_string()).unwrap();
+        crate::format::Formatter::parse($x.to_string(), $y.to_string()).unwrap();
     };
 }
 
@@ -180,35 +180,7 @@ impl Money {
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     pub fn from_str(amount: &str, currency: &str) -> Result<Money, MoneyError> {
-        Money::from_string(amount.to_string(), currency.to_string())
-    }
-
-    /// Creates a Money object given an amount string and a currency string.
-    ///
-    /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    /// TODO - Consider moving into Formatter
-    pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
-        let currency = Currency::from_string(currency)?;
-        let format = LocalFormat::from_locale(currency.locale);
-        let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
-
-        let mut parsed_decimal = amount_parts[0].replace(format.digit_separator, "");
-        i32::from_str(&parsed_decimal)?;
-
-        if amount_parts.len() == 1 {
-            parsed_decimal += ".";
-            for _ in 0..currency.exponent {
-                parsed_decimal += "0";
-            }
-        } else if amount_parts.len() == 2 {
-            i32::from_str(&amount_parts[1])?;
-            parsed_decimal = parsed_decimal + "." + amount_parts[1];
-        } else {
-            return Err(MoneyError::InvalidAmount);
-        }
-
-        let decimal = Decimal::from_str(&parsed_decimal).unwrap();
-        Ok(Money::from_decimal(decimal, currency))
+        Formatter::parse(amount.to_string(), currency.to_string())
     }
 
     /// Returns a reference to the Decimal amount.
@@ -364,46 +336,46 @@ mod tests {
     #[test]
     fn money_from_string_parses_correctly() {
         let expected_money = Money::new(2999, Currency::get(GBP));
-        let money = Money::from_string("29.99".to_string(), "GBP".to_string()).unwrap();
+        let money = Formatter::parse("29.99".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parses_signs() {
         let expected_money = Money::new(-300, Currency::get(GBP));
-        let money = Money::from_string("-3".to_string(), "GBP".to_string()).unwrap();
+        let money = Formatter::parse("-3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
 
         let expected_money = Money::new(300, Currency::get(GBP));
-        let money = Money::from_string("+3".to_string(), "GBP".to_string()).unwrap();
+        let money = Formatter::parse("+3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_ignores_separators() {
         let expected_money = Money::new(100000000, Currency::get(GBP));
-        let money = Money::from_string("1,000,000".to_string(), "GBP".to_string()).unwrap();
+        let money = Formatter::parse("1,000,000".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parse_errs() {
         // If the delimiter preceeds the separators
-        let money = Money::from_string("1.0000,000".to_string(), "GBP".to_string());
+        let money = Formatter::parse("1.0000,000".to_string(), "GBP".to_string());
         assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
         // If there are multiple delimiters
-        let money = Money::from_string("1.0000.000".to_string(), "GBP".to_string());
+        let money = Formatter::parse("1.0000.000".to_string(), "GBP".to_string());
         assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
         // If there is an unrecognized character
-        let money = Money::from_string("1.0000!000".to_string(), "GBP".to_string());
+        let money = Formatter::parse("1.0000!000".to_string(), "GBP".to_string());
         assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
         // If there are no characters other than separators
-        let exponent_separator_only = Money::from_string(",".to_string(), "GBP".to_string());
-        let amount_separator_only = Money::from_string(".".to_string(), "GBP".to_string());
-        let both_separators = Money::from_string(",,.".to_string(), "GBP".to_string());
+        let exponent_separator_only = Formatter::parse(",".to_string(), "GBP".to_string());
+        let amount_separator_only = Formatter::parse(".".to_string(), "GBP".to_string());
+        let both_separators = Formatter::parse(",,.".to_string(), "GBP".to_string());
         assert_eq!(
             exponent_separator_only.unwrap_err(),
             MoneyError::InvalidAmount
