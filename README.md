@@ -10,6 +10,7 @@
 A library that handles calculating, rounding, displaying, and parsing units of money according to ISO-4217 standards. 
 
 ## Usage
+
 ```rust
 use rusty_money::money;
 use rusty_money::Money;
@@ -63,23 +64,23 @@ exchange.add_or_update_rate(&rate);
 exchange.get_rate(Currency::get(USD), Currency::get(EUR));
 ```
 
-### Money 
+### Money
 
 Money represents financial amounts through a Decimal (owned) and a Currency (refernce). Operations on Money objects 
 always create new instances of Money, with the exception of `round()`.
 
-### Currency 
+### Currency
 
 Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol. Operations
-on Currencies pass around references, since they are unchanging. Only 6 currencies are supported, though the next
-release will include all ISO-4217 currencies. 
+on Currencies pass around references, since they are unchanging. Only 117 currencies are supported, though the next
+release will include all ISO-4217 currencies.
 
 ### Precision and Rounding
 
-The [Decimal](https://github.com/paupino/rust-decimal) used in Money is a 128 bit fixed precision decimal number, and 
-can represent values as large as  2<sup>96</sup> / 10<sup>28</sup>. Calculations applied on Money objects do not round 
-until this limit. 
+The [Decimal](https://github.com/paupino/rust-decimal) used in Money is a 128 bit fixed precision decimal number, and
+can represent values as large as  2<sup>96</sup> / 10<sup>28</sup>. Calculations applied on Money objects do not round
+until this limit.
 
-You can use `format!()` to display the currency in its native precision, though the Decimal will remain unaffected. 
+You can use `format!()` to display the currency in its native precision, though the Decimal will remain unaffected.
 `Money::round()` will permanently reduce the Decimal's precision.
 
