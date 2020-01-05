@@ -43,10 +43,6 @@
 //! println!("{}", usd); // -$2,000.01
 //! println!("{}", eur); // -€2.000,01;
 //!
-//! // Money objects don't round by default, though you can make this happen manually:
-//!
-//! let mut usd = money!("-2000.009", "USD");  // amount = 2000.009
-//! usd.round();                               // amount = 2000.01
 //!
 //! // Money objects can be exchange from one currency to another by setting up an ExchangeRate:
 //!

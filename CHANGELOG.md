@@ -7,10 +7,10 @@
 * Feature: Money can be converted using Exchange and ExchangeRate.  
 * Feature: Currencies can be looked up by ISO code, country code.
 * Feature: Money objects can stringified with flexible formats, instead of just the currency's defaults.
+* Feature: Money objects can be rounded half up, half down or half even.
 * Refactor: Most interfaces now return Result<T, MoneyError> instead of panicking or returning <T> (breaking change)
 * Refactor: Money::new now accepts i64 minor units instead of Decimal (breaking change)
 * Refactor: Currency::find takes strs instead of strings (breaking change)
-
 
 ## [0.2.0] - 2019-12-21
 
@@ -28,7 +28,6 @@
 
 ### v0.2.1
 
-* Add rounding modes.
 * Add all ISO standard currencies.
 * Add support for crypto currencies.  
 * More thorough examples that use all features.

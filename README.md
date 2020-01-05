@@ -1,4 +1,4 @@
-# rusty-money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Docs]][docs.rs] 
+# rusty-money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Docs]][docs.rs]
 
 [Build Status]: https://travis-ci.com/varunsrin/rusty_money.svg?branch=master
 [travis]: https://travis-ci.com/varunsrin/rusty_money
@@ -7,7 +7,7 @@
 [Docs]: https://docs.rs/rusty-money/badge.svg
 [docs.rs]: https://docs.rs/rusty-money
 
-A library that handles calculating, rounding, displaying, and parsing units of money according to ISO-4217 standards. 
+A library that handles calculating, rounding, displaying, and parsing units of money according to ISO-4217 standards.
 
 ## Usage
 
@@ -47,8 +47,10 @@ println!("{}", usd); // -$2,000.01
 println!("{}", eur); // -€2.000,01;
 
 // Money objects don't round by default, though you can make this happen manually:
+use rusty_money::money::Round;
 let mut usd = money!("-2000.009", "USD");  // amount = 2000.009
-usd.round();                               // amount = 2000.01
+usd.round(2, Round::HalfEven);      // amount = 2000.01
+usd.round(0, Round::HalfEven);      // amount = 2000
 
 // Money objects can be exchange from one currency to another by setting up an ExchangeRate:
 use rusty_money::Exchange;
@@ -83,4 +85,3 @@ until this limit.
 
 You can use `format!()` to display the currency in its native precision, though the Decimal will remain unaffected.
 `Money::round()` will permanently reduce the Decimal's precision.
-
