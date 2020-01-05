@@ -1,6 +1,5 @@
 mod iso;
-pub use crate::locale::{LocalFormat, Locale};
-use crate::MoneyError;
+pub use crate::{LocalFormat, Locale, MoneyError};
 pub use iso::Iso;
 use std::collections::HashMap;
 use std::fmt;
