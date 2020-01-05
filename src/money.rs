@@ -216,22 +216,22 @@ impl Money {
         &self.amount
     }
 
-    /// Returns the currency type.
+    /// Returns the Currency type.
     pub fn currency(&self) -> &'static Currency {
         self.currency
     }
 
-    /// Returns true if the amount is == 0.
+    /// Returns true if amount == 0.
     pub fn is_zero(&self) -> bool {
         self.amount == dec!(0.0)
     }
 
-    /// Returns true if the amount is > 0.
+    /// Returns true if amount > 0.
     pub fn is_positive(&self) -> bool {
         self.amount.is_sign_positive() && self.amount != dec!(0.0)
     }
 
-    /// Returns true if the amount is < 0.
+    /// Returns true if amount < 0.
     pub fn is_negative(&self) -> bool {
         self.amount.is_sign_negative() && self.amount != dec!(0.0)
     }
@@ -292,7 +292,7 @@ impl Money {
         Ok(allocations)
     }
 
-    /// Returns a new `Money`rounded to the specific number of minor units using the provided Round strategy.
+    /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
     pub fn round(&self, digits: u32, strategy: Round) -> Money {
         let mut money = self.clone();
 

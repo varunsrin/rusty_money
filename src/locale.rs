@@ -1,5 +1,8 @@
 use std::str::FromStr;
 
+/// Locales represent regions which have different formatting standards for currencies.  
+///
+/// Each Locale maps 1:1 to a LocalFormat, which contains the characteristics for formatting.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Locale {
     EnUs,
@@ -8,9 +11,9 @@ pub enum Locale {
     EnBy,
 }
 
-/// The `LocalFormat` type
+/// `LocalFormat` contains a set of characteristics which can be used to format currencies.
 ///
-/// Stores formatting data relevant to the region.
+/// Each LocalFormat maps 1:1 to a locale, which defines the region that maps to the characteristics.
 #[derive(Debug, PartialEq, Eq)]
 pub struct LocalFormat {
     pub name: &'static str,
@@ -19,14 +22,16 @@ pub struct LocalFormat {
     pub exponent_separator: char,
 }
 
-/// Returns LocalFormat given the Locale.
 impl LocalFormat {
-    /// Returns a vector indicating where digit separators should be applied for a given currency.  
+    /// Returns a vector indicating where digit separators should be applied on a Money amount.
+    ///
+    /// For example, [3,3,3] indicates that the digit separator should be applied after the 3rd, 6th and 9th digits.  
     pub fn digit_separator_pattern(&self) -> Vec<usize> {
         let v: Vec<&str> = self.digit_separator_pattern.split(", ").collect();
         v.iter().map(|x| usize::from_str(x).unwrap()).collect()
     }
 
+    /// Returns the associated LocalFormat given a Locale.
     pub fn from_locale(locale: Locale) -> LocalFormat {
         use Locale::*;
 
