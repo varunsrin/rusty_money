@@ -8,7 +8,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-/// The `Money` type, which contains an amount and a currency.
+/// Represents an amount of a given currency.
 ///
 /// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
 /// Operations on Money objects always create new instances of Money, with the exception
@@ -186,7 +186,7 @@ impl Money {
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    /// TODO - Consider moving into Formatter
+    // TODO - Consider moving into Formatter
     pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
         let currency = Currency::from_string(currency)?;
         let format = LocalFormat::from_locale(currency.locale);
@@ -312,7 +312,7 @@ impl Money {
     }
 }
 
-/// Round represents the different strategies that can be used to round Money.
+/// Enumerates different strategies that can be used to round Money.
 ///
 /// For more details, see (rust_decimal::Rounding_Strategy)[https://docs.rs/rust_decimal/1.1.0/rust_decimal/enum.RoundingStrategy.html]
 pub enum Round {

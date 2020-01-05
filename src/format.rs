@@ -1,6 +1,6 @@
 use crate::{Locale, Money, Round};
 
-/// `Formatter` turns Money objects into strings and parses Money objects from strings.
+/// Turns Money objects into human readable strings.
 pub struct Formatter;
 
 impl Formatter {
@@ -72,7 +72,7 @@ impl Formatter {
     }
 }
 
-/// Represents different items which can be positioned in a Money string.
+/// Enumerates different items which can be positioned in a Money string.
 #[derive(Debug, Clone)]
 pub enum Position {
     Space,
@@ -82,7 +82,7 @@ pub enum Position {
     Sign,
 }
 
-/// Represents the different parameters which must be provided to format or parse a Money string.
+/// Represents the parameters which must be provided to format a Money string.
 #[derive(Debug, Clone)]
 pub struct Params {
     pub digit_separator: char,

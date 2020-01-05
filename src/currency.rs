@@ -11,10 +11,10 @@ lazy_static! {
         Currency::generate_currencies_by_num_code();
 }
 
-/// The `Currency` type, which stores metadata about an ISO-4127 currency.
+/// Represents an ISO-4127 currency and its metadata.
 ///
-/// Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol.
-/// Operations on Currencies pass around references, since they are unchanging.
+/// Currency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
+/// since they are unchanging.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Currency {
     pub locale: Locale,
