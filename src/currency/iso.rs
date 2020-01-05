@@ -2,7 +2,7 @@ use crate::currency::Currency;
 use crate::locale::Locale;
 use std::fmt;
 
-// Allows iterating over the Iso Enum
+// Macro that provides a constant to iterate over the Iso Enum.
 macro_rules! define_enum {
     ($Name:ident { $($Variant:ident),* $(,)* }) =>
     {
@@ -14,7 +14,7 @@ macro_rules! define_enum {
     }
 }
 
-// Enum that represents every ISO Currency
+// ISO Enum has a type for every ISO currency, represented by its alphabetic code.
 define_enum!(Iso {
     AED,
     AFN,
@@ -142,7 +142,7 @@ impl fmt::Display for Iso {
     }
 }
 
-/// Returns Currency given an Iso Enum.
+/// Returns a Currency object given an ISO enum.
 pub fn from_enum(code: &Iso) -> Currency {
     use Iso::*;
     use Locale::*;

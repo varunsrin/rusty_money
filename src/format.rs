@@ -2,14 +2,15 @@ use crate::locale::Locale;
 use crate::money::Round;
 use crate::Money;
 
+/// `Formatter` turns Money objects into strings and parses Money objects from strings.
 pub struct Formatter;
 
 impl Formatter {
+    /// Returns a formatted Money String given parameters and a Money object.  
     pub fn money(money: &Money, params: Params) -> String {
-        // Round the decimal
-
         let mut decimal = *money.amount();
 
+        // Round the decimal
         if let Some(x) = params.rounding {
             decimal = *money.round(x, Round::HalfEven).amount();
         }
@@ -31,7 +32,7 @@ impl Formatter {
         result
     }
 
-    /// Returns a formatted amount string, given the raw amount and params.rust_decimal
+    /// Returns a formatted amount String, given the raw amount and formatting parameters.
     fn amount(raw_amount: &str, params: &Params) -> String {
         // Split amount into digits and exponent.
         let amount_split: Vec<&str> = raw_amount.split('.').collect();
@@ -73,6 +74,7 @@ impl Formatter {
     }
 }
 
+/// Represents different items which can be positioned in a Money string.
 #[derive(Debug, Clone)]
 pub enum Position {
     Space,
@@ -82,6 +84,7 @@ pub enum Position {
     Sign,
 }
 
+/// Represents the different parameters which must be provided to format or parse a Money string.
 #[derive(Debug, Clone)]
 pub struct Params {
     pub digit_separator: char,
@@ -95,6 +98,7 @@ pub struct Params {
 }
 
 impl Default for Params {
+    /// Defines the default parameters to format a Money string.
     fn default() -> Params {
         Params {
             digit_separator: ',',

@@ -8,6 +8,7 @@
 * Feature: Currencies can be looked up by ISO code, country code.
 * Feature: Money objects can stringified with flexible formats, instead of just the currency's defaults.
 * Feature: Money objects can be rounded half up, half down or half even.
+* Feature: Added 109 new ISO currencies.
 * Refactor: Most interfaces now return Result<T, MoneyError> instead of panicking or returning <T> (breaking change)
 * Refactor: Money::new now accepts i64 minor units instead of Decimal (breaking change)
 * Refactor: Currency::find takes strs instead of strings (breaking change)
