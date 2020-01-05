@@ -1,6 +1,4 @@
-use crate::locale::Locale;
-use crate::money::Round;
-use crate::Money;
+use crate::{Locale, Money, Round};
 
 /// `Formatter` turns Money objects into strings and parses Money objects from strings.
 pub struct Formatter;
