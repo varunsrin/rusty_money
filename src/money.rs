@@ -292,10 +292,33 @@ impl Money {
         Ok(allocations)
     }
 
-    /// Rounds the amount down to the currency's exponent.
-    pub fn round(&mut self) {
-        self.amount = self.amount.round_dp(self.currency.exponent);
+    /// Returns a new `Money`rounded to the specific number of minor units using the provided Round strategy.
+    pub fn round(&self, digits: u32, strategy: Round) -> Money {
+        let mut money = self.clone();
+
+        money.amount = match strategy {
+            Round::HalfDown => money
+                .amount
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfDown),
+            Round::HalfUp => money
+                .amount
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfUp),
+            Round::HalfEven => money
+                .amount
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::BankersRounding),
+        };
+
+        money
     }
+}
+
+/// Round represents the different strategies that can be used to round Money.
+///
+/// For more details, see (rust_decimal::Rounding_Strategy)[https://docs.rs/rust_decimal/1.1.0/rust_decimal/enum.RoundingStrategy.html]
+pub enum Round {
+    HalfUp,
+    HalfDown,
+    HalfEven,
 }
 
 impl fmt::Display for Money {
@@ -552,13 +575,11 @@ mod tests {
         let expected_money = money!("6.67", "USD");
         let mut money = money!("20.00", "USD");
         money /= 3;
-        money.round();
-        assert_eq!(money, expected_money);
+        assert_eq!(money.round(2, Round::HalfEven), expected_money);
 
         let expected_money = money!("6.667", "BHD");
         let mut money = money!("20", "BHD");
         money /= 3;
-        money.round();
-        assert_eq!(money, expected_money);
+        assert_eq!(money.round(3, Round::HalfEven), expected_money);
     }
 }

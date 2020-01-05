@@ -1,4 +1,5 @@
 use crate::locale::Locale;
+use crate::money::Round;
 use crate::Money;
 
 pub struct Formatter;
@@ -6,10 +7,11 @@ pub struct Formatter;
 impl Formatter {
     pub fn money(money: &Money, params: Params) -> String {
         // Round the decimal
+
         let mut decimal = *money.amount();
 
         if let Some(x) = params.rounding {
-            decimal = decimal.round_dp(x);
+            decimal = *money.round(x, Round::HalfEven).amount();
         }
 
         // Format the Amount String
