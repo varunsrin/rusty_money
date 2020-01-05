@@ -1,6 +1,7 @@
 use crate::currency::*;
-use crate::format::{Formatter, Params, Position};
+use crate::format::{Params, Position};
 use crate::MoneyError;
+pub use crate::Formatter;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
 use std::cmp::Ordering;
