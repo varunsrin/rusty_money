@@ -18,13 +18,14 @@ lazy_static! {
 /// Operations on Currencies pass around references, since they are unchanging.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Currency {
-    pub default_locale: Locale,
+    pub locale: Locale,
     pub exponent: u32,
     pub iso_alpha_code: &'static str,
     pub iso_numeric_code: &'static str,
     pub name: &'static str,
     pub symbol: &'static str,
     pub symbol_first: bool,
+    pub minor_denomination: u32,
 }
 
 impl fmt::Display for Currency {
