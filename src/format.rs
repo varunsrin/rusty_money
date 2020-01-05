@@ -1,18 +1,11 @@
-use crate::locale::Locale;
-use crate::money::Round;
-use crate::Money;
-use crate::Currency;
-use crate::LocalFormat;
-use crate::MoneyError; // Check this
-use std::str::FromStr;
+use crate::{Currency, LocalFormat, Locale, Money, MoneyError, Round};
 use rust_decimal::Decimal;
-
+use std::str::FromStr;
 
 /// `Formatter` turns Money objects into strings and parses Money objects from strings.
 pub struct Formatter;
 
 impl Formatter {
-
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
@@ -39,7 +32,6 @@ impl Formatter {
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
         Ok(Money::from_decimal(decimal, currency))
     }
-
 
     /// Returns a formatted Money String given parameters and a Money object.  
     pub fn money(money: &Money, params: Params) -> String {
@@ -153,6 +145,60 @@ mod tests {
     use super::*;
     use crate::currency::Currency;
     use crate::Iso::*;
+
+    #[test]
+    fn format_parse_works_correctly() {
+        let expected_money = Money::new(2999, Currency::get(GBP));
+        let money = Formatter::parse("29.99".to_string(), "GBP".to_string()).unwrap();
+        assert_eq!(money, expected_money);
+    }
+
+    #[test]
+    fn format_parse_handles_signs() {
+        let expected_money = Money::new(-300, Currency::get(GBP));
+        let money = Formatter::parse("-3".to_string(), "GBP".to_string()).unwrap();
+        assert_eq!(money, expected_money);
+
+        let expected_money = Money::new(300, Currency::get(GBP));
+        let money = Formatter::parse("+3".to_string(), "GBP".to_string()).unwrap();
+        assert_eq!(money, expected_money);
+    }
+
+    #[test]
+    fn format_parse_ignores_separators() {
+        let expected_money = Money::new(100000000, Currency::get(GBP));
+        let money = Formatter::parse("1,000,000".to_string(), "GBP".to_string()).unwrap();
+        assert_eq!(money, expected_money);
+    }
+
+    #[test]
+    fn format_parse_raises_errors() {
+        // If the delimiter preceeds the separators
+        let money = Formatter::parse("1.0000,000".to_string(), "GBP".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        // If there are multiple delimiters
+        let money = Formatter::parse("1.0000.000".to_string(), "GBP".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        // If there is an unrecognized character
+        let money = Formatter::parse("1.0000!000".to_string(), "GBP".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        // If there are no characters other than separators
+        let exponent_separator_only = Formatter::parse(",".to_string(), "GBP".to_string());
+        let amount_separator_only = Formatter::parse(".".to_string(), "GBP".to_string());
+        let both_separators = Formatter::parse(",,.".to_string(), "GBP".to_string());
+        assert_eq!(
+            exponent_separator_only.unwrap_err(),
+            MoneyError::InvalidAmount
+        );
+        assert_eq!(
+            amount_separator_only.unwrap_err(),
+            MoneyError::InvalidAmount
+        );
+        assert_eq!(both_separators.unwrap_err(), MoneyError::InvalidAmount);
+    }
 
     #[test]
     fn format_position() {

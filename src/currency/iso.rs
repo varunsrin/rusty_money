@@ -1,5 +1,4 @@
-use crate::currency::Currency;
-use crate::locale::Locale;
+use crate::{Currency, Locale};
 use std::fmt;
 
 // Macro that provides a constant to iterate over the Iso Enum.

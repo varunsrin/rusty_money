@@ -334,60 +334,6 @@ mod tests {
     }
 
     #[test]
-    fn money_from_string_parses_correctly() {
-        let expected_money = Money::new(2999, Currency::get(GBP));
-        let money = Formatter::parse("29.99".to_string(), "GBP".to_string()).unwrap();
-        assert_eq!(money, expected_money);
-    }
-
-    #[test]
-    fn money_from_string_parses_signs() {
-        let expected_money = Money::new(-300, Currency::get(GBP));
-        let money = Formatter::parse("-3".to_string(), "GBP".to_string()).unwrap();
-        assert_eq!(money, expected_money);
-
-        let expected_money = Money::new(300, Currency::get(GBP));
-        let money = Formatter::parse("+3".to_string(), "GBP".to_string()).unwrap();
-        assert_eq!(money, expected_money);
-    }
-
-    #[test]
-    fn money_from_string_ignores_separators() {
-        let expected_money = Money::new(100000000, Currency::get(GBP));
-        let money = Formatter::parse("1,000,000".to_string(), "GBP".to_string()).unwrap();
-        assert_eq!(money, expected_money);
-    }
-
-    #[test]
-    fn money_from_string_parse_errs() {
-        // If the delimiter preceeds the separators
-        let money = Formatter::parse("1.0000,000".to_string(), "GBP".to_string());
-        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-        // If there are multiple delimiters
-        let money = Formatter::parse("1.0000.000".to_string(), "GBP".to_string());
-        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-        // If there is an unrecognized character
-        let money = Formatter::parse("1.0000!000".to_string(), "GBP".to_string());
-        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-        // If there are no characters other than separators
-        let exponent_separator_only = Formatter::parse(",".to_string(), "GBP".to_string());
-        let amount_separator_only = Formatter::parse(".".to_string(), "GBP".to_string());
-        let both_separators = Formatter::parse(",,.".to_string(), "GBP".to_string());
-        assert_eq!(
-            exponent_separator_only.unwrap_err(),
-            MoneyError::InvalidAmount
-        );
-        assert_eq!(
-            amount_separator_only.unwrap_err(),
-            MoneyError::InvalidAmount
-        );
-        assert_eq!(both_separators.unwrap_err(), MoneyError::InvalidAmount);
-    }
-
-    #[test]
     fn money_format_rounds_exponent() {
         // // 19.999 rounds to 20 for USD
         let money = money!("19.9999", "USD");
