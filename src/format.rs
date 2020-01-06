@@ -1,7 +1,6 @@
 use crate::{Money, Round};
 use std::cmp::Ordering;
 
-
 /// Turns Money objects into human readable strings.
 pub struct Formatter;
 
@@ -52,14 +51,12 @@ impl Formatter {
             Ordering::Equal => {
                 // Exponent found, concatenate to digits.
                 result.push(params.exponent_separator);
-                result += amount_split[1];    
-            },   
+                result += amount_split[1];
+            }
             Ordering::Less => {
                 // No exponent, do nothing.
-            },
-            Ordering::Greater => {
-                panic!("More than 1 exponent separators when parsing Decimal")
-            },
+            }
+            Ordering::Greater => panic!("More than 1 exponent separators when parsing Decimal"),
         }
 
         result
@@ -92,24 +89,21 @@ pub enum Position {
 }
 
 /// Represents the parameters which must be provided to format a Money string.
-///
-/// # Arguments
-///
-/// * `digit_separator` - The character that separates grouped digits (e.g. 1,000,000)
-/// * `exponent_separator` - The character that separates minor units from major units (e.g. 1,000.00)
-/// * `separator_pattern` - The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
-/// * `positions` - The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
-/// * `rounding` - The number of minor unit digits should remain after Round::HalfEven is applied.
-/// * `symbol` - The symbol of the currency (e.g. $)
-/// * `code` - The currency's ISO code (e.g. USD)
 #[derive(Debug, Clone)]
 pub struct Params {
+    /// The character that separates grouped digits (e.g. 1,000,000)
     pub digit_separator: char,
+    /// The character that separates minor units from major units (e.g. 1,000.00)
     pub exponent_separator: char,
+    /// The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
     pub separator_pattern: Vec<usize>,
+    /// The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
     pub positions: Vec<Position>,
+    /// The number of minor unit digits should remain after Round::HalfEven is applied.
     pub rounding: Option<u32>,
+    /// The symbol of the currency (e.g. $)
     pub symbol: Option<&'static str>,
+    /// The currency's ISO code (e.g. USD)
     pub code: Option<&'static str>,
 }
 
