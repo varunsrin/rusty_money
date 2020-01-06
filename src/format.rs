@@ -83,6 +83,16 @@ pub enum Position {
 }
 
 /// Represents the parameters which must be provided to format a Money string.
+///
+/// # Arguments
+///
+/// * `digit_separator` - The character that separates grouped digits (e.g. 1,000,000)
+/// * `exponent_separator` - The character that separates minor units from major units (e.g. 1,000.00)
+/// * `separator_pattern` - The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
+/// * `positions` - The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
+/// * `rounding` - The number of minor unit digits should remain after Round::HalfEven is applied.
+/// * `symbol` - The symbol of the currency (e.g. $)
+/// * `code` - The currency's ISO code (e.g. USD)
 #[derive(Debug, Clone)]
 pub struct Params {
     pub digit_separator: char,

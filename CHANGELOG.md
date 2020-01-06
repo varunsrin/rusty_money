@@ -26,7 +26,7 @@
 
 ## [Planned]
 
-### v0.2.1
+### v0.3.1
 
 * Add all ISO standard currencies.
 * Add support for crypto currencies.  

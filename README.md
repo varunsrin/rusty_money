@@ -68,20 +68,18 @@ exchange.get_rate(Currency::get(USD), Currency::get(EUR));
 
 ### Money
 
-Money represents financial amounts through a Decimal (owned) and a Currency (refernce). Operations on Money objects 
-always create new instances of Money, with the exception of `round()`.
+Money represents financial amounts through a Decimal (owned) and a Currency (refernce). Operations on Money objects always create new instances of Money.
 
 ### Currency
 
-Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol. Operations
-on Currencies pass around references, since they are unchanging. Only 117 currencies are supported, though the next
-release will include all ISO-4217 currencies.
+Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol. Operations on Currencies pass around references, since they are unchanging. Only 117 currencies are supported, though the next release will include all ISO-4217 currencies.
 
 ### Precision and Rounding
 
-The [Decimal](https://github.com/paupino/rust-decimal) used in Money is a 128 bit fixed precision decimal number, and
-can represent values as large as  2<sup>96</sup> / 10<sup>28</sup>. Calculations applied on Money objects do not round
-until this limit.
+The [Decimal](https://github.com/paupino/rust-decimal) used in Money is a 128 bit fixed precision decimal number, and can represent values as large as 2<sup>96</sup> / 10<sup>28</sup>. Calculations applied on Money objects do not round until this limit. You can use `format!()` to display the currency in its native precision, though the Decimal will remain unaffected. `.round()` will create a new instance with permanently reduced precision.
 
-You can use `format!()` to display the currency in its native precision, though the Decimal will remain unaffected.
-`Money::round()` will permanently reduce the Decimal's precision.
+Money supports three types of rounding modes: [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up), [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down) and [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even), which is the default.
+
+### Formatting
+
+`Money.format!()` converts a currency into a string and follows local conventions for formatting and displaying amounts. If you need to format output in a more customized way, `Formatter` accepts a more detailed set of parameters that lets you customize precisely how currencies are displayed as strings.
