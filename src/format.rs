@@ -1,4 +1,4 @@
-use crate::{Locale, Money, Round};
+use crate::{Money, Round};
 
 /// Turns Money objects into human readable strings.
 pub struct Formatter;
@@ -102,7 +102,6 @@ pub struct Params {
     pub rounding: Option<u32>,
     pub symbol: Option<&'static str>,
     pub code: Option<&'static str>,
-    pub locale: Option<Locale>,
 }
 
 impl Default for Params {
@@ -116,7 +115,6 @@ impl Default for Params {
             rounding: None,
             symbol: None,
             code: None,
-            locale: None,
         }
     }
 }

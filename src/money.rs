@@ -333,7 +333,6 @@ impl fmt::Display for Money {
             rounding: Some(currency.exponent),
             symbol: Some(currency.symbol),
             code: Some(currency.iso_alpha_code),
-            locale: Some(currency.locale),
             ..Default::default()
         };
 
