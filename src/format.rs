@@ -1,6 +1,7 @@
-use crate::{Locale, Money, Round};
+use crate::{Money, Round};
+use std::cmp::Ordering;
 
-/// `Formatter` turns Money objects into strings and parses Money objects from strings.
+/// Turns Money objects into human readable strings.
 pub struct Formatter;
 
 impl Formatter {
@@ -46,11 +47,16 @@ impl Formatter {
         let mut result = amount_digits;
 
         // Format the exponent, and add to digits
-        if amount_split.len() == 2 {
-            result.push(params.exponent_separator);
-            result += amount_split[1];
-        } else if amount_split.len() > 2 {
-            panic!("More than 1 exponent separators when parsing Decimal")
+        match amount_split.len().cmp(&2) {
+            Ordering::Equal => {
+                // Exponent found, concatenate to digits.
+                result.push(params.exponent_separator);
+                result += amount_split[1];
+            }
+            Ordering::Less => {
+                // No exponent, do nothing.
+            }
+            Ordering::Greater => panic!("More than 1 exponent separators when parsing Decimal"),
         }
 
         result
@@ -72,7 +78,7 @@ impl Formatter {
     }
 }
 
-/// Represents different items which can be positioned in a Money string.
+/// Enumerates different items which can be positioned in a Money string.
 #[derive(Debug, Clone)]
 pub enum Position {
     Space,
@@ -82,17 +88,23 @@ pub enum Position {
     Sign,
 }
 
-/// Represents the different parameters which must be provided to format or parse a Money string.
+/// Represents the parameters which must be provided to format a Money string.
 #[derive(Debug, Clone)]
 pub struct Params {
+    /// The character that separates grouped digits (e.g. 1,000,000)
     pub digit_separator: char,
+    /// The character that separates minor units from major units (e.g. 1,000.00)
     pub exponent_separator: char,
+    /// The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
     pub separator_pattern: Vec<usize>,
+    /// The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
     pub positions: Vec<Position>,
+    /// The number of minor unit digits should remain after Round::HalfEven is applied.
     pub rounding: Option<u32>,
+    /// The symbol of the currency (e.g. $)
     pub symbol: Option<&'static str>,
+    /// The currency's ISO code (e.g. USD)
     pub code: Option<&'static str>,
-    pub locale: Option<Locale>,
 }
 
 impl Default for Params {
@@ -106,7 +118,6 @@ impl Default for Params {
             rounding: None,
             symbol: None,
             code: None,
-            locale: None,
         }
     }
 }

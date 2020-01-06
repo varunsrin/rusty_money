@@ -3,7 +3,7 @@ use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 
-/// An Exchange Type which stores a collection of exchange rates pairs between currencies.
+/// Stores a collection of exchange rates pairs between currencies.
 #[derive(Debug, Default)]
 pub struct Exchange {
     map: HashMap<String, ExchangeRate>,
@@ -36,7 +36,7 @@ impl Exchange {
     }
 }
 
-/// An ExchangeRate Type which stores a rate of conversion between two currencies.
+/// Stores rates and execute conversions between two currencies.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct ExchangeRate {
     pub from: &'static Currency,
