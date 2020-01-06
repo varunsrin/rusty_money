@@ -1,4 +1,6 @@
 use crate::{Money, Round};
+use std::cmp::Ordering;
+
 
 /// Turns Money objects into human readable strings.
 pub struct Formatter;
@@ -46,11 +48,18 @@ impl Formatter {
         let mut result = amount_digits;
 
         // Format the exponent, and add to digits
-        if amount_split.len() == 2 {
-            result.push(params.exponent_separator);
-            result += amount_split[1];
-        } else if amount_split.len() > 2 {
-            panic!("More than 1 exponent separators when parsing Decimal")
+        match amount_split.len().cmp(&2) {
+            Ordering::Equal => {
+                // Exponent found, concatenate to digits.
+                result.push(params.exponent_separator);
+                result += amount_split[1];    
+            },   
+            Ordering::Less => {
+                // No exponent, do nothing.
+            },
+            Ordering::Greater => {
+                panic!("More than 1 exponent separators when parsing Decimal")
+            },
         }
 
         result
