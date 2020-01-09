@@ -167,6 +167,10 @@ define_enum!(Iso {
     VND,
     VUV,
     WST,
+    YER,
+    ZAR,
+    ZMK,
+    ZMW,
 });
 
 impl fmt::Display for Iso {
@@ -1693,6 +1697,47 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol: "T",
             symbol_first: false,
         },
+
         // Start here
+        YER => Currency {
+            exponent: 2,
+            iso_alpha_code: "YER",
+            iso_numeric_code: "886",
+            locale: EnUs,
+            minor_denomination: 100,
+            name: "Yemeni Rial",
+            symbol: "﷼",
+            symbol_first: false,
+        },
+        ZAR => Currency {
+            exponent: 2,
+            iso_alpha_code: "ZAR",
+            iso_numeric_code: "710",
+            locale: EnUs,
+            minor_denomination: 10,
+            name: "South African Rand",
+            symbol: "R",
+            symbol_first: true,
+        },
+        ZMK => Currency {
+            exponent: 2,
+            iso_alpha_code: "ZMK",
+            iso_numeric_code: "894",
+            locale: EnUs,
+            minor_denomination: 5,
+            name: "Zambian Kwacha",
+            symbol: "ZK",
+            symbol_first: false,
+        },
+        ZMW => Currency {
+            exponent: 2,
+            iso_alpha_code: "ZMK",
+            iso_numeric_code: "967",
+            locale: EnUs,
+            minor_denomination: 5,
+            name: "Zambian Kwacha",
+            symbol: "K",
+            symbol_first: true,
+        },
     }
 }
