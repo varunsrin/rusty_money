@@ -28,6 +28,9 @@
 
 ### v0.3.1
 
-* Add all ISO standard currencies.
-* Add support for crypto currencies.  
-* More thorough examples that use all features.
+* Support all ISO currencies.
+* Improve README, documentation and examples for all features.
+
+### v0.4.0
+
+* Currency Declaration: Allow declaration of new currency types (e.g. a cryptocurrency).
