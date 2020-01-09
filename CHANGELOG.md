@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+* Support all ISO currencies.
+
 ## [0.3.0] - 2020-01-06
 
 * Refactor: Most interfaces now return Result<T, MoneyError>  (breaking change)
@@ -28,7 +32,6 @@
 
 ### v0.3.1
 
-* Support all ISO currencies.
 * Improve README, documentation and examples for all features.
 
 ### v0.4.0
