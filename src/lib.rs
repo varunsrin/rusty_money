@@ -55,7 +55,7 @@
 //! accepts a more detailed set of parameters.
 //!
 //! ```edition2018
-//! //! use rusty_money::{money, Money, Currency};
+//! use rusty_money::{money, Money, Currency};
 //! 
 //! // Money objects can be pretty printed, with appropriate rounding and formatting:
 //! let usd = money!("-2000.009", "USD");
@@ -70,7 +70,7 @@
 //! to another.
 //!
 //! ```edition2018
-//! use rusty_money::{money, Currency, Exchange, ExchangeRate};
+//! use rusty_money::{money, Money, Currency, Exchange, ExchangeRate};
 //! use rusty_money::Iso::*;
 //! use rust_decimal_macros::*;
 //!
