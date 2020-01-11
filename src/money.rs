@@ -8,7 +8,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-/// Represents an amount of a given currency.
+/// A struct which represents an amount of a given currency.
 ///
 /// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
 /// Operations on Money objects always create new instances of Money, with the exception
@@ -19,7 +19,7 @@ pub struct Money {
     currency: &'static Currency,
 }
 
-/// Create `Money` from an amount and an ISO currency code.
+/// Creates a `Money` from an amount and an ISO-4217 currency code.
 ///
 /// The amount can be provided as a string or an integer.
 #[macro_export]

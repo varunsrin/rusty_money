@@ -11,7 +11,7 @@ lazy_static! {
         Currency::generate_currencies_by_num_code();
 }
 
-/// Represents an ISO-4127 currency and its metadata.
+/// A struct which represent an ISO-4127 currency.
 ///
 /// Currency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
 /// since they are unchanging.

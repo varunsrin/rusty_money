@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-/// Represents regions which have unique formatting standards for Currencies.  
+/// Enumerates regions which have unique formatting standards for Currencies.  
 ///
 /// Each Locale maps 1:1 to a LocalFormat, which contains the characteristics for formatting.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -11,7 +11,7 @@ pub enum Locale {
     EnBy,
 }
 
-/// Contains metadata used to format currencies for a specific Locale.
+/// A struct which contains currency formatting metadata for a region.
 #[derive(Debug, PartialEq, Eq)]
 pub struct LocalFormat {
     pub name: &'static str,

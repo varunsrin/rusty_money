@@ -56,7 +56,7 @@
 //!
 //! ```edition2018
 //! use rusty_money::{money, Money, Currency};
-//! 
+//!
 //! // Money objects can be pretty printed, with appropriate rounding and formatting:
 //! let usd = money!("-2000.009", "USD");
 //! let eur = money!("-2000.009", "EUR");
