@@ -7,6 +7,7 @@ macro_rules! define_enum {
     ($Name:ident { $($Variant:ident),* $(,)* }) =>
     {
         #[derive(Debug)]
+        /// Enumerates ISO-4217 Alphabetic Codes.
         pub enum $Name {
             $($Variant),*,
         }
@@ -14,7 +15,6 @@ macro_rules! define_enum {
     }
 }
 
-// ISO Enum has a type for every ISO currency, represented by its alphabetic code.
 define_enum!(Iso {
     AED,
     AFN,

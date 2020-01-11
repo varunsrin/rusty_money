@@ -1,91 +1,95 @@
 //! A library that handles calculating, rounding, displaying, and parsing units of money according
-//! to ISO 4217 standards. The main item exported by the library is `Money`.
+//! to ISO 4217 standards. The main items exported by the library are `Money` and `Currency`.
 //!
-//! # Use
+//! # Usage
+//!
+//! `Money` consists of an amount, which is represented by a Decimal type that it owns and a
+//! `Currency`, which is holds a reference to. `Currency` represents an ISO-4217 currency, and
+//!  stores metadata like its numeric code, full name and symbol.
 //!
 //! ```edition2018
-//! use rusty_money::money;
-//! use rusty_money::Money;
-//!
-//! // The easiest way to create Money objects is by using the money! macro
-//! // which accepts amounts strings or integers and currencies as strings:
-//!
-//! money!("-200.00", "USD") == money!(-200, "USD"); // true
-//!
-//! // Money objects can be initialized in a few other convenient ways:
-//!
-//! use rusty_money::Currency;
+//! // Money can be initialized in a few ways:
+//! use rusty_money::{money, Money, Currency};
 //! use rusty_money::Iso::*;
 //!
-//! Money::new(200000, Currency::get(USD));         // amount = 2000 USD
-//! Money::from_major(2000, Currency::get(USD));    // amount = 2000 USD
-//! Money::from_minor(200000, Currency::get(USD));  // amount = 2000 USD
-//! Money::from_str("2,000.00", "USD").unwrap();    // amount = 2000 USD
+//! money!(2000, "USD");                            // 2000 USD
+//! money!("2000.00", "USD");                       // 2000 USD
+//! Money::new(200000, Currency::get(USD));         // 2000 USD
+//! Money::from_major(2000, Currency::get(USD));    // 2000 USD
+//! Money::from_minor(200000, Currency::get(USD));  // 2000 USD
+//! Money::from_str("2,000.00", "USD").unwrap();    // 2000 USD
 //!
-//! // Money objects support arithmetic operations:
 //!
-//! money!(100, "USD") + money!(100, "USD"); // amount = 200 USD
-//! money!(100, "USD") - money!(100, "USD"); // amount = 0 USD
-//! money!(1, "USD") * 3;                    // amount = 3 USD
-//! money!(3, "USD") / 3;                    // amount = 0.333333333... USD
-//!
-//! // Money objects can be compared:
-//!
+//! // Money objects with the same Currency can be compared:
 //! let hundred = money!(100, "USD");
 //! let thousand = money!(1000, "USD");
 //! println!("{}", thousand > hundred);     // false
 //! println!("{}", thousand.is_positive()); // true
+//! ```
 //!
-//! // Money objects format themselves when printed:
+//! ## Precision and Rounding
 //!
+//! Money objects are immutable, and operations that change the amount or currency of Money simply create
+//! a new instance. Money uses a 128 bit fixed-precision [Decimal](https://github.com/paupino/rust-decimal)
+//! to represents amounts, and it represents values as large as 2<sup>96</sup> / 10<sup>28</sup>. By default
+//! operations on Money always retain maximum possible precision. When you do need to round money, you can call
+//!  the `round` function, which  supports three modes:
+//! * [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
+//! * [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
+//! * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
+//!
+//! ```edition2018
+//! use rusty_money::{money, Money, Currency, Round};
+//!
+//! // Money can be added, subtracted, multiplied and divided:
+//! money!(100, "USD") + money!(100, "USD");        // 200 USD
+//! money!(100, "USD") - money!(100, "USD");        // 0 USD
+//! money!(1, "USD") * 3;                           // 3 USD
+//! money!(3, "USD") / 3;                           // 0.333333333... USD
+//!
+//! // Money can be rounded by calling the round function:
+//! let usd = money!("-2000.005", "USD");           // 2000.005 USD
+//! usd.round(2, Round::HalfEven);                  // 2000.00 USD
+//! usd.round(2, Round::HalfUp);                    // 2000.01 USD
+//! usd.round(0, Round::HalfUp);                    // 2000 USD
+//!```
+//!
+//! ## Formatting
+//!
+//! Calling `format!` or `println!` on Money returns a string with a rounded amount, using separators and symbols
+//! according to the locale of the currency. If you need to customize this output, the `Formatter` module
+//! accepts a more detailed set of parameters.
+//!
+//! ```edition2018
+//! use rusty_money::{money, Money, Currency};
+//!
+//! // Money objects can be pretty printed, with appropriate rounding and formatting:
 //! let usd = money!("-2000.009", "USD");
 //! let eur = money!("-2000.009", "EUR");
 //! println!("{}", usd); // -$2,000.01
 //! println!("{}", eur); // -€2.000,01;
+//! ```
 //!
+//! ## Exchange
 //!
-//! // Money objects can be exchange from one currency to another by setting up an ExchangeRate:
+//! The library also provides two additional types - `Exchange` and `ExchangeRates` to convert Money from one currency
+//! to another.
 //!
-//! use rusty_money::Exchange;
-//! use rusty_money::ExchangeRate;
+//! ```edition2018
+//! use rusty_money::{money, Money, Currency, Exchange, ExchangeRate};
+//! use rusty_money::Iso::*;
 //! use rust_decimal_macros::*;
 //!
-//! let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.1)).unwrap();
-//! rate.convert(money!(1000, "USD")); // 1,100 EUR
+//! // Convert 1000 USD to EUR at a 2:1 exchange rate.
+//! let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(0.5)).unwrap();
+//! rate.convert(money!(1000, "USD")); // 500 EUR
 //!
-//! // ExchangeRate objects can be stored and retrieved from a central Exchange:
-//!
+//! // An Exchange can be used to store ExchangeRates for later use
 //! let mut exchange = Exchange::new();
 //! exchange.add_or_update_rate(&rate);
 //! exchange.get_rate(Currency::get(USD), Currency::get(EUR));
 //! ```
-//! ### Money
 //!
-//! Money represents financial amounts through a Decimal (owned) and a Currency (refernce). Operations on Money
-//! objects always create new instances of Money.
-//!
-//! ### Currency
-//!
-//! Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol.
-//! Operations on Currencies pass around references, since they are unchanging. Only 117 currencies are supported,
-//! though the next release will include all ISO-4217 currencies.
-//!
-//! ### Precision and Rounding
-//!
-//! The [Decimal](https://github.com/paupino/rust-decimal) used in Money is a 128 bit fixed precision decimal number,
-//! and can represent values as large as 2<sup>96</sup> / 10<sup>28</sup>. Calculations applied on Money objects do
-//! not round until this limit. You can use `format!()` to display the currency in its native precision, though the
-//! Decimal will remain unaffected. `.round()` will create a new instance with permanently reduced precision.
-//!
-//! Money supports three types of rounding modes: [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up),
-//! [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down) and
-//! [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even), which is the default.
-//!
-//! ### Formatting
-//!
-//! `Money.format!()` converts a currency into a string and follows local conventions for formatting and displaying
-//! amounts. If you need to format output in a more customized way, `Formatter` accepts a more detailed set of
-//! parameters that lets you customize precisely how currencies are displayed as strings.
 
 mod currency;
 mod error;
