@@ -39,13 +39,19 @@
 //! * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency};
+//! use rusty_money::{money, Money, Currency, Round};
 //!
 //! // Money can be added, subtracted, multiplied and divided:
 //! money!(100, "USD") + money!(100, "USD");        // 200 USD
 //! money!(100, "USD") - money!(100, "USD");        // 0 USD
 //! money!(1, "USD") * 3;                           // 3 USD
 //! money!(3, "USD") / 3;                           // 0.333333333... USD
+//!
+//! // Money can be rounded by calling the round function:
+//! let usd = money!("-2000.005", "USD");           // 2000.005 USD
+//! usd.round(2, Round::HalfEven);                  // 2000.00 USD
+//! usd.round(2, Round::HalfUp);                    // 2000.01 USD
+//! usd.round(0, Round::HalfUp);                    // 2000 USD
 //!```
 //!
 //! ## Formatting
