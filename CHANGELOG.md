@@ -30,10 +30,6 @@
 
 ## [Planned]
 
-### v0.3.1
-
-* Improve README, documentation and examples for all features.
-
 ### v0.4.0
 
 * Currency Declaration: Allow declaration of new currency types (e.g. a cryptocurrency).
