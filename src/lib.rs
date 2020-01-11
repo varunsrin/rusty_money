@@ -12,8 +12,8 @@
 //! use rusty_money::{money, Money, Currency};
 //! use rusty_money::Iso::*;
 //!
-//! money!(2000, "USD")                             // 2000 USD
-//! money!("2000.00", "USD")                        // 2000 USD
+//! money!(2000, "USD");                            // 2000 USD
+//! money!("2000.00", "USD");                       // 2000 USD
 //! Money::new(200000, Currency::get(USD));         // 2000 USD
 //! Money::from_major(2000, Currency::get(USD));    // 2000 USD
 //! Money::from_minor(200000, Currency::get(USD));  // 2000 USD
@@ -55,6 +55,8 @@
 //! accepts a more detailed set of parameters.
 //!
 //! ```edition2018
+//! //! use rusty_money::{money, Money, Currency};
+//! 
 //! // Money objects can be pretty printed, with appropriate rounding and formatting:
 //! let usd = money!("-2000.009", "USD");
 //! let eur = money!("-2000.009", "EUR");
@@ -68,7 +70,8 @@
 //! to another.
 //!
 //! ```edition2018
-//! use rusty_money::{money, Exchange, ExchangeRate};
+//! use rusty_money::{money, Currency, Exchange, ExchangeRate};
+//! use rusty_money::Iso::*;
 //! use rust_decimal_macros::*;
 //!
 //! // Convert 1000 USD to EUR at a 2:1 exchange rate.
