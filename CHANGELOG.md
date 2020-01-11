@@ -1,8 +1,8 @@
 # Change Log
 
-## Unreleased
+## [0.3.1] - 2020-01-11
 
-* Support all ISO currencies.
+* Feature: Support all ISO currencies.
 
 ## [0.3.0] - 2020-01-06
 
