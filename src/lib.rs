@@ -1,5 +1,5 @@
 //! A library that handles calculating, rounding, displaying, and parsing units of money according
-//! to ISO 4217 standards. The main items exported by the library iare `Money` and `Currency`.
+//! to ISO 4217 standards. The main items exported by the library are `Money` and `Currency`.
 //!
 //! # Usage
 //!
