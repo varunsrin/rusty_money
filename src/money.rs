@@ -32,12 +32,18 @@ macro_rules! money {
 impl Add for Money {
     type Output = Money;
     fn add(self, other: Money) -> Money {
+        if self.currency != other.currency {
+            panic!();
+        }
         Money::from_decimal(self.amount + other.amount, self.currency)
     }
 }
 
 impl AddAssign for Money {
     fn add_assign(&mut self, other: Self) {
+        if self.currency != other.currency {
+            panic!();
+        }
         *self = Self {
             amount: self.amount + other.amount,
             currency: self.currency,
@@ -48,12 +54,19 @@ impl AddAssign for Money {
 impl Sub for Money {
     type Output = Money;
     fn sub(self, other: Money) -> Money {
+        if self.currency != other.currency {
+            panic!();
+        }
         Money::from_decimal(self.amount - other.amount, self.currency)
     }
 }
 
 impl SubAssign for Money {
     fn sub_assign(&mut self, other: Self) {
+        if self.currency != other.currency {
+            panic!();
+        }
+
         *self = Self {
             amount: self.amount - other.amount,
             currency: self.currency,
@@ -436,6 +449,36 @@ mod tests {
         // Subtraction
         assert_eq!(money!(0, "USD"), money!(1, "USD") - money!(1, "USD"));
     }
+
+
+    #[test]
+    #[should_panic]
+    fn money_addition_panics_on_different_currencies() {
+        money!(1, "USD") + money!(1, "GBP");
+    }
+
+
+    #[test]
+    #[should_panic]
+    fn money_subtractionpanics_on_different_currencies() {
+        money!(1, "USD") - money!(1, "GBP");
+    }
+
+
+    #[test]
+    #[should_panic]
+    fn money_add_assign_panics_on_different_currencies() {
+        let mut money = money!(1, "USD");
+        money += money!(1, "GBP");
+    }
+
+    #[test]
+    #[should_panic]
+    fn money_sub_assign_panics_on_different_currencies() {
+        let mut money = money!(1, "USD");
+        money -= money!(1, "GBP");
+    }
+
 
     #[test]
     fn money_multiplication_and_division() {
