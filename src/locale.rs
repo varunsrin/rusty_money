@@ -1,6 +1,7 @@
 use std::str::FromStr;
+use serde::Serialize;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize)]
 pub enum Locale {
     EnUs,
     EnIn,
@@ -10,7 +11,7 @@ pub enum Locale {
 /// The `LocalFormat` type
 ///
 /// Stores formatting data relevant to the region.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct LocalFormat {
     pub name: &'static str,
     pub digit_separator: char,

@@ -4,6 +4,7 @@ use crate::MoneyError;
 pub use iso::Iso;
 use std::collections::HashMap;
 use std::fmt;
+use serde::Serialize;
 
 lazy_static! {
     static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, Currency> =
@@ -16,7 +17,7 @@ lazy_static! {
 ///
 /// Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol.
 /// Operations on Currencies pass around references, since they are unchanging.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Currency {
     pub default_locale: Locale,
     pub exponent: u32,

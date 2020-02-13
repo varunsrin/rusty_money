@@ -3,6 +3,7 @@ use crate::format::{Formatter, Params, Position};
 use crate::MoneyError;
 use rust_decimal::Decimal;
 use rust_decimal_macros::*;
+use serde::Serialize;
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
@@ -13,7 +14,7 @@ use std::str::FromStr;
 /// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub struct Money {
     amount: Decimal,
     currency: &'static Currency,

@@ -18,3 +18,4 @@ categories = ["data-structures", "rust-patterns"]
 rust_decimal = "1.0.3"
 rust_decimal_macros = "1.0.3"
 lazy_static = "1.4.0"
+serde = { version = "1.0", features = ["derive"] }
