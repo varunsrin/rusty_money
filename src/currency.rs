@@ -1,6 +1,5 @@
 mod iso;
-pub use crate::locale::{LocalFormat, Locale};
-use crate::MoneyError;
+pub use crate::{LocalFormat, Locale, MoneyError};
 pub use iso::Iso;
 use std::collections::HashMap;
 use std::fmt;
@@ -13,19 +12,20 @@ lazy_static! {
         Currency::generate_currencies_by_num_code();
 }
 
-/// The `Currency` type, which stores metadata about an ISO-4127 currency.
+/// A struct which represent an ISO-4127 currency.
 ///
-/// Currency represents an ISO-4217 currency, and stores metadata like its numeric code, full name and symbol.
-/// Operations on Currencies pass around references, since they are unchanging.
+/// Currency stores metadata like numeric code, full name and symbol. Operations on
+/// Currencies pass around references, since they are unchanging.
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Currency {
-    pub default_locale: Locale,
+    pub locale: Locale,
     pub exponent: u32,
     pub iso_alpha_code: &'static str,
     pub iso_numeric_code: &'static str,
     pub name: &'static str,
     pub symbol: &'static str,
     pub symbol_first: bool,
+    pub minor_denomination: u32,
 }
 
 impl fmt::Display for Currency {

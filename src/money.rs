@@ -9,7 +9,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-/// The `Money` type, which contains an amount and a currency.
+/// A struct which represents an amount of a given currency.
 ///
 /// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
 /// Operations on Money objects always create new instances of Money, with the exception
@@ -20,7 +20,7 @@ pub struct Money {
     currency: &'static Currency,
 }
 
-/// Create `Money` from an amount and an ISO currency code.
+/// Creates a `Money` from an amount and an ISO-4217 currency code.
 ///
 /// The amount can be provided as a string or an integer.
 #[macro_export]
@@ -33,12 +33,18 @@ macro_rules! money {
 impl Add for Money {
     type Output = Money;
     fn add(self, other: Money) -> Money {
+        if self.currency != other.currency {
+            panic!();
+        }
         Money::from_decimal(self.amount + other.amount, self.currency)
     }
 }
 
 impl AddAssign for Money {
     fn add_assign(&mut self, other: Self) {
+        if self.currency != other.currency {
+            panic!();
+        }
         *self = Self {
             amount: self.amount + other.amount,
             currency: self.currency,
@@ -49,12 +55,19 @@ impl AddAssign for Money {
 impl Sub for Money {
     type Output = Money;
     fn sub(self, other: Money) -> Money {
+        if self.currency != other.currency {
+            panic!();
+        }
         Money::from_decimal(self.amount - other.amount, self.currency)
     }
 }
 
 impl SubAssign for Money {
     fn sub_assign(&mut self, other: Self) {
+        if self.currency != other.currency {
+            panic!();
+        }
+
         *self = Self {
             amount: self.amount - other.amount,
             currency: self.currency,
@@ -187,10 +200,10 @@ impl Money {
     /// Creates a Money object given an amount string and a currency string.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    /// TODO - Consider moving into Formatter
+    // TODO - Consider moving into Formatter
     pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
         let currency = Currency::from_string(currency)?;
-        let format = LocalFormat::from_locale(currency.default_locale);
+        let format = LocalFormat::from_locale(currency.locale);
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
 
         let mut parsed_decimal = amount_parts[0].replace(format.digit_separator, "");
@@ -217,22 +230,22 @@ impl Money {
         &self.amount
     }
 
-    /// Returns the currency type.
+    /// Returns the Currency type.
     pub fn currency(&self) -> &'static Currency {
         self.currency
     }
 
-    /// Returns true if the amount is == 0.
+    /// Returns true if amount == 0.
     pub fn is_zero(&self) -> bool {
         self.amount == dec!(0.0)
     }
 
-    /// Returns true if the amount is > 0.
+    /// Returns true if amount > 0.
     pub fn is_positive(&self) -> bool {
         self.amount.is_sign_positive() && self.amount != dec!(0.0)
     }
 
-    /// Returns true if the amount is < 0.
+    /// Returns true if amount < 0.
     pub fn is_negative(&self) -> bool {
         self.amount.is_sign_negative() && self.amount != dec!(0.0)
     }
@@ -293,16 +306,39 @@ impl Money {
         Ok(allocations)
     }
 
-    /// Rounds the amount down to the currency's exponent.
-    pub fn round(&mut self) {
-        self.amount = self.amount.round_dp(self.currency.exponent);
+    /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
+    pub fn round(&self, digits: u32, strategy: Round) -> Money {
+        let mut money = self.clone();
+
+        money.amount = match strategy {
+            Round::HalfDown => money
+                .amount
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfDown),
+            Round::HalfUp => money
+                .amount
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfUp),
+            Round::HalfEven => money
+                .amount
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::BankersRounding),
+        };
+
+        money
     }
+}
+
+/// Enumerates different strategies that can be used to round Money.
+///
+/// For more details, see (rust_decimal::Rounding_Strategy)[https://docs.rs/rust_decimal/1.1.0/rust_decimal/enum.RoundingStrategy.html]
+pub enum Round {
+    HalfUp,
+    HalfDown,
+    HalfEven,
 }
 
 impl fmt::Display for Money {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
-        let format = LocalFormat::from_locale(currency.default_locale);
+        let format = LocalFormat::from_locale(currency.locale);
 
         let mut format_params = Params {
             digit_separator: format.digit_separator,
@@ -311,7 +347,6 @@ impl fmt::Display for Money {
             rounding: Some(currency.exponent),
             symbol: Some(currency.symbol),
             code: Some(currency.iso_alpha_code),
-            locale: Some(currency.default_locale),
             ..Default::default()
         };
 
@@ -415,6 +450,36 @@ mod tests {
         // Subtraction
         assert_eq!(money!(0, "USD"), money!(1, "USD") - money!(1, "USD"));
     }
+
+
+    #[test]
+    #[should_panic]
+    fn money_addition_panics_on_different_currencies() {
+        money!(1, "USD") + money!(1, "GBP");
+    }
+
+
+    #[test]
+    #[should_panic]
+    fn money_subtractionpanics_on_different_currencies() {
+        money!(1, "USD") - money!(1, "GBP");
+    }
+
+
+    #[test]
+    #[should_panic]
+    fn money_add_assign_panics_on_different_currencies() {
+        let mut money = money!(1, "USD");
+        money += money!(1, "GBP");
+    }
+
+    #[test]
+    #[should_panic]
+    fn money_sub_assign_panics_on_different_currencies() {
+        let mut money = money!(1, "USD");
+        money -= money!(1, "GBP");
+    }
+
 
     #[test]
     fn money_multiplication_and_division() {
@@ -553,13 +618,11 @@ mod tests {
         let expected_money = money!("6.67", "USD");
         let mut money = money!("20.00", "USD");
         money /= 3;
-        money.round();
-        assert_eq!(money, expected_money);
+        assert_eq!(money.round(2, Round::HalfEven), expected_money);
 
         let expected_money = money!("6.667", "BHD");
         let mut money = money!("20", "BHD");
         money /= 3;
-        money.round();
-        assert_eq!(money, expected_money);
+        assert_eq!(money.round(3, Round::HalfEven), expected_money);
     }
 }

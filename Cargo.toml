@@ -1,6 +1,6 @@
 [package]
 name = "rusty-money"
-version = "0.2.0"
+version = "0.3.2"
 authors = ["Varun Srinivasan <varunsrin@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -8,14 +8,14 @@ readme = "README.md"
 repository = "https://github.com/varunsrin/rusty_money"
 documentation = "https://docs.rs/rusty-money"
 description = """
-Handle currencies in Rust.
+Money type for Rust.
 """
 keywords = ["money", "currency", "iso-4217", "exchange"]
 categories = ["data-structures", "rust-patterns"]
 
 
 [dependencies]
-rust_decimal = "1.0.3"
-rust_decimal_macros = "1.0.3"
+rust_decimal = "1.2.0"
+rust_decimal_macros = "1.2.0"
 lazy_static = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }

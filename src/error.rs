@@ -1,5 +1,6 @@
 use std::{error, fmt};
 
+/// Standard Error type for this crate.
 #[derive(Debug, PartialEq)]
 pub enum MoneyError {
     InvalidCurrency,
