@@ -383,11 +383,11 @@ pub fn from_enum(code: &Iso) -> Currency {
         },
         BRL => Currency {
             exponent: 2,
-            iso_alpha_code: "BOB",
+            iso_alpha_code: "BRL",
             iso_numeric_code: "986",
             locale: EnUs,
             minor_denomination: 5,
-            name: "Bolivian Boliviano",
+            name: "Brazilian real",
             symbol: "R$",
             symbol_first: true,
         },
