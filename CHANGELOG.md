@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.3] - 2020-03-13
+
+* Bugfix: Fixing incorrect name and iso_alpha_code for BRL (Brazilian real) [@diegooliveira]
+
 ## [0.3.2] - 2020-01-26
 
 * Bugfix: Adding or subtracting different currencies now panics.
