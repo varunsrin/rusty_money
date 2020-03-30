@@ -205,8 +205,22 @@ impl Money {
         let format = LocalFormat::from_locale(currency.locale);
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
 
-        let mut parsed_decimal = amount_parts[0].replace(format.digit_separator, "");
+        let mut split_decimal: Vec<&str> = amount_parts[0].split(format.digit_separator).collect();
+        let mut parsed_decimal = split_decimal.concat();
+
+        // Sanity check whether the decimal part can be parsed as an i32
         i32::from_str(&parsed_decimal)?;
+
+        // Sanity check the decimal seperation
+        for &num in format.digit_separator_pattern().iter() {
+            if split_decimal.len() <= 1 {
+                break;
+            }
+            let current = split_decimal.pop().unwrap();
+            if current.len() != num {
+                return Err(MoneyError::InvalidAmount);
+            }
+        }
 
         if amount_parts.len() == 1 {
             parsed_decimal += ".";
@@ -396,6 +410,27 @@ mod tests {
         let expected_money = Money::new(100000000, Currency::get(GBP));
         let money = Money::from_string("1,000,000".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
+    }
+
+    #[test]
+    fn money_from_string_decimal_sanity() {
+        let money = Money::from_string("1,00.00".to_string(), "GBP".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        let money = Money::from_string("1.00,00".to_string(), "EUR".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        let money = Money::from_string("1.00.000,00".to_string(), "EUR".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        let money = Money::from_string("1.00.000.000,00".to_string(), "EUR".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        let money = Money::from_string("1,00.00".to_string(), "INR".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+
+        let money = Money::from_string("1.000.000.00".to_string(), "INR".to_string());
+        assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
     }
 
     #[test]
