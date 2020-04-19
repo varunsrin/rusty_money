@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.4] - 2020-04-19
+
+* Bugfix: from_string rejects incorrect digit separators like 1.00,00 EUR [@sjoerdsimons]
+
 ## [0.3.3] - 2020-03-13
 
 * Bugfix: Fixing incorrect name and iso_alpha_code for BRL (Brazilian real) [@diegooliveira]
