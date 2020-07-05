@@ -13,19 +13,19 @@ to ISO 4217 standards. The main items exported by the library are `Money` and `C
 ## Usage
 
 `Money` consists of an amount, which is represented by a Decimal type that it owns and a
-`Currency`, which it holds a reference to. `Currency` represents an ISO-4217 currency, and
- stores metadata like its numeric code, full name, and symbol.
+`IsoCurrency`, which it holds a reference to. `IsoCurrency` represents an ISO-4217 currency, and
+ stores metadata like its numeric code, full name and symbol.
 
 ```rust
 // Money can be initialized in a few ways:
-use rusty_money::{money, Money, Currency};
+use rusty_money::{money, Money, IsoCurrency};
 use rusty_money::Iso::*;
 
 money!(2000, "USD");                            // 2000 USD
 money!("2000.00", "USD");                       // 2000 USD
-Money::new(200000, Currency::get(USD));         // 2000 USD
-Money::from_major(2000, Currency::get(USD));    // 2000 USD
-Money::from_minor(200000, Currency::get(USD));  // 2000 USD
+Money::new(200000, IsoCurrency::get(USD));         // 2000 USD
+Money::from_major(2000, IsoCurrency::get(USD));    // 2000 USD
+Money::from_minor(200000, IsoCurrency::get(USD));  // 2000 USD
 Money::from_str("2,000.00", "USD").unwrap();    // 2000 USD
 
 
@@ -49,7 +49,7 @@ operations on Money always retain maximum possible precision. When you do need t
 * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 
 ```rust
-use rusty_money::{money, Money, Currency, Round};
+use rusty_money::{money, Money, IsoCurrency, Round};
 
 // Money can be added, subtracted, multiplied and divided:
 money!(100, "USD") + money!(100, "USD");        // 200 USD
@@ -71,7 +71,7 @@ according to the locale of the currency. If you need to customize this output, t
 accepts a more detailed set of parameters.
 
 ```rust
-use rusty_money::{money, Money, Currency};
+use rusty_money::{money, Money, IsoCurrency};
 
 // Money objects can be pretty printed, with appropriate rounding and formatting:
 let usd = money!("-2000.009", "USD");
@@ -86,16 +86,16 @@ The library also provides two additional types - `Exchange` and `ExchangeRates` 
 to another.
 
 ```rust
-use rusty_money::{money, Money, Currency, Exchange, ExchangeRate};
+use rusty_money::{money, Money, IsoCurrency, Exchange, ExchangeRate};
 use rusty_money::Iso::*;
 use rust_decimal_macros::*;
 
 // Convert 1000 USD to EUR at a 2:1 exchange rate.
-let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(0.5)).unwrap();
+let rate = ExchangeRate::new(IsoCurrency::get(USD), IsoCurrency::get(EUR), dec!(0.5)).unwrap();
 rate.convert(money!(1000, "USD")); // 500 EUR
 
 // An Exchange can be used to store ExchangeRates for later use
 let mut exchange = Exchange::new();
 exchange.add_or_update_rate(&rate);
-exchange.get_rate(Currency::get(USD), Currency::get(EUR));
+exchange.get_rate(IsoCurrency::get(USD), IsoCurrency::get(EUR));
 ```

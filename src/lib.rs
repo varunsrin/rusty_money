@@ -9,14 +9,14 @@
 //!
 //! ```edition2018
 //! // Money can be initialized in a few ways:
-//! use rusty_money::{money, Money, Currency};
+//! use rusty_money::{money, Money, IsoCurrency};
 //! use rusty_money::Iso::*;
 //!
 //! money!(2000, "USD");                            // 2000 USD
 //! money!("2000.00", "USD");                       // 2000 USD
-//! Money::new(200000, Currency::get(USD));         // 2000 USD
-//! Money::from_major(2000, Currency::get(USD));    // 2000 USD
-//! Money::from_minor(200000, Currency::get(USD));  // 2000 USD
+//! Money::new(200000, IsoCurrency::get(USD));         // 2000 USD
+//! Money::from_major(2000, IsoCurrency::get(USD));    // 2000 USD
+//! Money::from_minor(200000, IsoCurrency::get(USD));  // 2000 USD
 //! Money::from_str("2,000.00", "USD").unwrap();    // 2000 USD
 //!
 //!
@@ -39,7 +39,7 @@
 //! * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency, Round};
+//! use rusty_money::{money, Money, IsoCurrency, Round};
 //!
 //! // Money can be added, subtracted, multiplied and divided:
 //! money!(100, "USD") + money!(100, "USD");        // 200 USD
@@ -61,7 +61,7 @@
 //! accepts a more detailed set of parameters.
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency};
+//! use rusty_money::{money, Money, IsoCurrency};
 //!
 //! // Money objects can be pretty printed, with appropriate rounding and formatting:
 //! let usd = money!("-2000.009", "USD");
@@ -76,18 +76,18 @@
 //! to another.
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency, Exchange, ExchangeRate};
+//! use rusty_money::{money, Money, IsoCurrency, Exchange, ExchangeRate};
 //! use rusty_money::Iso::*;
 //! use rust_decimal_macros::*;
 //!
 //! // Convert 1000 USD to EUR at a 2:1 exchange rate.
-//! let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(0.5)).unwrap();
+//! let rate = ExchangeRate::new(IsoCurrency::get(USD), IsoCurrency::get(EUR), dec!(0.5)).unwrap();
 //! rate.convert(money!(1000, "USD")); // 500 EUR
 //!
 //! // An Exchange can be used to store ExchangeRates for later use
 //! let mut exchange = Exchange::new();
 //! exchange.add_or_update_rate(&rate);
-//! exchange.get_rate(Currency::get(USD), Currency::get(EUR));
+//! exchange.get_rate(IsoCurrency::get(USD), IsoCurrency::get(EUR));
 //! ```
 //!
 

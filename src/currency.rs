@@ -5,18 +5,18 @@ use std::collections::HashMap;
 use std::fmt;
 
 lazy_static! {
-    static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, Currency> =
-        Currency::generate_currencies_by_alpha_code();
-    static ref CURRENCIES_BY_NUM_CODE: HashMap<String, Currency> =
-        Currency::generate_currencies_by_num_code();
+    static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, IsoCurrency> =
+        IsoCurrency::generate_currencies_by_alpha_code();
+    static ref CURRENCIES_BY_NUM_CODE: HashMap<String, IsoCurrency> =
+        IsoCurrency::generate_currencies_by_num_code();
 }
 
 /// A struct which represent an ISO-4127 currency.
 ///
-/// Currency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
+/// IsoCurrency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
 /// since they are unchanging.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Currency {
+pub struct IsoCurrency {
     pub locale: Locale,
     pub exponent: u32,
     pub iso_alpha_code: &'static str,
@@ -27,36 +27,36 @@ pub struct Currency {
     pub minor_denomination: u32,
 }
 
-impl fmt::Display for Currency {
+impl fmt::Display for IsoCurrency {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.iso_alpha_code)
     }
 }
 
-impl Currency {
+impl IsoCurrency {
     /// Returns a Currency given an ISO-4217 currency code as an str.
-    pub fn find(code: &str) -> Result<&'static Currency, MoneyError> {
-        Currency::from_string(code.to_string())
+    pub fn find(code: &str) -> Result<&'static IsoCurrency, MoneyError> {
+        IsoCurrency::from_string(code.to_string())
     }
 
     /// Returns a Currency given a Currency enumeration.
-    pub fn get(code: Iso) -> &'static Currency {
-        Currency::from_string(code.to_string()).unwrap()
+    pub fn get(code: Iso) -> &'static IsoCurrency {
+        IsoCurrency::from_string(code.to_string()).unwrap()
     }
 
     /// Returns a Currency given an ISO-4217 currency code as a string.
-    pub fn from_string(code: String) -> Result<&'static Currency, MoneyError> {
+    pub fn from_string(code: String) -> Result<&'static IsoCurrency, MoneyError> {
         if code.chars().all(char::is_alphabetic) {
-            Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
+            IsoCurrency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else if code.chars().all(char::is_numeric) {
-            Currency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
+            IsoCurrency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
         } else {
             Err(MoneyError::InvalidCurrency)
         }
     }
 
     /// Returns a Currency given an alphabetic ISO-4217 currency code.
-    pub fn find_by_alpha_iso(code: String) -> Option<&'static Currency> {
+    pub fn find_by_alpha_iso(code: String) -> Option<&'static IsoCurrency> {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
             Some(c) => Some(c),
             None => None,
@@ -64,7 +64,7 @@ impl Currency {
     }
 
     /// Returns a currency given a numeric ISO-4217 currency code.
-    pub fn find_by_numeric_iso(code: String) -> Option<&'static Currency> {
+    pub fn find_by_numeric_iso(code: String) -> Option<&'static IsoCurrency> {
         match CURRENCIES_BY_NUM_CODE.get(&code) {
             Some(c) => Some(c),
             None => None,
@@ -72,8 +72,8 @@ impl Currency {
     }
 
     /// Returns a Currency Hashmap, keyed by ISO alphabetic code.
-    fn generate_currencies_by_alpha_code() -> HashMap<String, Currency> {
-        let mut num_map: HashMap<String, Currency> = HashMap::new();
+    fn generate_currencies_by_alpha_code() -> HashMap<String, IsoCurrency> {
+        let mut num_map: HashMap<String, IsoCurrency> = HashMap::new();
 
         for item in iso::ISO_CURRENCIES {
             let currency = iso::from_enum(item);
@@ -83,8 +83,8 @@ impl Currency {
     }
 
     /// Returns a Currency Hashmap, keyed by ISO numeric code.
-    fn generate_currencies_by_num_code() -> HashMap<String, Currency> {
-        let mut num_map: HashMap<String, Currency> = HashMap::new();
+    fn generate_currencies_by_num_code() -> HashMap<String, IsoCurrency> {
+        let mut num_map: HashMap<String, IsoCurrency> = HashMap::new();
         for item in iso::ISO_CURRENCIES {
             let currency = iso::from_enum(item);
             num_map.insert(currency.iso_numeric_code.to_string(), currency);
@@ -99,30 +99,30 @@ mod tests {
     use iso::Iso::*;
     #[test]
     fn currency_find_known_can_be_found() {
-        let currency_by_alpha = Currency::find("USD").unwrap();
+        let currency_by_alpha = IsoCurrency::find("USD").unwrap();
         assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
         assert_eq!(currency_by_alpha.exponent, 2);
         assert_eq!(currency_by_alpha.symbol, "$");
 
-        let currency_by_numeric = Currency::find("840").unwrap();
+        let currency_by_numeric = IsoCurrency::find("840").unwrap();
         assert_eq!(currency_by_alpha, currency_by_numeric);
     }
 
     #[test]
     fn currency_find_unknown_iso_codes_raise_invalid_currency_error() {
         assert_eq!(
-            Currency::find("fake").unwrap_err(),
+            IsoCurrency::find("fake").unwrap_err(),
             MoneyError::InvalidCurrency,
         );
 
         assert_eq!(
-            Currency::find("123").unwrap_err(),
+            IsoCurrency::find("123").unwrap_err(),
             MoneyError::InvalidCurrency,
         );
     }
 
     #[test]
     fn currency_get() {
-        assert_eq!(Currency::get(USD), Currency::find("USD").unwrap());
+        assert_eq!(IsoCurrency::get(USD), IsoCurrency::find("USD").unwrap());
     }
 }
