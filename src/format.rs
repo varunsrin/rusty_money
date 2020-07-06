@@ -1,3 +1,4 @@
+use crate::currency::CurrencyType;
 use crate::{Money, Round};
 use std::cmp::Ordering;
 
@@ -6,7 +7,7 @@ pub struct Formatter;
 
 impl Formatter {
     /// Returns a formatted Money String given parameters and a Money object.  
-    pub fn money(money: &Money, params: Params) -> String {
+    pub fn money<T: CurrencyType>(money: &Money<T>, params: Params) -> String {
         let mut decimal = *money.amount();
 
         // Round the decimal
@@ -132,7 +133,7 @@ mod tests {
     fn format_position() {
         let money = Money::from_major(-1000, IsoCurrency::get(USD));
 
-        // Test that you can position Space, Amount, Code, Symbol and Sign in different places
+        // Test that you can position eSpace, Amount, Code, Symbol and Sign in different places
         let params = Params {
             symbol: Some("$"),
             code: Some("USD"),
@@ -227,7 +228,7 @@ mod tests {
             ..Default::default()
         };
 
-        let money = Money::from_major(100,IsoCurrency::get(USD));
+        let money = Money::from_major(100, IsoCurrency::get(USD));
         assert_eq!("1,00,", Formatter::money(&money, params.clone()));
 
         let money = Money::from_major(0, IsoCurrency::get(USD));

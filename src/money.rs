@@ -14,9 +14,12 @@ use std::str::FromStr;
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Money {
+pub struct Money<T: CurrencyType>
+where
+    T: 'static,
+{
     amount: Decimal,
-    currency: &'static IsoCurrency,
+    currency: &'static T,
 }
 
 /// Creates a `Money` from an amount and an ISO-4217 currency code.
@@ -29,9 +32,9 @@ macro_rules! money {
     };
 }
 
-impl Add for Money {
-    type Output = Money;
-    fn add(self, other: Money) -> Money {
+impl<T: CurrencyType> Add for Money<T> {
+    type Output = Money<T>;
+    fn add(self, other: Money<T>) -> Money<T> {
         if self.currency != other.currency {
             panic!();
         }
@@ -39,7 +42,7 @@ impl Add for Money {
     }
 }
 
-impl AddAssign for Money {
+impl<T: CurrencyType> AddAssign for Money<T> {
     fn add_assign(&mut self, other: Self) {
         if self.currency != other.currency {
             panic!();
@@ -51,9 +54,9 @@ impl AddAssign for Money {
     }
 }
 
-impl Sub for Money {
-    type Output = Money;
-    fn sub(self, other: Money) -> Money {
+impl<T: CurrencyType> Sub for Money<T> {
+    type Output = Money<T>;
+    fn sub(self, other: Money<T>) -> Money<T> {
         if self.currency != other.currency {
             panic!();
         }
@@ -61,7 +64,7 @@ impl Sub for Money {
     }
 }
 
-impl SubAssign for Money {
+impl<T: CurrencyType> SubAssign for Money<T> {
     fn sub_assign(&mut self, other: Self) {
         if self.currency != other.currency {
             panic!();
@@ -76,23 +79,25 @@ impl SubAssign for Money {
 
 macro_rules! impl_mul_div {
     ($type:ty) => {
-        impl Mul<$type> for Money {
-            type Output = Money;
+        impl<T: CurrencyType> Mul<$type> for Money<T> {
+            type Output = Money<T>;
 
-            fn mul(self, rhs: $type) -> Money {
-                Money::from_decimal(self.amount * Decimal::from(rhs), self.currency)
+            fn mul(self, rhs: $type) -> Money<T> {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                Money::from_decimal(self.amount * rhs, self.currency)
             }
         }
 
-        impl Mul<Money> for $type {
-            type Output = Money;
+        impl<T: CurrencyType> Mul<Money<T>> for $type {
+            type Output = Money<T>;
 
-            fn mul(self, rhs: Money) -> Money {
-                Money::from_decimal(rhs.amount * Decimal::from(self), rhs.currency)
+            fn mul(self, rhs: Money<T>) -> Money<T> {
+                let lhs = Decimal::from_str(&self.to_string()).unwrap();
+                Money::from_decimal(rhs.amount * lhs, rhs.currency)
             }
         }
 
-        impl MulAssign<$type> for Money {
+        impl<T: CurrencyType> MulAssign<$type> for Money<T> {
             fn mul_assign(&mut self, rhs: $type) {
                 *self = Self {
                     amount: self.amount * Decimal::from(rhs),
@@ -101,23 +106,25 @@ macro_rules! impl_mul_div {
             }
         }
 
-        impl Div<$type> for Money {
-            type Output = Money;
+        impl<T: CurrencyType> Div<$type> for Money<T> {
+            type Output = Money<T>;
 
-            fn div(self, rhs: $type) -> Money {
-                Money::from_decimal(self.amount / Decimal::from(rhs), self.currency)
+            fn div(self, rhs: $type) -> Money<T> {
+                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
+                Money::from_decimal(self.amount / rhs, self.currency)
             }
         }
 
-        impl Div<Money> for $type {
-            type Output = Money;
+        impl<T: CurrencyType> Div<Money<T>> for $type {
+            type Output = Money<T>;
 
-            fn div(self, rhs: Money) -> Money {
-                Money::from_decimal(Decimal::from(self) / rhs.amount, rhs.currency)
+            fn div(self, rhs: Money<T>) -> Money<T> {
+                let lhs = Decimal::from_str(&self.to_string()).unwrap();
+                Money::from_decimal(lhs / rhs.amount, rhs.currency)
             }
         }
 
-        impl DivAssign<$type> for Money {
+        impl<T: CurrencyType> DivAssign<$type> for Money<T> {
             fn div_assign(&mut self, rhs: $type) {
                 *self = Self {
                     amount: self.amount / Decimal::from(rhs),
@@ -140,14 +147,14 @@ impl_mul_div!(u32);
 impl_mul_div!(u64);
 impl_mul_div!(Decimal);
 
-impl PartialOrd for Money {
-    fn partial_cmp(&self, other: &Money) -> Option<Ordering> {
+impl<T: CurrencyType> PartialOrd for Money<T> {
+    fn partial_cmp(&self, other: &Money<T>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Money {
-    fn cmp(&self, other: &Money) -> Ordering {
+impl<T: CurrencyType> Ord for Money<T> {
+    fn cmp(&self, other: &Money<T>) -> Ordering {
         if self.currency != other.currency {
             panic!();
         }
@@ -155,39 +162,11 @@ impl Ord for Money {
     }
 }
 
-impl Money {
-    /// Creates a Money object given an integer and a currency reference.
-    ///
-    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn new(amount: i64, currency: &'static IsoCurrency) -> Money {
-        Money::from_minor(amount, currency)
-    }
-
-    /// Creates a Money object given an integer and a currency reference.
-    ///
-    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn from_minor(amount: i64, currency: &'static IsoCurrency) -> Money {
-        let amount = Decimal::new(amount, currency.exponent);
-        Money { amount, currency }
-    }
-
-    /// Creates a Money object given an integer and a currency reference.
-    ///
-    /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
-    pub fn from_major(amount: i64, currency: &'static IsoCurrency) -> Money {
-        let amount = Decimal::new(amount, 0);
-        Money { amount, currency }
-    }
-
-    /// Creates a Money object given a decimal amount and a currency reference.
-    pub fn from_decimal(amount: Decimal, currency: &'static IsoCurrency) -> Money {
-        Money { amount, currency }
-    }
-
+impl Money<IsoCurrency> {
     /// Creates a Money object given an amount str and a currency str.
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    pub fn from_str(amount: &str, currency: &str) -> Result<Money, MoneyError> {
+    pub fn from_str(amount: &str, currency: &str) -> Result<Money<IsoCurrency>, MoneyError> {
         Money::from_string(amount.to_string(), currency.to_string())
     }
 
@@ -195,7 +174,7 @@ impl Money {
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     // TODO - Consider moving into Formatter
-    pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
+    pub fn from_string(amount: String, currency: String) -> Result<Money<IsoCurrency>, MoneyError> {
         let currency = IsoCurrency::from_string(currency)?;
         let format = LocalFormat::from_locale(currency.locale);
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
@@ -232,6 +211,36 @@ impl Money {
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
         Ok(Money::from_decimal(decimal, currency))
     }
+}
+
+impl<T: CurrencyType> Money<T> {
+    /// Creates a Money object given an integer and a currency reference.
+    ///
+    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
+    pub fn new(amount: i64, currency: &'static T) -> Money<T> {
+        Money::<T>::from_minor(amount, currency)
+    }
+
+    /// Creates a Money object given an integer and a currency reference.
+    ///
+    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
+    pub fn from_minor(amount: i64, currency: &'static T) -> Money<T> {
+        let amount = Decimal::new(amount, currency.exponent());
+        Money { amount, currency }
+    }
+
+    /// Creates a Money object given an integer and a currency reference.
+    ///
+    /// The integer represents major units of the currency (e.g. 1000 -> 1,000 in USD )
+    pub fn from_major(amount: i64, currency: &'static T) -> Money<T> {
+        let amount = Decimal::new(amount, 0);
+        Money { amount, currency }
+    }
+
+    /// Creates a Money object given a decimal amount and a currency reference.
+    pub fn from_decimal(amount: Decimal, currency: &'static T) -> Money<T> {
+        Money { amount, currency }
+    }
 
     /// Returns a reference to the Decimal amount.
     pub fn amount(&self) -> &Decimal {
@@ -239,7 +248,7 @@ impl Money {
     }
 
     /// Returns the Currency type.
-    pub fn currency(&self) -> &'static IsoCurrency {
+    pub fn currency(&self) -> &'static T {
         self.currency
     }
 
@@ -262,7 +271,7 @@ impl Money {
     ///
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate_to(&self, number: i32) -> Result<Vec<Money>, MoneyError> {
+    pub fn allocate_to(&self, number: i32) -> Result<Vec<Money<T>>, MoneyError> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
         self.allocate(ratios)
     }
@@ -271,7 +280,7 @@ impl Money {
     ///  
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money>, MoneyError> {
+    pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money<T>>, MoneyError> {
         if ratios.is_empty() {
             return Err(MoneyError::InvalidRatio);
         }
@@ -284,7 +293,7 @@ impl Money {
         let mut remainder = self.amount;
         let ratio_total: Decimal = ratios.iter().fold(dec!(0.0), |acc, x| acc + x);
 
-        let mut allocations: Vec<Money> = Vec::new();
+        let mut allocations: Vec<Money<T>> = Vec::new();
 
         for ratio in ratios {
             if ratio <= dec!(0.0) {
@@ -315,7 +324,7 @@ impl Money {
     }
 
     /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
-    pub fn round(&self, digits: u32, strategy: Round) -> Money {
+    pub fn round(&self, digits: u32, strategy: Round) -> Money<T> {
         let mut money = self.clone();
 
         money.amount = match strategy {
@@ -343,22 +352,22 @@ pub enum Round {
     HalfEven,
 }
 
-impl fmt::Display for Money {
+impl<T: CurrencyType> fmt::Display for Money<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
-        let format = LocalFormat::from_locale(currency.locale);
+        let format = LocalFormat::from_locale(currency.locale());
 
         let mut format_params = Params {
             digit_separator: format.digit_separator,
             exponent_separator: format.exponent_separator,
             separator_pattern: format.digit_separator_pattern(),
-            rounding: Some(currency.exponent),
-            symbol: Some(currency.symbol),
-            code: Some(currency.iso_alpha_code),
+            rounding: Some(currency.exponent()),
+            symbol: Some(currency.symbol()),
+            code: Some(currency.iso_alpha_code()),
             ..Default::default()
         };
 
-        if currency.symbol_first {
+        if currency.symbol_first() {
             format_params.positions = vec![Position::Sign, Position::Symbol, Position::Amount];
             write!(f, "{}", Formatter::money(self, format_params))
         } else {
@@ -480,20 +489,17 @@ mod tests {
         assert_eq!(money!(0, "USD"), money!(1, "USD") - money!(1, "USD"));
     }
 
-
     #[test]
     #[should_panic]
     fn money_addition_panics_on_different_currencies() {
         money!(1, "USD") + money!(1, "GBP");
     }
 
-
     #[test]
     #[should_panic]
     fn money_subtractionpanics_on_different_currencies() {
         money!(1, "USD") - money!(1, "GBP");
     }
-
 
     #[test]
     #[should_panic]
@@ -508,7 +514,6 @@ mod tests {
         let mut money = money!(1, "USD");
         money -= money!(1, "GBP");
     }
-
 
     #[test]
     fn money_multiplication_and_division() {

@@ -11,11 +11,67 @@ lazy_static! {
         IsoCurrency::generate_currencies_by_num_code();
 }
 
+pub trait CurrencyType: PartialEq + Eq + Copy {
+    fn to_string(&self) -> String;
+
+    fn exponent(&self) -> u32;
+
+    fn locale(&self) -> Locale;
+
+    fn symbol(&self) -> &str;
+
+    fn symbol_first(&self) -> bool;
+
+    fn iso_alpha_code(&self) -> &str;
+}
+
+/// A struct which represent a generic currency.
+///
+/// Currency stores metadata like locale, exponent and symbol. Operations on Currencies pass around references,
+/// since they are unchanging.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Currency {
+    pub locale: Locale,
+    pub exponent: u32,
+    pub code: &'static str,
+    pub name: &'static str,
+    pub symbol: &'static str,
+    pub symbol_first: bool,
+    pub minor_denomination: u32,
+}
+
+impl CurrencyType for Currency {
+    fn to_string(&self) -> String {
+        self.code.to_string()
+    }
+
+    fn exponent(&self) -> u32 {
+        self.exponent
+    }
+
+    fn locale(&self) -> Locale {
+        self.locale
+    }
+
+    fn symbol(&self) -> &str {
+        self.symbol
+    }
+
+    fn symbol_first(&self) -> bool {
+        self.symbol_first
+    }
+
+    // TODO: Fix this method to be generic.
+    fn iso_alpha_code(&self) -> &str {
+        self.code
+    }
+}
+
 /// A struct which represent an ISO-4127 currency.
 ///
 /// IsoCurrency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
 /// since they are unchanging.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IsoCurrency {
     pub locale: Locale,
     pub exponent: u32,
@@ -25,6 +81,32 @@ pub struct IsoCurrency {
     pub symbol: &'static str,
     pub symbol_first: bool,
     pub minor_denomination: u32,
+}
+
+impl CurrencyType for IsoCurrency {
+    fn to_string(&self) -> String {
+        self.iso_alpha_code().to_string()
+    }
+
+    fn exponent(&self) -> u32 {
+        self.exponent
+    }
+
+    fn locale(&self) -> Locale {
+        self.locale
+    }
+
+    fn symbol(&self) -> &str {
+        self.symbol
+    }
+
+    fn symbol_first(&self) -> bool {
+        self.symbol_first
+    }
+
+    fn iso_alpha_code(&self) -> &str {
+        self.iso_alpha_code
+    }
 }
 
 impl fmt::Display for IsoCurrency {
