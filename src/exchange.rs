@@ -5,28 +5,26 @@ use std::collections::HashMap;
 
 /// A struct to store `ExchangeRate`s.
 #[derive(Debug, Default)]
-pub struct Exchange<T: CurrencyType>
-where
-    T: 'static,
+pub struct Exchange<'a, T: CurrencyType>
 {
-    map: HashMap<String, ExchangeRate<T>>,
+    map: HashMap<String, ExchangeRate<'a, T>>,
 }
 
-impl<T: CurrencyType> Exchange<T> {
-    pub fn new() -> Exchange<T> {
+impl<'a, T: CurrencyType> Exchange<'a, T> {
+    pub fn new() -> Exchange<'a, T> {
         Exchange {
             map: HashMap::new(),
         }
     }
 
     /// Update an ExchangeRate or add it if does not exist.
-    pub fn add_or_update_rate(&mut self, rate: &ExchangeRate<T>) {
+    pub fn add_or_update_rate(&mut self, rate: &'a ExchangeRate<T>) {
         let key = Exchange::generate_key(rate.from, rate.to);
         self.map.insert(key, *rate);
     }
 
     /// Return the ExchangeRate given the currency pair.
-    pub fn get_rate(&self, from: &'static T, to: &'static T) -> Option<ExchangeRate<T>> {
+    pub fn get_rate(&self, from: &T, to: &T) -> Option<ExchangeRate<T>> {
         let key = Exchange::generate_key(from, to);
         match self.map.get(&key) {
             Some(v) => Some(*v),
@@ -34,28 +32,26 @@ impl<T: CurrencyType> Exchange<T> {
         }
     }
 
-    fn generate_key(from: &'static T, to: &'static T) -> String {
+    fn generate_key(from: &T, to: &T) -> String {
         from.to_string() + "-" + &to.to_string()
     }
 }
 
 /// A struct to store rates of conversion between two currencies.
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct ExchangeRate<T: CurrencyType>
-where
-    T: 'static,
+pub struct ExchangeRate<'a, T: CurrencyType>
 {
-    pub from: &'static T,
-    pub to: &'static T,
+    pub from: &'a T,
+    pub to: &'a T,
     rate: Decimal,
 }
 
-impl<T: CurrencyType> ExchangeRate<T> {
+impl<'a, T: CurrencyType> ExchangeRate<'a, T> {
     pub fn new(
-        from: &'static T,
-        to: &'static T,
+        from: &'a T,
+        to: &'a T,
         rate: Decimal,
-    ) -> Result<ExchangeRate<T>, MoneyError> {
+    ) -> Result<ExchangeRate<'a, T>, MoneyError> {
         if from == to {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -63,7 +59,7 @@ impl<T: CurrencyType> ExchangeRate<T> {
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
-    pub fn convert(&self, amount: Money<T>) -> Result<Money<T>, MoneyError> {
+    pub fn convert(&self, amount: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if amount.currency() != self.from {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -123,11 +119,7 @@ mod tests {
 
     #[test]
     fn rate_new_errors_if_currencies_are_equal() {
-        let rate = ExchangeRate::new(
-            IsoCurrency::get(GBP),
-            IsoCurrency::get(GBP),
-            dec!(1.5),
-        );
+        let rate = ExchangeRate::new(IsoCurrency::get(GBP), IsoCurrency::get(GBP), dec!(1.5));
         assert_eq!(rate.unwrap_err(), MoneyError::InvalidCurrency,);
     }
 }

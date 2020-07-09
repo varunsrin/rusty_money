@@ -18,11 +18,11 @@ pub trait CurrencyType: PartialEq + Eq + Copy {
 
     fn locale(&self) -> Locale;
 
-    fn symbol(&self) -> &str;
+    fn symbol(&self) -> &'static str;
 
     fn symbol_first(&self) -> bool;
 
-    fn iso_alpha_code(&self) -> &str;
+    fn iso_alpha_code(&self) -> &'static str;
 }
 
 /// A struct which represent a generic currency.
@@ -31,13 +31,13 @@ pub trait CurrencyType: PartialEq + Eq + Copy {
 /// since they are unchanging.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Currency {
-    pub locale: Locale,
-    pub exponent: u32,
     pub code: &'static str,
+    pub exponent: u32,
+    pub locale: Locale,
+    pub minor_denomination: u32,
     pub name: &'static str,
     pub symbol: &'static str,
     pub symbol_first: bool,
-    pub minor_denomination: u32,
 }
 
 impl CurrencyType for Currency {
@@ -53,7 +53,7 @@ impl CurrencyType for Currency {
         self.locale
     }
 
-    fn symbol(&self) -> &str {
+    fn symbol(&self) -> &'static str {
         self.symbol
     }
 
@@ -62,8 +62,31 @@ impl CurrencyType for Currency {
     }
 
     // TODO: Fix this method to be generic.
-    fn iso_alpha_code(&self) -> &str {
+    fn iso_alpha_code(&self) -> &'static str {
         self.code
+    }
+}
+
+impl Currency {
+    /// Returns a Currency.
+    pub fn new(
+        code: &'static str,
+        exponent: u32,
+        locale: Locale,
+        minor_denomination: u32,
+        name: &'static str,
+        symbol: &'static str,
+        symbol_first: bool,
+    ) -> Currency {
+        Currency {
+            code,
+            exponent,
+            locale,
+            minor_denomination,
+            name,
+            symbol,
+            symbol_first,
+        }
     }
 }
 
@@ -96,7 +119,7 @@ impl CurrencyType for IsoCurrency {
         self.locale
     }
 
-    fn symbol(&self) -> &str {
+    fn symbol(&self) -> &'static str {
         self.symbol
     }
 
@@ -104,7 +127,7 @@ impl CurrencyType for IsoCurrency {
         self.symbol_first
     }
 
-    fn iso_alpha_code(&self) -> &str {
+    fn iso_alpha_code(&self) -> &'static str {
         self.iso_alpha_code
     }
 }
@@ -123,7 +146,7 @@ impl IsoCurrency {
 
     /// Returns a Currency given a Currency enumeration.
     pub fn get(code: Iso) -> &'static IsoCurrency {
-        IsoCurrency::from_string(code.to_string()).unwrap()
+        &IsoCurrency::from_string(code.to_string()).unwrap()
     }
 
     /// Returns a Currency given an ISO-4217 currency code as a string.

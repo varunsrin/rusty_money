@@ -12,12 +12,14 @@ to ISO 4217 standards. The main items exported by the library are `Money` and `C
 
 ## Usage
 
-`Money` consists of an amount, which is represented by a Decimal type that it owns and a
-`IsoCurrency`, which it holds a reference to. `IsoCurrency` represents an ISO-4217 currency, and
- stores metadata like its numeric code, full name and symbol.
+`Money` consists of an amount and a currency. The amount is a Decimal type. The currency can be anything that 
+implements the `CurrencyType` trait. `IsoCurrency` is provided as an implementation of this trait which represents
+ISO-417 Currencies, along with all their metadata and formatting styles. `Currency` is also provided implementing this 
+trait which can be used to represent non-ISO currencies.
 
 ```rust
 // Money can be initialized in a few ways:
+use rusty_money::Locale::*;
 use rusty_money::{money, Money, IsoCurrency};
 use rusty_money::Iso::*;
 
@@ -34,6 +36,10 @@ let hundred = money!(100, "USD");
 let thousand = money!(1000, "USD");
 println!("{}", thousand > hundred);     // false
 println!("{}", thousand.is_positive()); // true
+
+// Currencies can be constructed 
+let bitcoin = Currency::new("BTC", 2, EnUs, 2, "Bitcoin", "₿", true);
+Money::from_major(2000, &bitcoin);  // 2000 BTC
 ```
 
 ## Precision and Rounding

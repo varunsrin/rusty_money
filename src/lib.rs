@@ -4,12 +4,13 @@
 //! # Usage
 //!
 //! `Money` consists of an amount, which is represented by a Decimal type that it owns and a
-//! `Currency`, which is holds a reference to. `Currency` represents an ISO-4217 currency, and
+//! `CurrencyType`, which it holds a reference to. `Currency` represents an ISO-4217 currency, and
 //!  stores metadata like its numeric code, full name and symbol.
 //!
 //! ```edition2018
 //! // Money can be initialized in a few ways:
-//! use rusty_money::{money, Money, IsoCurrency};
+//! use rusty_money::Locale::*;
+//! use rusty_money::{money, Money, Currency, IsoCurrency};
 //! use rusty_money::Iso::*;
 //!
 //! money!(2000, "USD");                            // 2000 USD
@@ -25,6 +26,9 @@
 //! let thousand = money!(1000, "USD");
 //! println!("{}", thousand > hundred);     // false
 //! println!("{}", thousand.is_positive()); // true
+//! 
+//! let bitcoin = Currency::new("BTC", 2, EnUs, 2, "Bitcoin", "₿", true);
+//! Money::from_major(2000, &bitcoin);  // 2000 BTC
 //! ```
 //!
 //! ## Precision and Rounding
