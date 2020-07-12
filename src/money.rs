@@ -144,6 +144,7 @@ impl_mul_div!(u8);
 impl_mul_div!(u16);
 impl_mul_div!(u32);
 impl_mul_div!(u64);
+impl_mul_div!(Decimal);
 
 impl PartialOrd for Money {
     fn partial_cmp(&self, other: &Money) -> Option<Ordering> {
@@ -517,25 +518,57 @@ mod tests {
 
     #[test]
     fn money_multiplication_and_division() {
-        // Multiplication
+        // Multiplication integer
         assert_eq!(money!(2, "USD"), money!(1, "USD") * 2);
         assert_eq!(money!(2, "USD"), money!(-1, "USD") * -2);
         assert_eq!(money!(2, "USD"), -2 * money!(-1, "USD"));
 
-        // Division
+        // Multiplication decimal
+        assert_eq!(money!(2, "USD"), money!(1, "USD") * Decimal::new(2, 0));
+        assert_eq!(money!(2, "USD"), money!(-1, "USD") * Decimal::new(-2, 0));
+        assert_eq!(money!(2, "USD"), Decimal::new(-2, 0) * money!(-1, "USD"));
+        assert_eq!(money!(2, "USD"), money!(4, "USD") * Decimal::new(5, 1));
+
+        // Division integer
         assert_eq!(money!(2, "USD"), money!(4, "USD") / 2);
         assert_eq!(money!(2, "USD"), money!(-4, "USD") / -2);
         assert_eq!(money!("0.5", "USD"), -1 / money!(-2, "USD"));
         assert_eq!(money!("2.0", "USD"), money!(-2, "USD") / -1);
 
-        //MulAssign
+        // Division decimal
+        assert_eq!(money!(2, "USD"), money!(4, "USD") / Decimal::new(2, 0));
+        assert_eq!(money!(2, "USD"), money!(-4, "USD") / Decimal::new(-2, 0));
+        assert_eq!(
+            money!("0.5", "USD"),
+            Decimal::new(-1, 0) / money!(-2, "USD")
+        );
+        assert_eq!(
+            money!("2.0", "USD"),
+            money!(-2, "USD") / Decimal::new(-1, 0)
+        );
+        assert_eq!(
+            money!("4.0", "USD"),
+            money!(-2, "USD") / Decimal::new(-5, 1)
+        );
+
+        //MulAssign integer
         let mut money = money!(1, "USD");
         money *= 2;
         assert_eq!(money!(2, "USD"), money);
 
-        //DivAssign
+        //MulAssign decimal
+        let mut money = money!(1, "USD");
+        money *= Decimal::new(2, 0);
+        assert_eq!(money!(2, "USD"), money);
+
+        //DivAssign integer
         let mut money = money!(1, "USD");
         money /= -2;
+        assert_eq!(money!("-0.5", "USD"), money);
+
+        //DivAssign decimal
+        let mut money = money!(1, "USD");
+        money /= Decimal::new(-2, 0);
         assert_eq!(money!("-0.5", "USD"), money);
     }
 
