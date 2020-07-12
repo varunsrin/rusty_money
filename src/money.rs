@@ -80,8 +80,7 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn mul(self, rhs: $type) -> Money {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::from_decimal(self.amount * rhs, self.currency)
+                Money::from_decimal(self.amount * Decimal::from(rhs), self.currency)
             }
         }
 
@@ -89,16 +88,14 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn mul(self, rhs: Money) -> Money {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(rhs.amount * lhs, rhs.currency)
+                Money::from_decimal(rhs.amount * Decimal::from(self), rhs.currency)
             }
         }
 
         impl MulAssign<$type> for Money {
             fn mul_assign(&mut self, rhs: $type) {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
                 *self = Self {
-                    amount: self.amount * rhs,
+                    amount: self.amount * Decimal::from(rhs),
                     currency: self.currency,
                 };
             }
@@ -108,8 +105,7 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn div(self, rhs: $type) -> Money {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::from_decimal(self.amount / rhs, self.currency)
+                Money::from_decimal(self.amount / Decimal::from(rhs), self.currency)
             }
         }
 
@@ -117,16 +113,14 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn div(self, rhs: Money) -> Money {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(lhs / rhs.amount, rhs.currency)
+                Money::from_decimal(Decimal::from(self) / rhs.amount, rhs.currency)
             }
         }
 
         impl DivAssign<$type> for Money {
             fn div_assign(&mut self, rhs: $type) {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
                 *self = Self {
-                    amount: self.amount / rhs,
+                    amount: self.amount / Decimal::from(rhs),
                     currency: self.currency,
                 };
             }
