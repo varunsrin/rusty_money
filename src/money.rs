@@ -80,8 +80,7 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn mul(self, rhs: $type) -> Money {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::from_decimal(self.amount * rhs, self.currency)
+                Money::from_decimal(self.amount * Decimal::from(rhs), self.currency)
             }
         }
 
@@ -89,16 +88,14 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn mul(self, rhs: Money) -> Money {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(rhs.amount * lhs, rhs.currency)
+                Money::from_decimal(rhs.amount * Decimal::from(self), rhs.currency)
             }
         }
 
         impl MulAssign<$type> for Money {
             fn mul_assign(&mut self, rhs: $type) {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
                 *self = Self {
-                    amount: self.amount * rhs,
+                    amount: self.amount * Decimal::from(rhs),
                     currency: self.currency,
                 };
             }
@@ -108,8 +105,7 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn div(self, rhs: $type) -> Money {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::from_decimal(self.amount / rhs, self.currency)
+                Money::from_decimal(self.amount / Decimal::from(rhs), self.currency)
             }
         }
 
@@ -117,16 +113,14 @@ macro_rules! impl_mul_div {
             type Output = Money;
 
             fn div(self, rhs: Money) -> Money {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(lhs / rhs.amount, rhs.currency)
+                Money::from_decimal(Decimal::from(self) / rhs.amount, rhs.currency)
             }
         }
 
         impl DivAssign<$type> for Money {
             fn div_assign(&mut self, rhs: $type) {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
                 *self = Self {
-                    amount: self.amount / rhs,
+                    amount: self.amount / Decimal::from(rhs),
                     currency: self.currency,
                 };
             }
@@ -144,6 +138,7 @@ impl_mul_div!(u8);
 impl_mul_div!(u16);
 impl_mul_div!(u32);
 impl_mul_div!(u64);
+impl_mul_div!(Decimal);
 
 impl PartialOrd for Money {
     fn partial_cmp(&self, other: &Money) -> Option<Ordering> {
@@ -517,25 +512,57 @@ mod tests {
 
     #[test]
     fn money_multiplication_and_division() {
-        // Multiplication
+        // Multiplication integer
         assert_eq!(money!(2, "USD"), money!(1, "USD") * 2);
         assert_eq!(money!(2, "USD"), money!(-1, "USD") * -2);
         assert_eq!(money!(2, "USD"), -2 * money!(-1, "USD"));
 
-        // Division
+        // Multiplication decimal
+        assert_eq!(money!(2, "USD"), money!(1, "USD") * Decimal::new(2, 0));
+        assert_eq!(money!(2, "USD"), money!(-1, "USD") * Decimal::new(-2, 0));
+        assert_eq!(money!(2, "USD"), Decimal::new(-2, 0) * money!(-1, "USD"));
+        assert_eq!(money!(2, "USD"), money!(4, "USD") * Decimal::new(5, 1));
+
+        // Division integer
         assert_eq!(money!(2, "USD"), money!(4, "USD") / 2);
         assert_eq!(money!(2, "USD"), money!(-4, "USD") / -2);
         assert_eq!(money!("0.5", "USD"), -1 / money!(-2, "USD"));
         assert_eq!(money!("2.0", "USD"), money!(-2, "USD") / -1);
 
-        //MulAssign
+        // Division decimal
+        assert_eq!(money!(2, "USD"), money!(4, "USD") / Decimal::new(2, 0));
+        assert_eq!(money!(2, "USD"), money!(-4, "USD") / Decimal::new(-2, 0));
+        assert_eq!(
+            money!("0.5", "USD"),
+            Decimal::new(-1, 0) / money!(-2, "USD")
+        );
+        assert_eq!(
+            money!("2.0", "USD"),
+            money!(-2, "USD") / Decimal::new(-1, 0)
+        );
+        assert_eq!(
+            money!("4.0", "USD"),
+            money!(-2, "USD") / Decimal::new(-5, 1)
+        );
+
+        //MulAssign integer
         let mut money = money!(1, "USD");
         money *= 2;
         assert_eq!(money!(2, "USD"), money);
 
-        //DivAssign
+        //MulAssign decimal
+        let mut money = money!(1, "USD");
+        money *= Decimal::new(2, 0);
+        assert_eq!(money!(2, "USD"), money);
+
+        //DivAssign integer
         let mut money = money!(1, "USD");
         money /= -2;
+        assert_eq!(money!("-0.5", "USD"), money);
+
+        //DivAssign decimal
+        let mut money = money!(1, "USD");
+        money /= Decimal::new(-2, 0);
         assert_eq!(money!("-0.5", "USD"), money);
     }
 
