@@ -564,7 +564,7 @@ pub fn from_enum(code: &Iso) -> Currency {
         CZK => Currency {
             exponent: 2,
             iso_alpha_code: "CZK",
-            iso_numeric_code: "132",
+            iso_numeric_code: "203",
             locale: EnBy,
             minor_denomination: 100,
             name: "Czech Koruna",
@@ -793,7 +793,7 @@ pub fn from_enum(code: &Iso) -> Currency {
         },
         HUF => Currency {
             exponent: 0,
-            iso_alpha_code: "HTG",
+            iso_alpha_code: "HUF",
             iso_numeric_code: "348",
             locale: EnBy,
             minor_denomination: 5,
@@ -1883,7 +1883,7 @@ pub fn from_enum(code: &Iso) -> Currency {
         },
         ZMW => Currency {
             exponent: 2,
-            iso_alpha_code: "ZMK",
+            iso_alpha_code: "ZMW",
             iso_numeric_code: "967",
             locale: EnUs,
             minor_denomination: 5,
@@ -1891,5 +1891,31 @@ pub fn from_enum(code: &Iso) -> Currency {
             symbol: "K",
             symbol_first: true,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn iso_enum_name_matches_currency_iso_alpha_code() {
+        for iso in ISO_CURRENCIES {
+            let iso_alpha_code = format!("{}", iso);
+            let currency = from_enum(iso);
+            assert_eq!(iso_alpha_code, currency.iso_alpha_code);
+        }
+    }
+
+    #[test]
+    fn no_duplicate_currency_numeric_iso_codes() {
+        let mut numeric_codes: Vec<_> = ISO_CURRENCIES
+            .iter()
+            .map(|iso| from_enum(iso).iso_numeric_code)
+            .collect();
+
+        numeric_codes.sort();
+        numeric_codes.dedup();
+        assert_eq!(ISO_CURRENCIES.len(), numeric_codes.len());
     }
 }
