@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.3.5] - 2020-07-26
+
+* Bugfix: Incorrect metadata for CZK, HUF, ZMK [@zacharra]
+* Feature: Money objects can be multiplied by Decimals [@sjoerdsimons]
+
 ## [0.3.4] - 2020-04-19
 
 * Bugfix: from_string rejects incorrect digit separators like 1.00,00 EUR [@sjoerdsimons]
@@ -45,3 +50,4 @@
 ### v0.4.0
 
 * Currency Declaration: Allow declaration of new currency types (e.g. a cryptocurrency).
+* Serialization & Deserialization support. 
