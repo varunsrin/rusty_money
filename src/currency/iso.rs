@@ -185,6 +185,7 @@ define_enum!(Iso {
     ZAR,
     ZMK,
     ZMW,
+    ZWL,
 });
 
 impl fmt::Display for Iso {
@@ -1889,6 +1890,16 @@ pub fn from_enum(code: &Iso) -> Currency {
             minor_denomination: 5,
             name: "Zambian Kwacha",
             symbol: "K",
+            symbol_first: true,
+        },
+        ZWL => Currency {
+            exponent: 2,
+            iso_alpha_code: "ZWL",
+            iso_numeric_code: "932",
+            locale: EnUs,
+            minor_denomination: 1,
+            name: "Zimbabwe Dollar",
+            symbol: "Z$",
             symbol_first: true,
         },
     }
