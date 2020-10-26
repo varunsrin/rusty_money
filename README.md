@@ -13,8 +13,8 @@ to ISO 4217 standards. The main items exported by the library are `Money` and `C
 ## Usage
 
 `Money` consists of an amount, which is represented by a Decimal type that it owns and a
-`Currency`, which is holds a reference to. `Currency` represents an ISO-4217 currency, and
- stores metadata like its numeric code, full name and symbol.
+`Currency`, which it holds a reference to. `Currency` represents an ISO-4217 currency, and
+ stores metadata like its numeric code, full name, and symbol.
 
 ```rust
 // Money can be initialized in a few ways:
@@ -40,7 +40,7 @@ println!("{}", thousand.is_positive()); // true
 
 Money objects are immutable, and operations that change the amount or currency of Money simply create
 a new instance. Money uses a 128 bit fixed-precision [Decimal](https://github.com/paupino/rust-decimal)
-to represents amounts, and it represents values as large as 2<sup>96</sup> / 10<sup>28</sup>. By default
+to represent amounts, and it represents values as large as 2<sup>96</sup> / 10<sup>28</sup>. By default,
 operations on Money always retain maximum possible precision. When you do need to round money, you can call
  the `round` function, which  supports three modes:
 
