@@ -188,15 +188,7 @@ impl Money {
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     pub fn from_str(amount: &str, currency: &str) -> Result<Money, MoneyError> {
-        Money::from_string(amount.to_string(), currency.to_string())
-    }
-
-    /// Creates a Money object given an amount string and a currency string.
-    ///
-    /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
-    // TODO - Consider moving into Formatter
-    pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
-        let currency = Currency::from_string(currency)?;
+        let currency: &'static Currency = FromStr::from_str(currency)?;
         let format = LocalFormat::from_locale(currency.locale);
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
 
@@ -231,6 +223,14 @@ impl Money {
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
         Ok(Money::from_decimal(decimal, currency))
+    }
+
+    /// Creates a Money object given an amount string and a currency string.
+    ///
+    /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
+    // TODO - Consider moving into Formatter
+    pub fn from_string(amount: String, currency: String) -> Result<Money, MoneyError> {
+        Money::from_str(amount.as_str(), currency.as_str())
     }
 
     /// Returns a reference to the Decimal amount.

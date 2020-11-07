@@ -1,8 +1,9 @@
 mod iso;
 pub use crate::{LocalFormat, Locale, MoneyError};
 pub use iso::Iso;
-use std::collections::HashMap;
+use std::collections::  HashMap;
 use std::fmt;
+use std::str::FromStr;
 
 lazy_static! {
     static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, Currency> =
@@ -36,27 +37,16 @@ impl fmt::Display for Currency {
 impl Currency {
     /// Returns a Currency given an ISO-4217 currency code as an str.
     pub fn find(code: &str) -> Result<&'static Currency, MoneyError> {
-        Currency::from_string(code.to_string())
+        FromStr::from_str(code)
     }
 
     /// Returns a Currency given a Currency enumeration.
     pub fn get(code: Iso) -> &'static Currency {
-        Currency::from_string(code.to_string()).unwrap()
-    }
-
-    /// Returns a Currency given an ISO-4217 currency code as a string.
-    pub fn from_string(code: String) -> Result<&'static Currency, MoneyError> {
-        if code.chars().all(char::is_alphabetic) {
-            Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
-        } else if code.chars().all(char::is_numeric) {
-            Currency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
-        } else {
-            Err(MoneyError::InvalidCurrency)
-        }
+        From::from(code)
     }
 
     /// Returns a Currency given an alphabetic ISO-4217 currency code.
-    pub fn find_by_alpha_iso(code: String) -> Option<&'static Currency> {
+    pub fn find_by_alpha_iso(code: &str) -> Option<&'static Currency> {
         match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
             Some(c) => Some(c),
             None => None,
@@ -64,8 +54,8 @@ impl Currency {
     }
 
     /// Returns a currency given a numeric ISO-4217 currency code.
-    pub fn find_by_numeric_iso(code: String) -> Option<&'static Currency> {
-        match CURRENCIES_BY_NUM_CODE.get(&code) {
+    pub fn find_by_numeric_iso(code: &str) -> Option<&'static Currency> {
+        match CURRENCIES_BY_NUM_CODE.get(code) {
             Some(c) => Some(c),
             None => None,
         }
@@ -90,6 +80,27 @@ impl Currency {
             num_map.insert(currency.iso_numeric_code.to_string(), currency);
         }
         num_map
+    }
+}
+
+/// Returns a Currency given an ISO-4217 currency code as an str.
+impl FromStr for &'static Currency {
+    type Err = MoneyError;
+    fn from_str(code: &str) -> Result<Self, Self::Err> {
+        if code.chars().all(char::is_alphabetic) {
+            Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
+        } else if code.chars().all(char::is_numeric) {
+            Currency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
+        } else {
+            Err(MoneyError::InvalidCurrency)
+        }
+    }
+}
+
+/// Returns a Currency given an ISO-4217 currency code as a string.
+impl std::convert::From<Iso> for &'static Currency {
+    fn from(iso_code: Iso) -> Self {
+        FromStr::from_str(&iso_code.to_string()).unwrap()
     }
 }
 
