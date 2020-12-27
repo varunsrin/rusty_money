@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.6] - 2020-12-26
+
+* Upgraded dependencies.
+
 ## [0.3.5] - 2020-07-26
 
 * Bugfix: Incorrect metadata for CZK, HUF, ZMK [@zacharra]

@@ -1,6 +1,6 @@
 [package]
 name = "rusty-money"
-version = "0.3.5"
+version = "0.3.6"
 authors = ["Varun Srinivasan <varunsrin@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -15,6 +15,6 @@ categories = ["data-structures", "rust-patterns"]
 
 
 [dependencies]
-rust_decimal = "1.7.0"
-rust_decimal_macros = "1.7.0"
+rust_decimal = "1.8.1"
+rust_decimal_macros = "1.8.1"
 lazy_static = "1.4.0"
