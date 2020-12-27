@@ -16,14 +16,17 @@ pub trait CurrencyType: PartialEq + Eq + Copy {
 
     fn exponent(&self) -> u32;
 
+    fn iso_alpha_code(&self) -> &'static str;
+}
+
+pub trait FormattableCurrency {
     fn locale(&self) -> Locale;
 
     fn symbol(&self) -> &'static str;
 
     fn symbol_first(&self) -> bool;
-
-    fn iso_alpha_code(&self) -> &'static str;
 }
+
 
 /// A struct which represent a generic currency.
 ///
@@ -33,11 +36,7 @@ pub trait CurrencyType: PartialEq + Eq + Copy {
 pub struct Currency {
     pub code: &'static str,
     pub exponent: u32,
-    pub locale: Locale,
     pub minor_denomination: u32,
-    pub name: &'static str,
-    pub symbol: &'static str,
-    pub symbol_first: bool,
 }
 
 impl CurrencyType for Currency {
@@ -47,18 +46,6 @@ impl CurrencyType for Currency {
 
     fn exponent(&self) -> u32 {
         self.exponent
-    }
-
-    fn locale(&self) -> Locale {
-        self.locale
-    }
-
-    fn symbol(&self) -> &'static str {
-        self.symbol
-    }
-
-    fn symbol_first(&self) -> bool {
-        self.symbol_first
     }
 
     // TODO: Fix this method to be generic.
@@ -72,20 +59,12 @@ impl Currency {
     pub fn new(
         code: &'static str,
         exponent: u32,
-        locale: Locale,
         minor_denomination: u32,
-        name: &'static str,
-        symbol: &'static str,
-        symbol_first: bool,
     ) -> Currency {
         Currency {
             code,
             exponent,
-            locale,
             minor_denomination,
-            name,
-            symbol,
-            symbol_first,
         }
     }
 }
@@ -115,6 +94,13 @@ impl CurrencyType for IsoCurrency {
         self.exponent
     }
 
+    fn iso_alpha_code(&self) -> &'static str {
+        self.iso_alpha_code
+    }
+}
+
+
+impl FormattableCurrency for IsoCurrency {
     fn locale(&self) -> Locale {
         self.locale
     }
@@ -125,10 +111,6 @@ impl CurrencyType for IsoCurrency {
 
     fn symbol_first(&self) -> bool {
         self.symbol_first
-    }
-
-    fn iso_alpha_code(&self) -> &'static str {
-        self.iso_alpha_code
     }
 }
 

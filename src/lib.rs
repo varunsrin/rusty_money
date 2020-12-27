@@ -8,17 +8,24 @@
 //!  stores metadata like its numeric code, full name and symbol.
 //!
 //! ```edition2018
+//! use rusty_money::{money, Money, Currency};
+//! 
+//! let currency = Currency::new("USD", 2, 2);
+//! let one_dollar = Money::from_minor(100, &currency); // 1 USD
+//! 
+//! // You can also initialize formattable currency, which can be printed in a few ways.
+//!
+//!   
 //! // Money can be initialized in a few ways:
 //! use rusty_money::Locale::*;
-//! use rusty_money::{money, Money, Currency, IsoCurrency};
+//! use rusty_money::{IsoCurrency};
 //! use rusty_money::Iso::*;
 //!
-//! money!(2000, "USD");                            // 2000 USD
-//! money!("2000.00", "USD");                       // 2000 USD
-//! Money::new(200000, IsoCurrency::get(USD));         // 2000 USD
+//! money!(2000, "USD");                               // 2000 USD
+//! money!("2000.00", "USD");                          // 2000 USD
 //! Money::from_major(2000, IsoCurrency::get(USD));    // 2000 USD
 //! Money::from_minor(200000, IsoCurrency::get(USD));  // 2000 USD
-//! Money::from_str("2,000.00", "USD").unwrap();    // 2000 USD
+//! Money::from_str("2,000.00", "USD").unwrap();       // 2000 USD
 //!
 //!
 //! // Money objects with the same Currency can be compared:
@@ -26,9 +33,6 @@
 //! let thousand = money!(1000, "USD");
 //! println!("{}", thousand > hundred);     // false
 //! println!("{}", thousand.is_positive()); // true
-//! 
-//! let bitcoin = Currency::new("BTC", 2, EnUs, 2, "Bitcoin", "₿", true);
-//! Money::from_major(2000, &bitcoin);  // 2000 BTC
 //! ```
 //!
 //! ## Precision and Rounding
@@ -90,7 +94,7 @@
 //!
 //! // An Exchange can be used to store ExchangeRates for later use
 //! let mut exchange = Exchange::new();
-//! exchange.add_or_update_rate(&rate);
+//! exchange.set_rate(&rate);
 //! exchange.get_rate(IsoCurrency::get(USD), IsoCurrency::get(EUR));
 //! ```
 //!

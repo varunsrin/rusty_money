@@ -1892,7 +1892,7 @@ pub fn from_enum(code: &Iso) -> IsoCurrency {
             symbol: "K",
             symbol_first: true,
         },
-        ZWL => Currency {
+        ZWL => IsoCurrency {
             exponent: 2,
             iso_alpha_code: "ZWL",
             iso_numeric_code: "932",

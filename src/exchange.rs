@@ -5,8 +5,7 @@ use std::collections::HashMap;
 
 /// A struct to store `ExchangeRate`s.
 #[derive(Debug, Default)]
-pub struct Exchange<'a, T: CurrencyType>
-{
+pub struct Exchange<'a, T: CurrencyType> {
     map: HashMap<String, ExchangeRate<'a, T>>,
 }
 
@@ -18,7 +17,7 @@ impl<'a, T: CurrencyType> Exchange<'a, T> {
     }
 
     /// Update an ExchangeRate or add it if does not exist.
-    pub fn add_or_update_rate(&mut self, rate: &'a ExchangeRate<T>) {
+    pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
         let key = Exchange::generate_key(rate.from, rate.to);
         self.map.insert(key, *rate);
     }
@@ -39,19 +38,14 @@ impl<'a, T: CurrencyType> Exchange<'a, T> {
 
 /// A struct to store rates of conversion between two currencies.
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct ExchangeRate<'a, T: CurrencyType>
-{
+pub struct ExchangeRate<'a, T: CurrencyType> {
     pub from: &'a T,
     pub to: &'a T,
     rate: Decimal,
 }
 
 impl<'a, T: CurrencyType> ExchangeRate<'a, T> {
-    pub fn new(
-        from: &'a T,
-        to: &'a T,
-        rate: Decimal,
-    ) -> Result<ExchangeRate<'a, T>, MoneyError> {
+    pub fn new(from: &'a T, to: &'a T, rate: Decimal) -> Result<ExchangeRate<'a, T>, MoneyError> {
         if from == to {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -85,8 +79,8 @@ mod tests {
         let eur_gbp_rate = ExchangeRate::new(usd, gbp, dec!(1.6)).unwrap();
 
         let mut exchange = Exchange::new();
-        exchange.add_or_update_rate(&eur_usd_rate);
-        exchange.add_or_update_rate(&eur_gbp_rate);
+        exchange.set_rate(&eur_usd_rate);
+        exchange.set_rate(&eur_gbp_rate);
 
         let fetched_rate = exchange.get_rate(usd, eur).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.5));

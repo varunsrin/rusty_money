@@ -14,8 +14,7 @@ use std::str::FromStr;
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Money<'a, T: CurrencyType>
-{
+pub struct Money<'a, T: CurrencyType> {
     amount: Decimal,
     currency: &'a T,
 }
@@ -172,7 +171,10 @@ impl<'a> Money<'a, IsoCurrency> {
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     // TODO - Consider moving into Formatter
-    pub fn from_string(amount: String, currency: String) -> Result<Money<'a, IsoCurrency>, MoneyError> {
+    pub fn from_string(
+        amount: String,
+        currency: String,
+    ) -> Result<Money<'a, IsoCurrency>, MoneyError> {
         let currency = IsoCurrency::from_string(currency)?;
         let format = LocalFormat::from_locale(currency.locale);
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
@@ -212,13 +214,6 @@ impl<'a> Money<'a, IsoCurrency> {
 }
 
 impl<'a, T: CurrencyType> Money<'a, T> {
-    /// Creates a Money object given an integer and a currency reference.
-    ///
-    /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
-    pub fn new(amount: i64, currency: &'a T) -> Money<'a, T> {
-        Money::<T>::from_minor(amount, currency)
-    }
-
     /// Creates a Money object given an integer and a currency reference.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
@@ -350,7 +345,7 @@ pub enum Round {
     HalfEven,
 }
 
-impl<'a, T: CurrencyType> fmt::Display for Money<'a, T> {
+impl<'a, T: CurrencyType + FormattableCurrency> fmt::Display for Money<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
         let format = LocalFormat::from_locale(currency.locale());
@@ -384,32 +379,30 @@ mod tests {
     fn money_major_minor() {
         let major_usd = Money::from_major(10, IsoCurrency::get(USD));
         let minor_usd = Money::from_minor(1000, IsoCurrency::get(USD));
-        let new_usd = Money::new(1000, IsoCurrency::get(USD));
         assert_eq!(major_usd, minor_usd);
-        assert_eq!(major_usd, new_usd);
     }
 
     #[test]
     fn money_from_string_parses_correctly() {
-        let expected_money = Money::new(2999, IsoCurrency::get(GBP));
+        let expected_money = Money::from_minor(2999, IsoCurrency::get(GBP));
         let money = Money::from_string("29.99".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_parses_signs() {
-        let expected_money = Money::new(-300, IsoCurrency::get(GBP));
+        let expected_money = Money::from_minor(-300, IsoCurrency::get(GBP));
         let money = Money::from_string("-3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
 
-        let expected_money = Money::new(300, IsoCurrency::get(GBP));
+        let expected_money = Money::from_minor(300, IsoCurrency::get(GBP));
         let money = Money::from_string("+3".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }
 
     #[test]
     fn money_from_string_ignores_separators() {
-        let expected_money = Money::new(100000000, IsoCurrency::get(GBP));
+        let expected_money = Money::from_minor(100000000, IsoCurrency::get(GBP));
         let money = Money::from_string("1,000,000".to_string(), "GBP".to_string()).unwrap();
         assert_eq!(money, expected_money);
     }

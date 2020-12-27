@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn format_rounding() {
-        let money = Money::new(1000, IsoCurrency::get(USD)) / 3;
+        let money = Money::from_minor(1000, IsoCurrency::get(USD)) / 3;
 
         // Rounding = Some (0)
         let params = Params {

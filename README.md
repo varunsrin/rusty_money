@@ -18,28 +18,38 @@ ISO-417 Currencies, along with all their metadata and formatting styles. `Curren
 trait which can be used to represent non-ISO currencies.
 
 ```rust
-// Money can be initialized in a few ways:
-use rusty_money::Locale::*;
-use rusty_money::{money, Money, IsoCurrency};
+use rusty_money::{money, Money, Currency};
+
+
+let v_bucks = Currency::new("VBX", 2)          // Create a US Dollar with an exponent of 2.
+Money::from_major(1, v_bucks)                         // One V Buck.
+Money::from_major(1, v_bucks)                  // One V Buck.
+Money::from_minor(100, v_bucks)                // One V Buck
+Money::from_str("2,000.00", v_bucks).unwrap(); // One V Buck
+
+// You call also call the money macro for convenience.
+money!(1, v_bucks)                          // One V Buck
+money!("1.00", v_bucks)                     // One V Buck
+
+
+// There's also an ISO Money library for working with common currencies.
+use rusty_money::{IsoCurrency};
 use rusty_money::Iso::*;
 
-money!(2000, "USD");                            // 2000 USD
-money!("2000.00", "USD");                       // 2000 USD
-Money::new(200000, IsoCurrency::get(USD));         // 2000 USD
+iso_money!(2000, "USD");                            // 2000 USD
+iso_money!("2000.00", "USD");                       // 2000 USD
+Money::from_major(200000, IsoCurrency::get(USD));         // 2000 USD
 Money::from_major(2000, IsoCurrency::get(USD));    // 2000 USD
 Money::from_minor(200000, IsoCurrency::get(USD));  // 2000 USD
-Money::from_str("2,000.00", "USD").unwrap();    // 2000 USD
+IsoMoney::from_str("2,000.00", "USD").unwrap();    // 2000 USD
 
 
 // Money objects with the same Currency can be compared:
-let hundred = money!(100, "USD");
-let thousand = money!(1000, "USD");
+let hundred_usd = iso_money!(100, "USD");
+let thousand_usd = iso_money!(1000, "USD");
 println!("{}", thousand > hundred);     // false
 println!("{}", thousand.is_positive()); // true
 
-// Currencies can be constructed 
-let bitcoin = Currency::new("BTC", 2, EnUs, 2, "Bitcoin", "₿", true);
-Money::from_major(2000, &bitcoin);  // 2000 BTC
 ```
 
 ## Precision and Rounding
@@ -58,19 +68,21 @@ operations on Money always retain maximum possible precision. When you do need t
 use rusty_money::{money, Money, IsoCurrency, Round};
 
 // Money can be added, subtracted, multiplied and divided:
-money!(100, "USD") + money!(100, "USD");        // 200 USD
-money!(100, "USD") - money!(100, "USD");        // 0 USD
-money!(1, "USD") * 3;                           // 3 USD
-money!(3, "USD") / 3;                           // 0.333333333... USD
+iso_money!(100, "USD") + iso_money!(100, "USD");        // 200 USD
+iso_money!(100, "USD") - iso_money!(100, "USD");        // 0 USD
+iso_money!(1, "USD") * 3;                           // 3 USD
+iso_money!(3, "USD") / 3;                           // 0.333333333... USD
 
 // Money can be rounded by calling the round function:
-let usd = money!("-2000.005", "USD");           // 2000.005 USD
+let usd = iso_money!("-2000.005", "USD");           // 2000.005 USD
 usd.round(2, Round::HalfEven);                  // 2000.00 USD
 usd.round(2, Round::HalfUp);                    // 2000.01 USD
 usd.round(0, Round::HalfUp);                    // 2000 USD
 ```
 
 ## Formatting
+
+Currencies supporting the FormattableCurrency trait can be localized and formatted for display.
 
 Calling `format!` or `println!` on Money returns a string with a rounded amount, using separators and symbols
 according to the locale of the currency. If you need to customize this output, the `Formatter` module
@@ -79,11 +91,13 @@ accepts a more detailed set of parameters.
 ```rust
 use rusty_money::{money, Money, IsoCurrency};
 
-// Money objects can be pretty printed, with appropriate rounding and formatting:
-let usd = money!("-2000.009", "USD");
-let eur = money!("-2000.009", "EUR");
+// ISO Money objects can be pretty printed, with appropriate rounding and formatting:
+let usd = iso_money!("-2000.009", "USD");
+let eur = iso_money!("-2000.009", "EUR");
 println!("{}", usd); // -$2,000.01
 println!("{}", eur); // -€2.000,01;
+
+// TODO: How do you call the formatter directly?
 ```
 
 ## Exchange
@@ -98,10 +112,10 @@ use rust_decimal_macros::*;
 
 // Convert 1000 USD to EUR at a 2:1 exchange rate.
 let rate = ExchangeRate::new(IsoCurrency::get(USD), IsoCurrency::get(EUR), dec!(0.5)).unwrap();
-rate.convert(money!(1000, "USD")); // 500 EUR
+rate.convert(iso_money!(1000, "USD")); // 500 EUR
 
 // An Exchange can be used to store ExchangeRates for later use
 let mut exchange = Exchange::new();
-exchange.add_or_update_rate(&rate);
+exchange.set_rate(&rate);
 exchange.get_rate(IsoCurrency::get(USD), IsoCurrency::get(EUR));
 ```
