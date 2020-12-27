@@ -53,5 +53,6 @@
 
 ### v0.4.0
 
+* Deprecated money! macro
 * Currency Declaration: Allow declaration of new currency types (e.g. a cryptocurrency).
-* Serialization & Deserialization support. 
+* Serialization & Deserialization support.

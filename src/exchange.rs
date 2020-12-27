@@ -65,7 +65,6 @@ impl<'a, T: CurrencyType> ExchangeRate<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::money;
     use crate::Iso::*;
     use rust_decimal_macros::*;
 
@@ -93,8 +92,8 @@ mod tests {
     fn rate_convert() {
         let rate =
             ExchangeRate::new(IsoCurrency::get(USD), IsoCurrency::get(EUR), dec!(1.5)).unwrap();
-        let amount = money!(10, "USD");
-        let expected_amount = money!("15", "EUR");
+        let amount = Money::from_stringable(10, "USD").unwrap();
+        let expected_amount = Money::from_stringable("15", "EUR").unwrap();
         let converted_rate = rate.convert(amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
@@ -103,7 +102,7 @@ mod tests {
     fn rate_convert_errors_if_currencies_dont_match() {
         let rate =
             ExchangeRate::new(IsoCurrency::get(GBP), IsoCurrency::get(EUR), dec!(1.5)).unwrap();
-        let amount = money!(10, "USD");
+        let amount = Money::from_stringable(10, "USD").unwrap();
 
         assert_eq!(
             rate.convert(amount).unwrap_err(),

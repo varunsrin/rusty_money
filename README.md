@@ -21,16 +21,10 @@ trait which can be used to represent non-ISO currencies.
 use rusty_money::{money, Money, Currency};
 
 
-let v_bucks = Currency::new("VBX", 2)          // Create a US Dollar with an exponent of 2.
+let v_bucks = Currency::new("VBX", 2)                 // Create a US Dollar with an exponent of 2.
 Money::from_major(1, v_bucks)                         // One V Buck.
-Money::from_major(1, v_bucks)                  // One V Buck.
-Money::from_minor(100, v_bucks)                // One V Buck
-Money::from_str("2,000.00", v_bucks).unwrap(); // One V Buck
-
-// You call also call the money macro for convenience.
-money!(1, v_bucks)                          // One V Buck
-money!("1.00", v_bucks)                     // One V Buck
-
+Money::from_minor(100, v_bucks)                       // One V Buck
+Money::from_stringable("2,000.00", v_bucks).unwrap(); // One V Buck
 
 // There's also an ISO Money library for working with common currencies.
 use rusty_money::{IsoCurrency};
@@ -38,10 +32,9 @@ use rusty_money::Iso::*;
 
 iso_money!(2000, "USD");                            // 2000 USD
 iso_money!("2000.00", "USD");                       // 2000 USD
-Money::from_major(200000, IsoCurrency::get(USD));         // 2000 USD
-Money::from_major(2000, IsoCurrency::get(USD));    // 2000 USD
-Money::from_minor(200000, IsoCurrency::get(USD));  // 2000 USD
-IsoMoney::from_str("2,000.00", "USD").unwrap();    // 2000 USD
+Money::from_major(2000, IsoCurrency::get(USD));     // 2000 USD
+Money::from_minor(200000, IsoCurrency::get(USD));   // 2000 USD
+IsoMoney::from_str("2,000.00", "USD").unwrap();     // 2000 USD
 
 
 // Money objects with the same Currency can be compared:
@@ -49,7 +42,6 @@ let hundred_usd = iso_money!(100, "USD");
 let thousand_usd = iso_money!(1000, "USD");
 println!("{}", thousand > hundred);     // false
 println!("{}", thousand.is_positive()); // true
-
 ```
 
 ## Precision and Rounding
