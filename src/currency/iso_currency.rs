@@ -3,20 +3,17 @@ use crate::currency::FormattableCurrency;
 use crate::{Locale, MoneyError};
 use std::fmt;
 
-/// A struct which represent an ISO-4127 currency.
-///
-/// IsoCurrency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
-/// since they are unchanging.
+/// Represents a single ISO-4217 currency (e.g. USD).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IsoCurrency {
-    pub locale: Locale,
     pub exponent: u32,
     pub iso_alpha_code: &'static str,
     pub iso_numeric_code: &'static str,
+    pub locale: Locale,
+    pub minor_denomination: u32,
     pub name: &'static str,
     pub symbol: &'static str,
     pub symbol_first: bool,
-    pub minor_denomination: u32,
 }
 
 impl FormattableCurrency for IsoCurrency {

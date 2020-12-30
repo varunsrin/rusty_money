@@ -27,6 +27,7 @@
 //! ```
 //!
 //! Money objects with the same Currency can be compared:
+//!
 //!  ```edition2018
 //! use rusty_money::{Money, iso};
 //!
@@ -43,6 +44,7 @@
 //! to represents amounts, and it represents values as large as 2<sup>96</sup> / 10<sup>28</sup>. By default
 //! operations on Money always retain maximum possible precision. When you do need to round money, you can call
 //!  the `round` function, which  supports three modes:
+//!
 //! * [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
 //! * [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
 //! * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)

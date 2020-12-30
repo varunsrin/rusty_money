@@ -3,6 +3,7 @@ use crate::currency::FormattableCurrency;
 use crate::{Locale, MoneyError};
 use std::fmt;
 
+/// Represents a single Crypto Currency (e.g. BTC).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct CryptoCurrency {
     pub code: &'static str,

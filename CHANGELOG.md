@@ -53,6 +53,12 @@
 
 ### v0.4.0
 
-* Deprecated money! macro
-* Currency Declaration: Allow declaration of new currency types (e.g. a cryptocurrency).
-* Serialization & Deserialization support.
+* Feature: CryptoCurrencies (BTC, ETH) are now supported.
+* Refactor: money! macro was deprecated, please use ::from_major, ::from_minor or ::from_str instead  (breaking change)
+* Refactor: Currency::get() was deprecated in favor of direct references (iso::USD)  (breaking change)
+* Refactor: Money::from_str() takes a reference (iso::USD) instead of string ("USD") for the currency (breaking change).
+* Refactor: Removed dependency on lazy_static! and made library thread safe.
+
+* Serde
+* Feature Flags
+* Add crypto currencies

@@ -9,7 +9,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-/// A struct which represents an amount of a given currency.
+/// Represents an amount of a given currency.
 ///
 /// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
 /// Operations on Money objects always create new instances of Money, with the exception

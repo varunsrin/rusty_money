@@ -2,7 +2,7 @@ use crate::currency::FormattableCurrency;
 use crate::{Money, Round};
 use std::cmp::Ordering;
 
-/// A helper struct to convert Money objects into human readable strings.
+/// Converts Money objects into human readable strings.
 pub struct Formatter;
 
 impl<'a> Formatter {
@@ -89,7 +89,7 @@ pub enum Position {
     Sign,
 }
 
-/// A struct which contains parameters consumer by `Formatter`.
+/// Group of formatting parameters consumer by `Formatter`.
 #[derive(Debug, Clone)]
 pub struct Params {
     /// The character that separates grouped digits (e.g. 1,000,000)
