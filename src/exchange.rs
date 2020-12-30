@@ -1,4 +1,4 @@
-use crate::currency::*;
+use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -65,16 +65,14 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iso_money;
-    use crate::Iso::*;
-    use crate::IsoCurrency;
+    use crate::currency::iso;
     use rust_decimal_macros::*;
 
     #[test]
     fn exchange_stores_rates() {
-        let usd = IsoCurrency::get(USD);
-        let eur = IsoCurrency::get(EUR);
-        let gbp = IsoCurrency::get(GBP);
+        let usd = iso::USD;
+        let eur = iso::EUR;
+        let gbp = iso::GBP;
 
         let eur_usd_rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
         let eur_gbp_rate = ExchangeRate::new(usd, gbp, dec!(1.6)).unwrap();
@@ -92,19 +90,17 @@ mod tests {
 
     #[test]
     fn rate_convert() {
-        let rate =
-            ExchangeRate::new(IsoCurrency::get(USD), IsoCurrency::get(EUR), dec!(1.5)).unwrap();
-        let amount = iso_money!(1_000, USD);
-        let expected_amount = iso_money!(1_500, EUR);
+        let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(1_000, iso::USD);
+        let expected_amount = Money::from_minor(1_500, iso::EUR);
         let converted_rate = rate.convert(amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
 
     #[test]
     fn rate_convert_errors_if_currencies_dont_match() {
-        let rate =
-            ExchangeRate::new(IsoCurrency::get(GBP), IsoCurrency::get(EUR), dec!(1.5)).unwrap();
-        let amount = iso_money!(1_000, USD);
+        let rate = ExchangeRate::new(iso::GBP, iso::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(1_000, iso::USD);
 
         assert_eq!(
             rate.convert(amount).unwrap_err(),
@@ -114,7 +110,7 @@ mod tests {
 
     #[test]
     fn rate_new_errors_if_currencies_are_equal() {
-        let rate = ExchangeRate::new(IsoCurrency::get(GBP), IsoCurrency::get(GBP), dec!(1.5));
+        let rate = ExchangeRate::new(iso::GBP, iso::GBP, dec!(1.5));
         assert_eq!(rate.unwrap_err(), MoneyError::InvalidCurrency,);
     }
 }

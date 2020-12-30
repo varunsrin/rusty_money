@@ -1,7 +1,10 @@
 pub mod crypto;
 mod crypto_currency;
+pub mod iso;
+mod iso_currency;
 use crate::{Locale, MoneyError};
 pub use crypto_currency::CryptoCurrency;
+pub use iso_currency::IsoCurrency;
 
 // TODO: Add documentations for the trait.
 pub trait FormattableCurrency: PartialEq + Eq + Copy {
