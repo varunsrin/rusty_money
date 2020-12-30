@@ -1,4 +1,4 @@
-use crate::currency::*;
+use crate::currency::FormattableCurrency;
 use crate::format::{Formatter, Params, Position};
 use crate::locale::LocalFormat;
 use crate::MoneyError;
@@ -466,13 +466,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn money_addition_panics_on_different_currencies() {
-        Money::from_minor(100, iso::USD) + Money::from_minor(100, iso::GBP);
+        let _no_op = Money::from_minor(100, iso::USD) + Money::from_minor(100, iso::GBP);
     }
 
     #[test]
     #[should_panic]
     fn money_subtractionpanics_on_different_currencies() {
-        Money::from_minor(100, iso::USD) - Money::from_minor(100, iso::GBP);
+        let _no_op = Money::from_minor(100, iso::USD) - Money::from_minor(100, iso::GBP);
     }
 
     #[test]

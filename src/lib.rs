@@ -12,8 +12,8 @@
 //! ```edition2018
 //! use rusty_money::{Money, iso};
 //!   
-//! Money::from_major(2_000, iso::USD);                             // 2000 USD
-//! Money::from_minor(200_000, iso::USD);                           // 2000 USD
+//! Money::from_major(2_000, iso::USD);              // 2000 USD
+//! Money::from_minor(200_000, iso::USD);            // 2000 USD
 //! Money::from_str("2,000.00", iso::USD).unwrap();  // 2000 USD
 //! ```
 //!
@@ -22,8 +22,8 @@
 //! ```edition2018
 //! use rusty_money::{Money, crypto};
 //!
-//! Money::from_major(2, crypto::BTC);             // 2 BTC
-//! Money::from_minor(200_000_000, crypto::BTC);   // 2 BTC
+//! Money::from_major(2, crypto::BTC);            // 2 BTC
+//! Money::from_minor(200_000_000, crypto::BTC);  // 2 BTC
 //! ```
 //!
 //! Money objects with the same Currency can be compared:
@@ -48,19 +48,19 @@
 //! * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 //!
 //! ```edition2018
-//! use rusty_money::{Money, Round, iso };
+//! use rusty_money::{Money, Round, iso};
 //!
 //! // Money can be added, subtracted, multiplied and divided:
-//! Money::from_minor(10_000, iso::USD) + Money::from_minor(10_000, iso::USD); // 200 USD
-//! Money::from_minor(10_000, iso::USD) - Money::from_minor(10_000, iso::USD); // 0 USD
-//! Money::from_minor(100, iso::USD) * 3;                                             // 3 USD
-//! Money::from_minor(100, iso::USD) / 3;                                             // 0.333333333... USD
+//! Money::from_minor(10_000, iso::USD) + Money::from_minor(10_000, iso::USD);  // 200 USD
+//! Money::from_minor(10_000, iso::USD) - Money::from_minor(10_000, iso::USD);  // 0 USD
+//! Money::from_minor(100, iso::USD) * 3;                                       // 3 USD
+//! Money::from_minor(100, iso::USD) / 3;                                       // 0.333333333... USD
 //!
 //! // Money can be rounded by calling the round function:
 //! let usd = Money::from_str("-2000.005", iso::USD).unwrap();  // 2000.005 USD
-//! usd.round(2, Round::HalfEven);                                 // 2000.00 USD
-//! usd.round(2, Round::HalfUp);                                   // 2000.01 USD
-//! usd.round(0, Round::HalfUp);                                   // 2000 USD
+//! usd.round(2, Round::HalfEven);                              // 2000.00 USD
+//! usd.round(2, Round::HalfUp);                                // 2000.01 USD
+//! usd.round(0, Round::HalfUp);                                // 2000 USD
 //!```
 //!
 //! ## Formatting
