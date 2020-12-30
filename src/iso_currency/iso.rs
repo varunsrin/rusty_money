@@ -1,4 +1,4 @@
-use crate::currency::IsoCurrency;
+use crate::iso_currency::IsoCurrency;
 use crate::locale::Locale;
 use std::fmt;
 
@@ -6,7 +6,7 @@ use std::fmt;
 macro_rules! define_enum {
     ($Name:ident { $($Variant:ident),* $(,)* }) =>
     {
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq, Eq, Hash)]
         /// Enumerates ISO-4217 Alphabetic Codes.
         pub enum $Name {
             $($Variant),*,

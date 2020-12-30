@@ -5,11 +5,11 @@ use std::collections::HashMap;
 
 /// A struct to store `ExchangeRate`s.
 #[derive(Debug, Default)]
-pub struct Exchange<'a, T: CurrencyType> {
+pub struct Exchange<'a, T: FormattableCurrency> {
     map: HashMap<String, ExchangeRate<'a, T>>,
 }
 
-impl<'a, T: CurrencyType> Exchange<'a, T> {
+impl<'a, T: FormattableCurrency> Exchange<'a, T> {
     pub fn new() -> Exchange<'a, T> {
         Exchange {
             map: HashMap::new(),
@@ -38,13 +38,13 @@ impl<'a, T: CurrencyType> Exchange<'a, T> {
 
 /// A struct to store rates of conversion between two currencies.
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct ExchangeRate<'a, T: CurrencyType> {
+pub struct ExchangeRate<'a, T: FormattableCurrency> {
     pub from: &'a T,
     pub to: &'a T,
     rate: Decimal,
 }
 
-impl<'a, T: CurrencyType> ExchangeRate<'a, T> {
+impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
     pub fn new(from: &'a T, to: &'a T, rate: Decimal) -> Result<ExchangeRate<'a, T>, MoneyError> {
         if from == to {
             return Err(MoneyError::InvalidCurrency);
@@ -65,7 +65,9 @@ impl<'a, T: CurrencyType> ExchangeRate<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::iso_money;
     use crate::Iso::*;
+    use crate::IsoCurrency;
     use rust_decimal_macros::*;
 
     #[test]
@@ -92,8 +94,8 @@ mod tests {
     fn rate_convert() {
         let rate =
             ExchangeRate::new(IsoCurrency::get(USD), IsoCurrency::get(EUR), dec!(1.5)).unwrap();
-        let amount = Money::from_stringable(10, "USD").unwrap();
-        let expected_amount = Money::from_stringable("15", "EUR").unwrap();
+        let amount = iso_money!(1_000, USD);
+        let expected_amount = iso_money!(1_500, EUR);
         let converted_rate = rate.convert(amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
@@ -102,7 +104,7 @@ mod tests {
     fn rate_convert_errors_if_currencies_dont_match() {
         let rate =
             ExchangeRate::new(IsoCurrency::get(GBP), IsoCurrency::get(EUR), dec!(1.5)).unwrap();
-        let amount = Money::from_stringable(10, "USD").unwrap();
+        let amount = iso_money!(1_000, USD);
 
         assert_eq!(
             rate.convert(amount).unwrap_err(),

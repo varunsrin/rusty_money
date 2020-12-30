@@ -13,7 +13,7 @@ to ISO 4217 standards. The main items exported by the library are `Money` and `C
 ## Usage
 
 `Money` consists of an amount and a currency. The amount is a Decimal type. The currency can be anything that 
-implements the `CurrencyType` trait. `IsoCurrency` is provided as an implementation of this trait which represents
+implements the `FormattableCurrency` trait. `IsoCurrency` is provided as an implementation of this trait which represents
 ISO-417 Currencies, along with all their metadata and formatting styles. `Currency` is also provided implementing this 
 trait which can be used to represent non-ISO currencies.
 
