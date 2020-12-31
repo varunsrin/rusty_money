@@ -1,16 +1,15 @@
-#[cfg(feature = "crypto")]
-pub mod crypto;
-#[cfg(feature = "crypto")]
-mod crypto_currency;
 #[cfg(feature = "iso")]
 pub mod iso;
 #[cfg(feature = "iso")]
 mod iso_currency;
 use crate::Locale;
-#[cfg(feature = "crypto")]
-pub use crypto_currency::CryptoCurrency;
 #[cfg(feature = "iso")]
 pub use iso_currency::IsoCurrency;
+
+#[cfg(feature = "crypto")]
+mod crypto_currencies;
+#[cfg(feature = "crypto")]
+pub use crypto_currencies::crypto;
 
 /// The `FormattableCurrency` trait
 ///
@@ -49,8 +48,9 @@ macro_rules! define_currency_set {
         ),+
     ) => {
             $(
-                mod $module {
-                    use $crate::{Locale, FormattableCurrency};
+                pub mod $module {
+                    use $crate::{Locale, FormattableCurrency, Locale::*};
+                    use std::fmt;
 
                     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
                     pub struct Currency {
@@ -107,6 +107,12 @@ macro_rules! define_currency_set {
                             _ => None,
                         }
                     }
+
+                    impl fmt::Display for Currency {
+                        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                            write!(f, "{}", self.code)
+                        }
+                    }
                 }
             )+
     };
@@ -119,7 +125,7 @@ mod tests {
         USD: {
           code: "USD",
           exponent: 2,
-          locale: Locale::EnUs,
+          locale: EnUs,
           minor_units: 100,
           name: "USD",
           symbol: "$",
@@ -130,7 +136,7 @@ mod tests {
         FOO: {
             code: "FOO",
             exponent: 3,
-            locale: Locale::EnUs,
+            locale: EnUs,
             minor_units: 100,
             name: "FOO",
             symbol: "F",
