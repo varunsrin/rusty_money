@@ -4,24 +4,50 @@
 //! # Usage
 //!
 //! `Money` consists of an amount and a currency. An amount is a Decimal type that is owned by Money, while a currency
-//! is a reference to anything that implements `FormattableCurrency`. rusty_money provides two currency sets:
-//! `IsoCurrency`, which implements ISO-4217 currencies and `CryptoCurrency` which implements popular cryptocurencies.  
-//!
-//! Money objects can be created from `IsoCurrencies` in a few different ways:
+//! is a reference to a struct that implements `FormattableCurrency`. 
+//! 
+//! You can create `Currencies` with the `define_currency_set!` macro and then create `Money` objects with them:  
 //!
 //! ```edition2018
-//! use rusty_money::{Money, iso};
+//! use rusty_money::{Money, define_currency_set};
+//!
+//! define_currency_set!(
+//!   video_game {
+//!     GIL: {
+//!       code: "GIL",
+//!       exponent: 2,
+//!       locale: Locale::EnUs,
+//!       minor_units: 100,
+//!       name: "GIL",
+//!       symbol: "G",
+//!       symbol_first: true,
+//!     }
+//!   }
+//! );
+//! 
+//! Money::from_major(2_000, video_game::GIL);   // 2000 GIL
+//!  
+//! let gil = video_game::find("GIL").unwrap();                        
+//! Money::from_major(2_000, gil);               // 2000 GIL
+//! ```
+//! 
+//! ## Features: Currency Sets
+//! rusty_money provides two currency sets for convenience : `IsoCurrency`, which implements ISO-4217 currencies  
+//! and `CryptoCurrency` which implements popular cryptocurencies. This can be enabled in Cargo.toml:
+//! 
+//! ```toml
+//! [dependencies]
+//! rusty_money = { version = "0.4.0", features = ["iso", "crypto"] }
+//! ```
+//! And then you can use the currencies like this: 
+//! 
+//! ```edition2018
+//! use rusty_money::{Money, iso, crypto};
 //!   
 //! Money::from_major(2_000, iso::USD);              // 2000 USD
 //! Money::from_minor(200_000, iso::USD);            // 2000 USD
 //! Money::from_str("2,000.00", iso::USD).unwrap();  // 2000 USD
-//! ```
-//!
-//! Money objects can be created from `CryptoCurrencies` in similar ways:
-//!
-//! ```edition2018
-//! use rusty_money::{Money, crypto};
-//!
+//! 
 //! Money::from_major(2, crypto::BTC);            // 2 BTC
 //! Money::from_minor(200_000_000, crypto::BTC);  // 2 BTC
 //! ```
@@ -39,7 +65,7 @@
 //!
 //! ## Precision, Rounding and Math
 //!
-//! Money objects are immutable, and operations that change the amount or currency of Money simply create
+//! Money objects are immutable, and operations that change the amount or currency of Money create a 
 //! a new instance. Money uses a 128 bit fixed-precision [Decimal](https://github.com/paupino/rust-decimal)
 //! to represents amounts, and it represents values as large as 2<sup>96</sup> / 10<sup>28</sup>. By default
 //! operations on Money always retain maximum possible precision. When you do need to round money, you can call
@@ -53,10 +79,10 @@
 //! use rusty_money::{Money, Round, iso};
 //!
 //! // Money can be added, subtracted, multiplied and divided:
-//! Money::from_minor(10_000, iso::USD) + Money::from_minor(10_000, iso::USD);  // 200 USD
-//! Money::from_minor(10_000, iso::USD) - Money::from_minor(10_000, iso::USD);  // 0 USD
-//! Money::from_minor(100, iso::USD) * 3;                                       // 3 USD
-//! Money::from_minor(100, iso::USD) / 3;                                       // 0.333333333... USD
+//! Money::from_minor(100, iso::USD) + Money::from_minor(100, iso::USD);  // 2 USD
+//! Money::from_minor(100, iso::USD) - Money::from_minor(100, iso::USD);  // 0 USD
+//! Money::from_minor(100, iso::USD) * 3;                                 // 3 USD
+//! Money::from_minor(100, iso::USD) / 3;                                 // 0.333... USD
 //!
 //! // Money can be rounded by calling the round function:
 //! let usd = Money::from_str("-2000.005", iso::USD).unwrap();  // 2000.005 USD

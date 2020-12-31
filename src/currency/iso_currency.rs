@@ -6,11 +6,11 @@ use std::fmt;
 /// Represents a single ISO-4217 currency (e.g. USD).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IsoCurrency {
-    pub exponent: u32,
     pub iso_alpha_code: &'static str,
+    pub exponent: u32,
     pub iso_numeric_code: &'static str,
     pub locale: Locale,
-    pub minor_denomination: u32,
+    pub minor_units: u64,
     pub name: &'static str,
     pub symbol: &'static str,
     pub symbol_first: bool,
@@ -40,9 +40,17 @@ impl FormattableCurrency for IsoCurrency {
     fn symbol_first(&self) -> bool {
         self.symbol_first
     }
+}
 
+impl fmt::Display for IsoCurrency {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.iso_alpha_code)
+    }
+}
+
+impl IsoCurrency {
     /// Returns a Currency given an ISO-4217 currency code as an str.
-    fn find(code: &str) -> Result<&'static IsoCurrency, MoneyError> {
+    pub fn find(code: &str) -> Result<&'static IsoCurrency, MoneyError> {
         if code.chars().all(char::is_alphabetic) {
             iso::find_by_alpha_code(code).ok_or(MoneyError::InvalidCurrency)
         } else if code.chars().all(char::is_numeric) {
@@ -50,12 +58,6 @@ impl FormattableCurrency for IsoCurrency {
         } else {
             Err(MoneyError::InvalidCurrency)
         }
-    }
-}
-
-impl fmt::Display for IsoCurrency {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.iso_alpha_code)
     }
 }
 

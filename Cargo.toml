@@ -13,6 +13,11 @@ Money type for Rust.
 keywords = ["money", "currency", "iso-4217", "exchange"]
 categories = ["data-structures", "rust-patterns"]
 
+[features]
+default=["iso", "crypto"]
+iso = []
+crypto = []
+
 
 [dependencies]
 rust_decimal = "1.8.1"
