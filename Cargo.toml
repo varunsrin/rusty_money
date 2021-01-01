@@ -20,5 +20,5 @@ crypto = []
 
 
 [dependencies]
-rust_decimal = "1.8.1"
-rust_decimal_macros = "1.8.1"
+rust_decimal = { default-features = false, version = "1.9.0" }
+rust_decimal_macros = "1.9.0"
