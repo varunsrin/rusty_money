@@ -49,7 +49,6 @@ rusty_money provides two currency sets for convenience : `iso`, which implements
 implements popular cryptocurencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
 
 ```toml
-// Cargo.toml
 [dependencies]
 rusty_money = { version = "0.4.0", features = ["iso", "crypto"] }
 ```
@@ -97,12 +96,14 @@ let usd = Money::from_str("-2000.005", iso::USD).unwrap();  // 2000.005 USD
 usd.round(2, Round::HalfEven);                              // 2000.00 USD
 usd.round(2, Round::HalfUp);                                // 2000.01 USD
 usd.round(0, Round::HalfUp);                                // 2000 USD
-``
+```
 
 ## Formatting
+
 Calling `format!` or `println!` on Money returns a string with a rounded amount, using separators and symbols
 according to the locale of the currency. If you need to customize this output, the `Formatter` module
 accepts a more detailed set of parameters.
+
 ```rust
 use rusty_money::{Money, iso};
 let usd = Money::from_str("-2000.009", iso::USD).unwrap();
@@ -119,9 +120,11 @@ to another.
 ```rust
 use rusty_money::{Money, Exchange, ExchangeRate, iso};
 use rust_decimal_macros::*;
+
 // Convert 1000 USD to EUR at a 2:1 exchange rate.
 let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.5)).unwrap();
 rate.convert(Money::from_minor(100_000, iso::USD));                                     // 500 EUR
+
 // An Exchange can be used to store ExchangeRates for later use
 let mut exchange = Exchange::new();
 exchange.set_rate(&rate);
