@@ -75,7 +75,7 @@ pub mod iso {
         };
       )+
 
-      pub fn find_by_alpha_code(code: &str) -> Option<&'static Currency> {
+      pub fn find(code: &str) -> Option<&'static Currency> {
         match code {
           $($alpha_code => (Some($currency)),)+
           _ => None,
@@ -1803,7 +1803,7 @@ mod tests {
 
     #[test]
     fn find_returns_known_currencies() {
-        let currency_by_alpha = iso::find_by_alpha_code("USD").unwrap();
+        let currency_by_alpha = iso::find("USD").unwrap();
         assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
         assert_eq!(currency_by_alpha.exponent, 2);
         assert_eq!(currency_by_alpha.symbol, "$");
@@ -1814,7 +1814,7 @@ mod tests {
 
     #[test]
     fn find_raises_invalid_currency_error_on_unknown_currency() {
-        assert_eq!(iso::find_by_alpha_code("fake"), None,);
+        assert_eq!(iso::find("fake"), None,);
 
         assert_eq!(iso::find_by_num_code("123"), None,);
     }
@@ -1828,6 +1828,6 @@ mod tests {
 
     #[test]
     fn find_and_reference_point_to_same() {
-        assert_eq!(iso::USD, iso::find_by_alpha_code("USD").unwrap());
+        assert_eq!(iso::USD, iso::find("USD").unwrap());
     }
 }
