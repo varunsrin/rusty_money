@@ -65,9 +65,8 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_decimal_macros::*;
     use crate::define_currency_set;
-
+    use rust_decimal_macros::*;
 
     define_currency_set!(
         test {

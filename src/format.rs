@@ -128,7 +128,6 @@ mod tests {
     use super::*;
     use crate::define_currency_set;
 
-
     define_currency_set!(
         test {
             USD: {
@@ -145,8 +144,8 @@ mod tests {
 
     #[test]
     fn format_position() {
-        let _usd = test::find("USD");  // Prevents unused code warnings from the defined module.
-        
+        let _usd = test::find("USD"); // Prevents unused code warnings from the defined module.
+
         let money = Money::from_major(-1000, test::USD);
 
         // Test that you can position eSpace, Amount, Code, Symbol and Sign in different places
