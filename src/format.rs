@@ -1,12 +1,13 @@
+use crate::currency::FormattableCurrency;
 use crate::{Money, Round};
 use std::cmp::Ordering;
 
-/// A helper struct to convert Money objects into human readable strings.
+/// Converts Money objects into human readable strings.
 pub struct Formatter;
 
-impl Formatter {
+impl<'a> Formatter {
     /// Returns a formatted Money String given parameters and a Money object.  
-    pub fn money(money: &Money, params: Params) -> String {
+    pub fn money<T: FormattableCurrency>(money: &Money<'a, T>, params: Params) -> String {
         let mut decimal = *money.amount();
 
         // Round the decimal
@@ -88,7 +89,7 @@ pub enum Position {
     Sign,
 }
 
-/// A struct which contains parameters consumer by `Formatter`.
+/// Group of formatting parameters consumer by `Formatter`.
 #[derive(Debug, Clone)]
 pub struct Params {
     /// The character that separates grouped digits (e.g. 1,000,000)
@@ -125,14 +126,30 @@ impl Default for Params {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::currency::Currency;
-    use crate::Iso::*;
+    use crate::define_currency_set;
+
+
+    define_currency_set!(
+        test {
+            USD: {
+                code: "USD",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 100,
+                name: "USD",
+                symbol: "$",
+                symbol_first: true,
+            }
+        }
+    );
 
     #[test]
     fn format_position() {
-        let money = Money::from_major(-1000, Currency::get(USD));
+        let _usd = test::find("USD");  // Prevents unused code warnings from the defined module.
+        
+        let money = Money::from_major(-1000, test::USD);
 
-        // Test that you can position Space, Amount, Code, Symbol and Sign in different places
+        // Test that you can position eSpace, Amount, Code, Symbol and Sign in different places
         let params = Params {
             symbol: Some("$"),
             code: Some("USD"),
@@ -193,15 +210,15 @@ mod tests {
         };
 
         // For 1_000_000
-        let money = Money::from_major(1_000_000, Currency::get(USD));
+        let money = Money::from_major(1_000_000, test::USD);
         assert_eq!("1/000/000", Formatter::money(&money, params.clone()));
 
         // For 1_000
-        let money = Money::from_major(1_000, Currency::get(USD));
+        let money = Money::from_major(1_000, test::USD);
         assert_eq!("1/000", Formatter::money(&money, params.clone()));
 
         // For 0 Chars
-        let money = Money::from_major(0, Currency::get(USD));
+        let money = Money::from_major(0, test::USD);
         assert_eq!("0", Formatter::money(&money, params.clone()));
     }
 
@@ -212,13 +229,13 @@ mod tests {
             ..Default::default()
         };
 
-        let money = Money::from_major(1_00_00_000, Currency::get(USD));
+        let money = Money::from_major(1_00_00_000, test::USD);
         assert_eq!("1,00,00,000", Formatter::money(&money, params.clone()));
 
-        let money = Money::from_major(1_00_000, Currency::get(USD));
+        let money = Money::from_major(1_00_000, test::USD);
         assert_eq!("1,00,000", Formatter::money(&money, params.clone()));
 
-        let money = Money::from_major(1_000, Currency::get(USD));
+        let money = Money::from_major(1_000, test::USD);
         assert_eq!("1,000", Formatter::money(&money, params.clone()));
 
         // With a zero sequence
@@ -227,10 +244,10 @@ mod tests {
             ..Default::default()
         };
 
-        let money = Money::from_major(100, Currency::get(USD));
+        let money = Money::from_major(100, test::USD);
         assert_eq!("1,00,", Formatter::money(&money, params.clone()));
 
-        let money = Money::from_major(0, Currency::get(USD));
+        let money = Money::from_major(0, test::USD);
         assert_eq!("0,", Formatter::money(&money, params.clone()));
     }
 
@@ -238,7 +255,7 @@ mod tests {
 
     #[test]
     fn format_rounding() {
-        let money = Money::new(1000, Currency::get(USD)) / 3;
+        let money = Money::from_minor(1000, test::USD) / 3;
 
         // Rounding = Some (0)
         let params = Params {

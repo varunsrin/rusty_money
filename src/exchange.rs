@@ -1,29 +1,29 @@
-use crate::currency::*;
+use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 
-/// A struct to store `ExchangeRate`s.
+/// Stores `ExchangeRate`s for easier access.
 #[derive(Debug, Default)]
-pub struct Exchange {
-    map: HashMap<String, ExchangeRate>,
+pub struct Exchange<'a, T: FormattableCurrency> {
+    map: HashMap<String, ExchangeRate<'a, T>>,
 }
 
-impl Exchange {
-    pub fn new() -> Exchange {
+impl<'a, T: FormattableCurrency> Exchange<'a, T> {
+    pub fn new() -> Exchange<'a, T> {
         Exchange {
             map: HashMap::new(),
         }
     }
 
     /// Update an ExchangeRate or add it if does not exist.
-    pub fn add_or_update_rate(&mut self, rate: &ExchangeRate) {
+    pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
         let key = Exchange::generate_key(rate.from, rate.to);
         self.map.insert(key, *rate);
     }
 
     /// Return the ExchangeRate given the currency pair.
-    pub fn get_rate(self, from: &'static Currency, to: &'static Currency) -> Option<ExchangeRate> {
+    pub fn get_rate(&self, from: &T, to: &T) -> Option<ExchangeRate<T>> {
         let key = Exchange::generate_key(from, to);
         match self.map.get(&key) {
             Some(v) => Some(*v),
@@ -31,25 +31,21 @@ impl Exchange {
         }
     }
 
-    fn generate_key(from: &'static Currency, to: &'static Currency) -> String {
+    fn generate_key(from: &T, to: &T) -> String {
         from.to_string() + "-" + &to.to_string()
     }
 }
 
-/// A struct to store rates of conversion between two currencies.
+/// Stores rates of conversion between two currencies.
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct ExchangeRate {
-    pub from: &'static Currency,
-    pub to: &'static Currency,
+pub struct ExchangeRate<'a, T: FormattableCurrency> {
+    pub from: &'a T,
+    pub to: &'a T,
     rate: Decimal,
 }
 
-impl ExchangeRate {
-    pub fn new(
-        from: &'static Currency,
-        to: &'static Currency,
-        rate: Decimal,
-    ) -> Result<ExchangeRate, MoneyError> {
+impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
+    pub fn new(from: &'a T, to: &'a T, rate: Decimal) -> Result<ExchangeRate<'a, T>, MoneyError> {
         if from == to {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -57,7 +53,7 @@ impl ExchangeRate {
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
-    pub fn convert(&self, amount: Money) -> Result<Money, MoneyError> {
+    pub fn convert(&self, amount: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if amount.currency() != self.from {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -69,36 +65,75 @@ impl ExchangeRate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::money;
-    use crate::Iso::*;
     use rust_decimal_macros::*;
+    use crate::define_currency_set;
+
+
+    define_currency_set!(
+        test {
+            USD: {
+                code: "USD",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 100,
+                name: "USD",
+                symbol: "$",
+                symbol_first: true,
+            },
+            GBP : {
+                code: "GBP",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 1,
+                name: "British Pound",
+                symbol: "£",
+                symbol_first: true,
+            },
+            EUR : {
+                code: "EUR",
+                exponent: 2,
+                locale: EnEu,
+                minor_units: 1,
+                name: "Euro",
+                symbol: "€",
+                symbol_first: true,
+            }
+        }
+    );
 
     #[test]
     fn exchange_stores_rates() {
-        let usd = Currency::get(USD);
-        let eur = Currency::get(EUR);
-        let rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
+        let usd = test::find("USD").unwrap();
+        let eur = test::find("EUR").unwrap();
+        let gbp = test::find("GBP").unwrap();
+
+        let eur_usd_rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
+        let eur_gbp_rate = ExchangeRate::new(usd, gbp, dec!(1.6)).unwrap();
 
         let mut exchange = Exchange::new();
-        exchange.add_or_update_rate(&rate);
+        exchange.set_rate(&eur_usd_rate);
+        exchange.set_rate(&eur_gbp_rate);
+
         let fetched_rate = exchange.get_rate(usd, eur).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.5));
+
+        let fetched_rate = exchange.get_rate(usd, gbp).unwrap();
+        assert_eq!(fetched_rate.rate, dec!(1.6));
     }
 
     #[test]
     fn rate_convert() {
-        let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(1.5)).unwrap();
-        let amount = money!(10, "USD");
-        let expected_amount = money!("15", "EUR");
+        let rate = ExchangeRate::new(test::USD, test::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(1_000, test::USD);
+        let expected_amount = Money::from_minor(1_500, test::EUR);
         let converted_rate = rate.convert(amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
 
     #[test]
     fn rate_convert_errors_if_currencies_dont_match() {
-        let rate =
-            ExchangeRate::new(Currency::get(Iso::GBP), Currency::get(Iso::EUR), dec!(1.5)).unwrap();
-        let amount = money!(10, "USD");
+        let rate = ExchangeRate::new(test::GBP, test::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(1_000, test::USD);
 
         assert_eq!(
             rate.convert(amount).unwrap_err(),
@@ -108,7 +143,7 @@ mod tests {
 
     #[test]
     fn rate_new_errors_if_currencies_are_equal() {
-        let rate = ExchangeRate::new(Currency::get(Iso::GBP), Currency::get(Iso::GBP), dec!(1.5));
+        let rate = ExchangeRate::new(test::GBP, test::GBP, dec!(1.5));
         assert_eq!(rate.unwrap_err(), MoneyError::InvalidCurrency,);
     }
 }

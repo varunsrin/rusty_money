@@ -1,1908 +1,1800 @@
-use crate::currency::Currency;
-use crate::locale::Locale;
-use std::fmt;
+pub mod iso {
+    use crate::{FormattableCurrency, Locale, Locale::*};
+    use std::fmt;
 
-// Macro that provides a constant to iterate over the Iso Enum.
-macro_rules! define_enum {
-    ($Name:ident { $($Variant:ident),* $(,)* }) =>
-    {
-        #[derive(Debug)]
-        /// Enumerates ISO-4217 Alphabetic Codes.
-        pub enum $Name {
-            $($Variant),*,
+    /// Represents a single ISO-4217 currency (e.g. USD).
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub struct Currency {
+        pub iso_alpha_code: &'static str,
+        pub exponent: u32,
+        pub iso_numeric_code: &'static str,
+        pub locale: Locale,
+        pub minor_units: u64,
+        pub name: &'static str,
+        pub symbol: &'static str,
+        pub symbol_first: bool,
+    }
+
+    impl FormattableCurrency for Currency {
+        fn to_string(&self) -> String {
+            self.code().to_string()
         }
-        pub const ISO_CURRENCIES: &'static [$Name] = &[$($Name::$Variant),*];
+
+        fn exponent(&self) -> u32 {
+            self.exponent
+        }
+
+        fn code(&self) -> &'static str {
+            self.iso_alpha_code
+        }
+
+        fn locale(&self) -> Locale {
+            self.locale
+        }
+
+        fn symbol(&self) -> &'static str {
+            self.symbol
+        }
+
+        fn symbol_first(&self) -> bool {
+            self.symbol_first
+        }
     }
-}
 
-define_enum!(Iso {
-    AED,
-    AFN,
-    AMD,
-    ANG,
-    AOA,
-    ARS,
-    AUD,
-    AWG,
-    AZN,
-    BAM,
-    BBD,
-    BDT,
-    BGN,
-    BHD,
-    BIF,
-    BMD,
-    BND,
-    BOB,
-    BRL,
-    BSD,
-    BTN,
-    BWP,
-    BYN,
-    BYR,
-    BZD,
-    CAD,
-    CDF,
-    CHF,
-    CLF,
-    CLP,
-    CNY,
-    COP,
-    CRC,
-    CUC,
-    CUP,
-    CVE,
-    CZK,
-    DJF,
-    DKK,
-    DOP,
-    DZD,
-    EGP,
-    ERN,
-    ETB,
-    EUR,
-    FJD,
-    FKP,
-    GBP,
-    GEL,
-    GHS,
-    GIP,
-    GMD,
-    GNF,
-    GTQ,
-    GYD,
-    HKD,
-    HNL,
-    HRK,
-    HTG,
-    HUF,
-    IDR,
-    ILS,
-    INR,
-    IQD,
-    IRR,
-    ISK,
-    JMD,
-    JOD,
-    JPY,
-    KES,
-    KGS,
-    KHR,
-    KMF,
-    KPW,
-    KRW,
-    KWD,
-    KYD,
-    KZT,
-    LAK,
-    LBP,
-    LKR,
-    LRD,
-    LSL,
-    LYD,
-    MAD,
-    MDL,
-    MGA,
-    MKD,
-    MMK,
-    MNT,
-    MOP,
-    MRU,
-    MUR,
-    MVR,
-    MWK,
-    MXN,
-    MYR,
-    MZN,
-    NAD,
-    NGN,
-    NIO,
-    NOK,
-    NPR,
-    NZD,
-    OMR,
-    PAB,
-    PEN,
-    PGK,
-    PHP,
-    PKR,
-    PLN,
-    PYG,
-    QAR,
-    RON,
-    RSD,
-    RUB,
-    RWF,
-    SAR,
-    SBD,
-    SCR,
-    SDG,
-    SEK,
-    SGD,
-    SHP,
-    SKK,
-    SLL,
-    SOS,
-    SRD,
-    SSP,
-    STD,
-    SVC,
-    SYP,
-    SZL,
-    THB,
-    TJS,
-    TMT,
-    TND,
-    TOP,
-    TRY,
-    TTD,
-    TWD,
-    TZS,
-    UAH,
-    UGX,
-    USD,
-    UYU,
-    UZS,
-    VES,
-    VND,
-    VUV,
-    WST,
-    XAF,
-    XAG,
-    XAU,
-    XBA,
-    XBB,
-    XBC,
-    XBD,
-    XCD,
-    XDR,
-    XOF,
-    XPD,
-    XPF,
-    XPT,
-    XTS,
-    YER,
-    ZAR,
-    ZMK,
-    ZMW,
-    ZWL,
-});
-
-impl fmt::Display for Iso {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+    impl fmt::Display for Currency {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self.iso_alpha_code)
+        }
     }
-}
 
-/// Returns a Currency object given an ISO enum.
-pub fn from_enum(code: &Iso) -> Currency {
-    use Iso::*;
-    use Locale::*;
+    macro_rules! define_iso {
+    (
+      $(
+        $currency:ident: {
+          exponent: $exp:expr,
+          iso_alpha_code: $alpha_code:expr,
+          iso_numeric_code: $num_code:expr,
+          locale: $loc:expr,
+          minor_units: $min_dem:expr,
+          name: $name:expr,
+          symbol: $sym:expr,
+          symbol_first: $sym_first:expr,
+        }
+      ),+
+    ) => {
+      $(
+        pub const $currency: &'static Currency = &Currency {
+            iso_alpha_code: $alpha_code,
+          iso_numeric_code: $num_code,
+          exponent: $exp,
+          locale: $loc,
+          minor_units: $min_dem,
+          name: $name,
+          symbol: $sym,
+          symbol_first: $sym_first,
+        };
+      )+
 
-    match code {
-        AED => Currency {
+      pub fn find_by_alpha_code(code: &str) -> Option<&'static Currency> {
+        match code {
+          $($alpha_code => (Some($currency)),)+
+          _ => None,
+        }
+      }
+
+      pub fn find_by_num_code(code: &str) -> Option<&'static Currency> {
+        match code {
+          $($num_code => (Some($currency)),)+
+          _ => None,
+        }
+      }
+    };
+  }
+
+    define_iso!(
+        AED : {
             exponent: 2,
             iso_alpha_code: "AED",
             iso_numeric_code: "784",
             locale: EnUs,
-            minor_denomination: 25,
+            minor_units: 25,
             name: "United Arab Emirates Dirham",
             symbol: "د.إ",
             symbol_first: false,
         },
-        AFN => Currency {
+        AFN : {
             exponent: 2,
             iso_alpha_code: "AFN",
             iso_numeric_code: "971",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Afghan Afghani",
             symbol: "؋",
             symbol_first: false,
         },
-        AMD => Currency {
+        AMD : {
             exponent: 2,
             iso_alpha_code: "AMD",
             iso_numeric_code: "051",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Armenian Dram",
             symbol: "դր.",
             symbol_first: false,
         },
-        ANG => Currency {
+        ANG : {
             exponent: 2,
             iso_alpha_code: "ANG",
             iso_numeric_code: "532",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Netherlands Antillean Gulden",
             symbol: "ƒ",
             symbol_first: false,
         },
-        AOA => Currency {
+        AOA : {
             exponent: 2,
             iso_alpha_code: "AOA",
             iso_numeric_code: "973",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Angolan Kwanza",
             symbol: "Kz",
             symbol_first: false,
         },
-        ARS => Currency {
+        ARS : {
             exponent: 2,
             iso_alpha_code: "ARS",
             iso_numeric_code: "032",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Argentine Peso",
             symbol: "$",
             symbol_first: true,
         },
-        AUD => Currency {
+        AUD : {
             exponent: 2,
             iso_alpha_code: "AUD",
             iso_numeric_code: "036",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Australian Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        AWG => Currency {
+        AWG : {
             exponent: 2,
             iso_alpha_code: "AWG",
             iso_numeric_code: "533",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Aruban Florin",
             symbol: "ƒ",
             symbol_first: false,
         },
-        AZN => Currency {
+        AZN : {
             exponent: 2,
             iso_alpha_code: "AZN",
             iso_numeric_code: "944",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Azerbaijani Manat",
             symbol: "₼",
             symbol_first: true,
         },
-        BAM => Currency {
+        BAM : {
             exponent: 2,
             iso_alpha_code: "BAM",
             iso_numeric_code: "977",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Bosnia and Herzegovina Convertible Mark",
             symbol: "KM",
             symbol_first: true,
         },
-        BBD => Currency {
+        BBD : {
             exponent: 2,
             iso_alpha_code: "BBD",
             iso_numeric_code: "052",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Barbadian Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        BDT => Currency {
+        BDT : {
             exponent: 2,
             iso_alpha_code: "BDT",
             iso_numeric_code: "050",
             locale: EnIn,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Bangladeshi Taka",
             symbol: "৳",
             symbol_first: true,
         },
 
-        BGN => Currency {
+        BGN : {
             exponent: 2,
             iso_alpha_code: "BGN",
             iso_numeric_code: "975",
             locale: EnIn,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Bulgarian Lev",
             symbol: "лв.",
             symbol_first: false,
         },
-        BHD => Currency {
+        BHD : {
             exponent: 3,
             iso_alpha_code: "BHD",
             iso_numeric_code: "048",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Bahraini Dinar",
             symbol: "ب.د",
             symbol_first: true,
         },
-        BIF => Currency {
+        BIF : {
             exponent: 0,
             iso_alpha_code: "BIF",
             iso_numeric_code: "108",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Burundian Franc",
             symbol: "Fr",
             symbol_first: false,
         },
 
-        BMD => Currency {
+        BMD : {
             exponent: 2,
             iso_alpha_code: "BMD",
             iso_numeric_code: "060",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Bermudian Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        BND => Currency {
+        BND : {
             exponent: 2,
             iso_alpha_code: "BND",
             iso_numeric_code: "096",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Brunei Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        BOB => Currency {
+        BOB : {
             exponent: 2,
             iso_alpha_code: "BOB",
             iso_numeric_code: "068",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Bolivian Boliviano",
             symbol: "Bs.",
             symbol_first: true,
         },
-        BRL => Currency {
+        BRL : {
             exponent: 2,
             iso_alpha_code: "BRL",
             iso_numeric_code: "986",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Brazilian real",
             symbol: "R$",
             symbol_first: true,
         },
-        BSD => Currency {
+        BSD : {
             exponent: 2,
             iso_alpha_code: "BSD",
             iso_numeric_code: "044",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Bahamian Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        BTN => Currency {
+        BTN : {
             exponent: 2,
             iso_alpha_code: "BTN",
             iso_numeric_code: "064",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Bhutanese Ngultrum",
             symbol: "Nu.",
             symbol_first: false,
         },
-        BWP => Currency {
+        BWP : {
             exponent: 2,
             iso_alpha_code: "BWP",
             iso_numeric_code: "072",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Botswana Pula",
             symbol: "P",
             symbol_first: true,
         },
-        BYN => Currency {
+        BYN : {
             exponent: 2,
             iso_alpha_code: "BYN",
             iso_numeric_code: "933",
             locale: EnBy,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Belarusian Ruble",
             symbol: "Br",
             symbol_first: false,
         },
-        BYR => Currency {
+        BYR : {
             exponent: 0,
             iso_alpha_code: "BYR",
             iso_numeric_code: "974",
             locale: EnBy,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Belarusian Ruble",
             symbol: "Br",
             symbol_first: false,
         },
-        BZD => Currency {
+        BZD : {
             exponent: 2,
             iso_alpha_code: "BZD",
             iso_numeric_code: "084",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Belize Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        CAD => Currency {
+        CAD : {
             exponent: 2,
             iso_alpha_code: "CAD",
             iso_numeric_code: "124",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Canadian Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        CDF => Currency {
+        CDF : {
             exponent: 2,
             iso_alpha_code: "CDF",
             iso_numeric_code: "976",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Congolese Franc",
             symbol: "Fr",
             symbol_first: false,
         },
-        CHF => Currency {
+        CHF : {
             exponent: 2,
             iso_alpha_code: "CHF",
             iso_numeric_code: "756",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Swiss Franc",
             symbol: "Fr",
             symbol_first: true,
         },
-        CLF => Currency {
+        CLF : {
             exponent: 4,
             iso_alpha_code: "CLF",
             iso_numeric_code: "990",
             locale: EnEu,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Unidad de Fomento",
             symbol: "UF",
             symbol_first: true,
         },
-        CLP => Currency {
+        CLP : {
             exponent: 0,
             iso_alpha_code: "CLP",
             iso_numeric_code: "152",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Chilean Peso",
             symbol: "$",
             symbol_first: true,
         },
-        CNY => Currency {
+        CNY : {
             exponent: 2,
             iso_alpha_code: "CNY",
             iso_numeric_code: "156",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Chinese Renminbi Yuan",
             symbol: "¥",
             symbol_first: true,
         },
-        COP => Currency {
+        COP : {
             exponent: 2,
             iso_alpha_code: "COP",
             iso_numeric_code: "170",
             locale: EnEu,
-            minor_denomination: 20,
+            minor_units: 20,
             name: "Colombian Peso",
             symbol: "$",
             symbol_first: true,
         },
-        CRC => Currency {
+        CRC : {
             exponent: 2,
             iso_alpha_code: "CRC",
             iso_numeric_code: "188",
             locale: EnEu,
-            minor_denomination: 500, // TODO - Investigate
+            minor_units: 500, // TODO - Investigate
             name: "Costa Rican Colón",
             symbol: "₡",
             symbol_first: true,
         },
-        CUC => Currency {
+        CUC : {
             exponent: 2,
             iso_alpha_code: "CUC",
             iso_numeric_code: "931",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Cuban Convertible Peso",
             symbol: "$",
             symbol_first: false,
         },
-        CUP => Currency {
+        CUP : {
             exponent: 2,
             iso_alpha_code: "CUP",
             iso_numeric_code: "192",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Cuban Peso",
             symbol: "$",
             symbol_first: true,
         },
-        CVE => Currency {
+        CVE : {
             exponent: 2,
             iso_alpha_code: "CVE",
             iso_numeric_code: "132",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Cape Verdean Escudo",
             symbol: "$",
             symbol_first: false,
         },
-        CZK => Currency {
+        CZK : {
             exponent: 2,
             iso_alpha_code: "CZK",
             iso_numeric_code: "203",
             locale: EnBy,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Czech Koruna",
             symbol: "Kč",
             symbol_first: false,
         },
-        DJF => Currency {
+        DJF : {
             exponent: 0,
             iso_alpha_code: "DJF",
             iso_numeric_code: "262",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Djiboutian Franc",
             symbol: "Fdj",
             symbol_first: false,
         },
-        DKK => Currency {
+        DKK : {
             exponent: 2,
             iso_alpha_code: "DKK",
             iso_numeric_code: "208",
             locale: EnEu,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Danish Krone",
             symbol: "kr.",
             symbol_first: false,
         },
-        DOP => Currency {
+        DOP : {
             exponent: 2,
             iso_alpha_code: "DOP",
             iso_numeric_code: "214",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Dominican Peso",
             symbol: "$",
             symbol_first: true,
         },
-        DZD => Currency {
+        DZD : {
             exponent: 2,
             iso_alpha_code: "DZD",
             iso_numeric_code: "012",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Algerian Dinar",
             symbol: "د.ج",
             symbol_first: false,
         },
-        EGP => Currency {
+        EGP : {
             exponent: 2,
             iso_alpha_code: "EGP",
             iso_numeric_code: "818",
             locale: EnUs,
-            minor_denomination: 25,
+            minor_units: 25,
             name: "Egyptian Pound",
             symbol: "ج.م",
             symbol_first: true,
         },
-        ERN => Currency {
+        ERN : {
             exponent: 2,
             iso_alpha_code: "ERN",
             iso_numeric_code: "232",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Eritrean Nakfa",
             symbol: "Nfk",
             symbol_first: false,
         },
-        ETB => Currency {
+        ETB : {
             exponent: 2,
             iso_alpha_code: "ETB",
             iso_numeric_code: "230",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Ethiopian Birr",
             symbol: "Br",
             symbol_first: false,
         },
-        EUR => Currency {
+        EUR : {
             exponent: 2,
             iso_alpha_code: "EUR",
             iso_numeric_code: "978",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Euro",
             symbol: "€",
             symbol_first: true,
         },
-        FJD => Currency {
+        FJD : {
             exponent: 2,
             iso_alpha_code: "FJD",
             iso_numeric_code: "242",
             locale: EnEu,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Fijian Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        FKP => Currency {
+        FKP : {
             exponent: 2,
             iso_alpha_code: "FKP",
             iso_numeric_code: "238",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Falkland Pound",
             symbol: "£",
             symbol_first: false,
         },
-        GBP => Currency {
+        GBP : {
             exponent: 2,
             iso_alpha_code: "GBP",
             iso_numeric_code: "826",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "British Pound",
             symbol: "£",
             symbol_first: true,
         },
-        GEL => Currency {
+        GEL : {
             exponent: 2,
             iso_alpha_code: "GEL",
             iso_numeric_code: "981",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Georgian Lari",
             symbol: "ლ",
             symbol_first: false,
         },
-        GHS => Currency {
+        GHS : {
             exponent: 2,
             iso_alpha_code: "GHS",
             iso_numeric_code: "936",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Ghanaian Cedi",
             symbol: "₵",
             symbol_first: true,
         },
-        GIP => Currency {
+        GIP : {
             exponent: 2,
             iso_alpha_code: "GIP",
             iso_numeric_code: "292",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Gibraltar Pound",
             symbol: "£",
             symbol_first: true,
         },
-        GMD => Currency {
+        GMD : {
             exponent: 2,
             iso_alpha_code: "GMD",
             iso_numeric_code: "270",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Gambian Dalasi",
             symbol: "D",
             symbol_first: false,
         },
-        GNF => Currency {
+        GNF : {
             exponent: 0,
             iso_alpha_code: "GNF",
             iso_numeric_code: "324",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Guinean Franc",
             symbol: "Fr",
             symbol_first: false,
         },
-        GTQ => Currency {
+        GTQ : {
             exponent: 2,
             iso_alpha_code: "GTQ",
             iso_numeric_code: "320",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Guatemalan Quetzal",
             symbol: "Q",
             symbol_first: true,
         },
-        GYD => Currency {
+        GYD : {
             exponent: 2,
             iso_alpha_code: "GYD",
             iso_numeric_code: "328",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Guyanese Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        HKD => Currency {
+        HKD : {
             exponent: 2,
             iso_alpha_code: "HKD",
             iso_numeric_code: "344",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Hong Kong Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        HNL => Currency {
+        HNL : {
             exponent: 2,
             iso_alpha_code: "HNL",
             iso_numeric_code: "340",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Honduran Lempira",
             symbol: "L",
             symbol_first: true,
         },
-        HRK => Currency {
+        HRK : {
             exponent: 2,
             iso_alpha_code: "HRK",
             iso_numeric_code: "191",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Croatian Kuna",
             symbol: "kn",
             symbol_first: false,
         },
-        HTG => Currency {
+        HTG : {
             exponent: 2,
             iso_alpha_code: "HTG",
             iso_numeric_code: "332",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Haitian Gourde",
             symbol: "G",
             symbol_first: false,
         },
-        HUF => Currency {
+        HUF : {
             exponent: 0,
             iso_alpha_code: "HUF",
             iso_numeric_code: "348",
             locale: EnBy,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Hungarian Forint",
             symbol: "Ft",
             symbol_first: false,
         },
-        IDR => Currency {
+        IDR : {
             exponent: 2,
             iso_alpha_code: "IDR",
             iso_numeric_code: "360",
             locale: EnUs,
-            minor_denomination: 5000,
+            minor_units: 5000,
             name: "Indonesian Rupiah",
             symbol: "Rp",
             symbol_first: true,
         },
-        ILS => Currency {
+        ILS : {
             exponent: 2,
             iso_alpha_code: "ILS",
             iso_numeric_code: "376",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Israeli New Sheqel",
             symbol: "₪",
             symbol_first: true,
         },
-        INR => Currency {
+        INR : {
             exponent: 2,
             iso_alpha_code: "INR",
             iso_numeric_code: "356",
             locale: EnIn,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Indian Rupee",
             symbol: "₹",
             symbol_first: true,
         },
-        IQD => Currency {
+        IQD : {
             exponent: 3,
             iso_alpha_code: "IQD",
             iso_numeric_code: "368",
             locale: EnUs,
-            minor_denomination: 50000,
+            minor_units: 50000,
             name: "Iraqi Dinar",
             symbol: "ع.د",
             symbol_first: false,
         },
-        IRR => Currency {
+        IRR : {
             exponent: 2,
             iso_alpha_code: "IRR",
             iso_numeric_code: "364",
             locale: EnUs,
-            minor_denomination: 5000,
+            minor_units: 5000,
             name: "Iranian Rial",
             symbol: "﷼",
             symbol_first: true,
         },
-        ISK => Currency {
+        ISK : {
             exponent: 0,
             iso_alpha_code: "ISK",
             iso_numeric_code: "352",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Icelandic Króna",
             symbol: "kr",
             symbol_first: true,
         },
-        JMD => Currency {
+        JMD : {
             exponent: 2,
             iso_alpha_code: "JMD",
             iso_numeric_code: "388",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Jamaican Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        JOD => Currency {
+        JOD : {
             exponent: 3,
             iso_alpha_code: "JOD",
             iso_numeric_code: "400",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Jordanian Dinar",
             symbol: "د.ا",
             symbol_first: true,
         },
-        JPY => Currency {
+        JPY : {
             exponent: 0,
             iso_alpha_code: "JPY",
             iso_numeric_code: "392",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Japanese Yen",
             symbol: "¥",
             symbol_first: true,
         },
-        KES => Currency {
+        KES : {
             exponent: 2,
             iso_alpha_code: "KES",
             iso_numeric_code: "404",
             locale: EnUs,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Kenyan Shilling",
             symbol: "KSh",
             symbol_first: true,
         },
-        KGS => Currency {
+        KGS : {
             exponent: 2,
             iso_alpha_code: "KGS",
             iso_numeric_code: "417",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Kyrgyzstani Som",
             symbol: "som",
             symbol_first: false,
         },
-        KHR => Currency {
+        KHR : {
             exponent: 2,
             iso_alpha_code: "KHR",
             iso_numeric_code: "116",
             locale: EnUs,
-            minor_denomination: 5000,
+            minor_units: 5000,
             name: "Cambodian Riel",
             symbol: "៛",
             symbol_first: false,
         },
-        KMF => Currency {
+        KMF : {
             exponent: 0,
             iso_alpha_code: "KMF",
             iso_numeric_code: "174",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Comorian Franc",
             symbol: "Fr",
             symbol_first: false,
         },
-        KPW => Currency {
+        KPW : {
             exponent: 2,
             iso_alpha_code: "KPW",
             iso_numeric_code: "408",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "North Korean Won",
             symbol: "₩",
             symbol_first: false,
         },
-        KRW => Currency {
+        KRW : {
             exponent: 0,
             iso_alpha_code: "KRW",
             iso_numeric_code: "410",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "South Korean Won",
             symbol: "₩",
             symbol_first: true,
         },
-        KWD => Currency {
+        KWD : {
             exponent: 3,
             iso_alpha_code: "KWD",
             iso_numeric_code: "414",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Kuwaiti Dinar",
             symbol: "د.ك",
             symbol_first: true,
         },
-        KYD => Currency {
+        KYD : {
             exponent: 2,
             iso_alpha_code: "KYD",
             iso_numeric_code: "136",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Cayman Islands Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        KZT => Currency {
+        KZT : {
             exponent: 2,
             iso_alpha_code: "KZT",
             iso_numeric_code: "398",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Kazakhstani Tenge",
             symbol: "₸",
             symbol_first: false,
         },
-        LAK => Currency {
+        LAK : {
             exponent: 2,
             iso_alpha_code: "LAK",
             iso_numeric_code: "418",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Lao Kip",
             symbol: "₭",
             symbol_first: false,
         },
-        LBP => Currency {
+        LBP : {
             exponent: 2,
             iso_alpha_code: "LBP",
             iso_numeric_code: "422",
             locale: EnUs,
-            minor_denomination: 25000,
+            minor_units: 25000,
             name: "Lebanese Pound",
             symbol: "ل.ل",
             symbol_first: true,
         },
-        LKR => Currency {
+        LKR : {
             exponent: 2,
             iso_alpha_code: "LKR",
             iso_numeric_code: "144",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Sri Lankan Rupee",
             symbol: "₨",
             symbol_first: false,
         },
-        LRD => Currency {
+        LRD : {
             exponent: 2,
             iso_alpha_code: "LRD",
             iso_numeric_code: "430",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Liberian Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        LSL => Currency {
+        LSL : {
             exponent: 2,
             iso_alpha_code: "LSL",
             iso_numeric_code: "426",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Lesotho Loti",
             symbol: "L",
             symbol_first: false,
         },
-        LYD => Currency {
+        LYD : {
             exponent: 3,
             iso_alpha_code: "LYD",
             iso_numeric_code: "434",
             locale: EnUs,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Libyan Dinar",
             symbol: "ل.د",
             symbol_first: false,
         },
-        MAD => Currency {
+        MAD : {
             exponent: 2,
             iso_alpha_code: "MAD",
             iso_numeric_code: "504",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Moroccan Dirham",
             symbol: "د.م.",
             symbol_first: false,
         },
-        MDL => Currency {
+        MDL : {
             exponent: 2,
             iso_alpha_code: "MDL",
             iso_numeric_code: "498",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Moldovan Leu",
             symbol: "L",
             symbol_first: false,
         },
-        MGA => Currency {
+        MGA : {
             exponent: 1, // TODO - exponent is 1/5th need to represent somehow
             iso_alpha_code: "MGA",
             iso_numeric_code: "969",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Malagasy Ariary",
             symbol: "Ar",
             symbol_first: true,
         },
-        MKD => Currency {
+        MKD : {
             exponent: 2,
             iso_alpha_code: "MKD",
             iso_numeric_code: "807",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Macedonian Denar",
             symbol: "ден",
             symbol_first: false,
         },
-        MMK => Currency {
+        MMK : {
             exponent: 2,
             iso_alpha_code: "MMK",
             iso_numeric_code: "104",
             locale: EnUs,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Myanmar Kyat",
             symbol: "K",
             symbol_first: false,
         },
-        MNT => Currency {
+        MNT : {
             exponent: 2,
             iso_alpha_code: "MNT",
             iso_numeric_code: "496",
             locale: EnUs,
-            minor_denomination: 2000,
+            minor_units: 2000,
             name: "Mongolian Tögrög",
             symbol: "₮",
             symbol_first: false,
         },
-        MOP => Currency {
+        MOP : {
             exponent: 2,
             iso_alpha_code: "MOP",
             iso_numeric_code: "446",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Macanese Pataca",
             symbol: "P",
             symbol_first: false,
         },
-        MRU => Currency {
+        MRU : {
             exponent: 1, // TODO - exponent problem of 5
             iso_alpha_code: "MRU",
             iso_numeric_code: "929",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Mauritanian Ouguiya",
             symbol: "UM",
             symbol_first: false,
         },
-        MUR => Currency {
+        MUR : {
             exponent: 2,
             iso_alpha_code: "MUR",
             iso_numeric_code: "480",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Mauritian Rupee",
             symbol: "₨",
             symbol_first: true,
         },
-        MVR => Currency {
+        MVR : {
             exponent: 2,
             iso_alpha_code: "MVR",
             iso_numeric_code: "462",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Maldivian Rufiyaa",
             symbol: "MVR",
             symbol_first: false,
         },
-        MWK => Currency {
+        MWK : {
             exponent: 2,
             iso_alpha_code: "MWK",
             iso_numeric_code: "454",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Malawian Kwacha",
             symbol: "MK",
             symbol_first: false,
         },
-        MXN => Currency {
+        MXN : {
             exponent: 2,
             iso_alpha_code: "MXN",
             iso_numeric_code: "484",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Mexican Peso",
             symbol: "$",
             symbol_first: true,
         },
-        MYR => Currency {
+        MYR : {
             exponent: 2,
             iso_alpha_code: "MYR",
             iso_numeric_code: "458",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Malaysian Ringgit",
             symbol: "RM",
             symbol_first: true,
         },
-        MZN => Currency {
+        MZN : {
             exponent: 2,
             iso_alpha_code: "MZN",
             iso_numeric_code: "943",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Mozambican Metical",
             symbol: "MTn",
             symbol_first: true,
         },
-        NAD => Currency {
+        NAD : {
             exponent: 2,
             iso_alpha_code: "NAD",
             iso_numeric_code: "516",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Namibian Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        NGN => Currency {
+        NGN : {
             exponent: 2,
             iso_alpha_code: "NGN",
             iso_numeric_code: "566",
             locale: EnUs,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Nigerian Naira",
             symbol: "₦",
             symbol_first: true,
         },
-        NIO => Currency {
+        NIO : {
             exponent: 2,
             iso_alpha_code: "NIO",
             iso_numeric_code: "588",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Nicaraguan Córdoba",
             symbol: "C$",
             symbol_first: true,
         },
-        NOK => Currency {
+        NOK : {
             exponent: 2,
             iso_alpha_code: "NOK",
             iso_numeric_code: "578",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Norwegian Krone",
             symbol: "kr",
             symbol_first: false,
         },
-        NPR => Currency {
+        NPR : {
             exponent: 2,
             iso_alpha_code: "NPR",
             iso_numeric_code: "524",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Nepalese Rupee",
             symbol: "₨",
             symbol_first: true,
         },
-        NZD => Currency {
+        NZD : {
             exponent: 2,
             iso_alpha_code: "NZD",
             iso_numeric_code: "554",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "New Zealand Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        OMR => Currency {
+        OMR : {
             exponent: 3,
             iso_alpha_code: "OMR",
             iso_numeric_code: "512",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Omani Rial",
             symbol: "ر.ع.",
             symbol_first: true,
         },
-        PAB => Currency {
+        PAB : {
             exponent: 2,
             iso_alpha_code: "PAB",
             iso_numeric_code: "590",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Panamanian Balboa",
             symbol: "B/.",
             symbol_first: true,
         },
-        PEN => Currency {
+        PEN : {
             exponent: 2,
             iso_alpha_code: "PEN",
             iso_numeric_code: "604",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Peruvian Sol",
             symbol: "S/",
             symbol_first: true,
         },
-        PGK => Currency {
+        PGK : {
             exponent: 2,
             iso_alpha_code: "PGK",
             iso_numeric_code: "598",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Papua New Guinean Kina",
             symbol: "K",
             symbol_first: false,
         },
-        PHP => Currency {
+        PHP : {
             exponent: 2,
             iso_alpha_code: "PHP",
             iso_numeric_code: "608",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Philippine Peso",
             symbol: "₱",
             symbol_first: true,
         },
-        PKR => Currency {
+        PKR : {
             exponent: 2,
             iso_alpha_code: "PKR",
             iso_numeric_code: "586",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Pakistani Rupee",
             symbol: "₨",
             symbol_first: true,
         },
-        PLN => Currency {
+        PLN : {
             exponent: 2,
             iso_alpha_code: "PLN",
             iso_numeric_code: "985",
             locale: EnBy,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Polish Złoty",
             symbol: "zł",
             symbol_first: false,
         },
-        PYG => Currency {
+        PYG : {
             exponent: 0,
             iso_alpha_code: "PYG",
             iso_numeric_code: "600",
             locale: EnBy,
-            minor_denomination: 5000,
+            minor_units: 5000,
             name: "Paraguayan Guaraní",
             symbol: "₲",
             symbol_first: true,
         },
-        QAR => Currency {
+        QAR : {
             exponent: 2,
             iso_alpha_code: "QAR",
             iso_numeric_code: "634",
             locale: EnBy,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Qatari Riyal",
             symbol: "ر.ق",
             symbol_first: false,
         },
-        RON => Currency {
+        RON : {
             exponent: 2,
             iso_alpha_code: "RON",
             iso_numeric_code: "946",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Romanian Leu",
             symbol: "ر.ق",
             symbol_first: false,
         },
-        RSD => Currency {
+        RSD : {
             exponent: 2,
             iso_alpha_code: "RSD",
             iso_numeric_code: "941",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Serbian Dinar",
             symbol: "РСД",
             symbol_first: true,
         },
-        RUB => Currency {
+        RUB : {
             exponent: 2,
             iso_alpha_code: "RUB",
             iso_numeric_code: "643",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Russian Ruble",
             symbol: "₽",
             symbol_first: false,
         },
-        RWF => Currency {
+        RWF : {
             exponent: 0,
             iso_alpha_code: "RWF",
             iso_numeric_code: "646",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Rwandan Franc",
             symbol: "FRw",
             symbol_first: false,
         },
-        SAR => Currency {
+        SAR : {
             exponent: 2,
             iso_alpha_code: "SAR",
             iso_numeric_code: "682",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Saudi Riyal",
             symbol: "ر.س",
             symbol_first: true,
         },
-        SBD => Currency {
+        SBD : {
             exponent: 2,
             iso_alpha_code: "SBD",
             iso_numeric_code: "090",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Solomon Islands Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        SCR => Currency {
+        SCR : {
             exponent: 2,
             iso_alpha_code: "SCR",
             iso_numeric_code: "690",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Seychellois Rupee",
             symbol: "₨",
             symbol_first: false,
         },
-        SDG => Currency {
+        SDG : {
             exponent: 2,
             iso_alpha_code: "SDG",
             iso_numeric_code: "938",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Sudanese Pound",
             symbol: "£",
             symbol_first: true,
         },
-        SEK => Currency {
+        SEK : {
             exponent: 2,
             iso_alpha_code: "SEK",
             iso_numeric_code: "752",
             locale: EnBy,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Swedish Krona",
             symbol: "kr",
             symbol_first: false,
         },
-        SGD => Currency {
+        SGD : {
             exponent: 2,
             iso_alpha_code: "SGD",
             iso_numeric_code: "702",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Singapore Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        SHP => Currency {
+        SHP : {
             exponent: 2,
             iso_alpha_code: "SHP",
             iso_numeric_code: "654",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Saint Helenian Pound",
             symbol: "£",
             symbol_first: false,
         },
-        SKK => Currency {
+        SKK : {
             exponent: 2,
             iso_alpha_code: "SKK",
             iso_numeric_code: "703",
             locale: EnUs,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "Slovak Koruna",
             symbol: "Sk",
             symbol_first: true,
         },
-        SLL => Currency {
+        SLL : {
             exponent: 2,
             iso_alpha_code: "SLL",
             iso_numeric_code: "694",
             locale: EnUs,
-            minor_denomination: 1000,
+            minor_units: 1000,
             name: "Sierra Leonean Leone",
             symbol: "Le",
             symbol_first: false,
         },
-        SOS => Currency {
+        SOS : {
             exponent: 2,
             iso_alpha_code: "SOS",
             iso_numeric_code: "706",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Somali Shilling",
             symbol: "Sh",
             symbol_first: false,
         },
-        SRD => Currency {
+        SRD : {
             exponent: 2,
             iso_alpha_code: "SRD",
             iso_numeric_code: "968",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Surinamese Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        SSP => Currency {
+        SSP : {
             exponent: 2,
             iso_alpha_code: "SSP",
             iso_numeric_code: "728",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "South Sudanese Pound",
             symbol: "£",
             symbol_first: false,
         },
-        STD => Currency {
+        STD : {
             exponent: 2,
             iso_alpha_code: "STD",
             iso_numeric_code: "678",
             locale: EnUs,
-            minor_denomination: 10000,
+            minor_units: 10000,
             name: "São Tomé and Príncipe Dobra",
             symbol: "Db",
             symbol_first: false,
         },
-        SVC => Currency {
+        SVC : {
             exponent: 2,
             iso_alpha_code: "SVC",
             iso_numeric_code: "222",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Salvadoran Colón",
             symbol: "₡",
             symbol_first: true,
         },
-        SYP => Currency {
+        SYP : {
             exponent: 2,
             iso_alpha_code: "SYP",
             iso_numeric_code: "760",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Syrian Pound",
             symbol: "£S",
             symbol_first: false,
         },
-        SZL => Currency {
+        SZL : {
             exponent: 2,
             iso_alpha_code: "SZL",
             iso_numeric_code: "748",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Swazi Lilangeni",
             symbol: "E",
             symbol_first: true,
         },
-        THB => Currency {
+        THB : {
             exponent: 2,
             iso_alpha_code: "THB",
             iso_numeric_code: "764",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Thai Baht",
             symbol: "฿",
             symbol_first: true,
         },
-        TJS => Currency {
+        TJS : {
             exponent: 2,
             iso_alpha_code: "TJS",
             iso_numeric_code: "972",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Tajikistani Somoni",
             symbol: "ЅМ",
             symbol_first: false,
         },
-        TMT => Currency {
+        TMT : {
             exponent: 2,
             iso_alpha_code: "TMT",
             iso_numeric_code: "934",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Turkmenistani Manat",
             symbol: "T",
             symbol_first: false,
         },
-        TND => Currency {
+        TND : {
             exponent: 3,
             iso_alpha_code: "TND",
             iso_numeric_code: "788",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Tunisian Dinar",
             symbol: "د.ت",
             symbol_first: false,
         },
-        TOP => Currency {
+        TOP : {
             exponent: 2,
             iso_alpha_code: "TOP",
             iso_numeric_code: "776",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Tongan Paʻanga",
             symbol: "T$",
             symbol_first: true,
         },
-        TRY => Currency {
+        TRY : {
             exponent: 2,
             iso_alpha_code: "TRY",
             iso_numeric_code: "949",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Turkish Lira",
             symbol: "₺",
             symbol_first: true,
         },
-        TTD => Currency {
+        TTD : {
             exponent: 2,
             iso_alpha_code: "TTD",
             iso_numeric_code: "780",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Trinidad and Tobago Dollar",
             symbol: "$",
             symbol_first: false,
         },
-        TWD => Currency {
+        TWD : {
             exponent: 2,
             iso_alpha_code: "TWD",
             iso_numeric_code: "901",
             locale: EnUs,
-            minor_denomination: 50,
+            minor_units: 50,
             name: "New Taiwan Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        TZS => Currency {
+        TZS : {
             exponent: 2,
             iso_alpha_code: "TZS",
             iso_numeric_code: "834",
             locale: EnUs,
-            minor_denomination: 5000,
+            minor_units: 5000,
             name: "Tanzanian Shilling",
             symbol: "Sh",
             symbol_first: true,
         },
-        UAH => Currency {
+        UAH : {
             exponent: 2,
             iso_alpha_code: "UAH",
             iso_numeric_code: "980",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Ukrainian Hryvnia",
             symbol: "₴",
             symbol_first: false,
         },
-        UGX => Currency {
+        UGX : {
             exponent: 0,
             iso_alpha_code: "UGX",
             iso_numeric_code: "800",
             locale: EnUs,
-            minor_denomination: 1000,
+            minor_units: 1000,
             name: "Ugandan Shilling",
             symbol: "USh",
             symbol_first: false,
         },
-        USD => Currency {
+        USD : {
             exponent: 2,
             iso_alpha_code: "USD",
             iso_numeric_code: "840",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "United States Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        UYU => Currency {
+        UYU : {
             exponent: 2,
             iso_alpha_code: "UYU",
             iso_numeric_code: "858",
             locale: EnEu,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Uruguayan Peso",
             symbol: "$",
             symbol_first: true,
         },
-        UZS => Currency {
+        UZS : {
             exponent: 2,
             iso_alpha_code: "UZS",
             iso_numeric_code: "860",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Uzbekistan Som",
             symbol: "so'm",
             symbol_first: false,
         },
-        VES => Currency {
+        VES : {
             exponent: 2,
             iso_alpha_code: "VES",
             iso_numeric_code: "928",
             locale: EnEu,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Venezuelan Bolívar Soberano",
             symbol: "Bs",
             symbol_first: true,
         },
-        VND => Currency {
+        VND : {
             exponent: 0,
             iso_alpha_code: "VND",
             iso_numeric_code: "704",
             locale: EnEu,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Vietnamese Đồng",
             symbol: "₫",
             symbol_first: false,
         },
-        VUV => Currency {
+        VUV : {
             exponent: 0,
             iso_alpha_code: "VUV",
             iso_numeric_code: "548",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Vanuatu Vatu",
             symbol: "Vt",
             symbol_first: true,
         },
-        WST => Currency {
+        WST : {
             exponent: 2,
             iso_alpha_code: "WST",
             iso_numeric_code: "882",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "Samoan Tala",
             symbol: "T",
             symbol_first: false,
         },
-        XAF => Currency {
+        XAF : {
             exponent: 0,
             iso_alpha_code: "XAF",
             iso_numeric_code: "950",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Central African Cfa Franc",
             symbol: "CFA",
             symbol_first: false,
         },
-        XAG => Currency {
+        XAG : {
             exponent: 0,
             iso_alpha_code: "XAG",
             iso_numeric_code: "961",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Silver (Troy Ounce)",
             symbol: "oz t",
             symbol_first: false,
         },
-        XAU => Currency {
+        XAU : {
             exponent: 0,
             iso_alpha_code: "XAU",
             iso_numeric_code: "959",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Gold (Troy Ounce)",
             symbol: "oz t",
             symbol_first: false,
         },
-        XBA => Currency {
+        XBA : {
             exponent: 0,
             iso_alpha_code: "XBA",
             iso_numeric_code: "955",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "European Composite Unit",
             symbol: "",
             symbol_first: false,
         },
-        XBB => Currency {
+        XBB : {
             exponent: 0,
             iso_alpha_code: "XBB",
             iso_numeric_code: "956",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "European Monetary Unit",
             symbol: "",
             symbol_first: false,
         },
-        XBC => Currency {
+        XBC : {
             exponent: 0,
             iso_alpha_code: "XBC",
             iso_numeric_code: "957",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "European Unit of Account 9",
             symbol: "",
             symbol_first: false,
         },
-        XBD => Currency {
+        XBD : {
             exponent: 0,
             iso_alpha_code: "XBD",
             iso_numeric_code: "958",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "European Unit of Account 17",
             symbol: "",
             symbol_first: false,
         },
-        XCD => Currency {
+        XCD : {
             exponent: 2,
             iso_alpha_code: "XCD",
             iso_numeric_code: "951",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "East Caribbean Dollar",
             symbol: "$",
             symbol_first: true,
         },
-        XDR => Currency {
+        XDR : {
             exponent: 0,
             iso_alpha_code: "XDR",
             iso_numeric_code: "960",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Special Drawing Rights",
             symbol: "SDR",
             symbol_first: false,
         },
-        XOF => Currency {
+        XOF : {
             exponent: 0,
             iso_alpha_code: "XOF",
             iso_numeric_code: "952",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "West African Cfa Franc",
             symbol: "Fr",
             symbol_first: false,
         },
-        XPD => Currency {
+        XPD : {
             exponent: 0,
             iso_alpha_code: "XPD",
             iso_numeric_code: "964",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Palladium",
             symbol: "oz t",
             symbol_first: false,
         },
-        XPF => Currency {
+        XPF : {
             exponent: 0,
             iso_alpha_code: "XPF",
             iso_numeric_code: "953",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Cfp Franc",
             symbol: "Fr",
             symbol_first: false,
         },
-        XPT => Currency {
+        XPT : {
             exponent: 0,
             iso_alpha_code: "XPT",
             iso_numeric_code: "962",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Platinum",
             symbol: "oz t",
             symbol_first: false,
         },
-        XTS => Currency {
+        XTS : {
             exponent: 0,
             iso_alpha_code: "XTS",
             iso_numeric_code: "963",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Codes specifically reserved for testing purposes",
             symbol: "oz t",
             symbol_first: false,
         },
-        YER => Currency {
+        YER : {
             exponent: 2,
             iso_alpha_code: "YER",
             iso_numeric_code: "886",
             locale: EnUs,
-            minor_denomination: 100,
+            minor_units: 100,
             name: "Yemeni Rial",
             symbol: "﷼",
             symbol_first: false,
         },
-        ZAR => Currency {
+        ZAR : {
             exponent: 2,
             iso_alpha_code: "ZAR",
             iso_numeric_code: "710",
             locale: EnUs,
-            minor_denomination: 10,
+            minor_units: 10,
             name: "South African Rand",
             symbol: "R",
             symbol_first: true,
         },
-        ZMK => Currency {
+        ZMK : {
             exponent: 2,
             iso_alpha_code: "ZMK",
             iso_numeric_code: "894",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Zambian Kwacha",
             symbol: "ZK",
             symbol_first: false,
         },
-        ZMW => Currency {
+        ZMW : {
             exponent: 2,
             iso_alpha_code: "ZMW",
             iso_numeric_code: "967",
             locale: EnUs,
-            minor_denomination: 5,
+            minor_units: 5,
             name: "Zambian Kwacha",
             symbol: "K",
             symbol_first: true,
         },
-        ZWL => Currency {
+        ZWL : {
             exponent: 2,
             iso_alpha_code: "ZWL",
             iso_numeric_code: "932",
             locale: EnUs,
-            minor_denomination: 1,
+            minor_units: 1,
             name: "Zimbabwe Dollar",
             symbol: "Z$",
             symbol_first: true,
-        },
-    }
+        }
+    );
 }
 
 #[cfg(test)]
@@ -1910,23 +1802,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn iso_enum_name_matches_currency_iso_alpha_code() {
-        for iso in ISO_CURRENCIES {
-            let iso_alpha_code = format!("{}", iso);
-            let currency = from_enum(iso);
-            assert_eq!(iso_alpha_code, currency.iso_alpha_code);
-        }
+    fn find_returns_known_currencies() {
+        let currency_by_alpha = iso::find_by_alpha_code("USD").unwrap();
+        assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
+        assert_eq!(currency_by_alpha.exponent, 2);
+        assert_eq!(currency_by_alpha.symbol, "$");
+
+        let currency_by_numeric = iso::find_by_num_code("840").unwrap();
+        assert_eq!(currency_by_alpha, currency_by_numeric);
     }
 
     #[test]
-    fn no_duplicate_currency_numeric_iso_codes() {
-        let mut numeric_codes: Vec<_> = ISO_CURRENCIES
-            .iter()
-            .map(|iso| from_enum(iso).iso_numeric_code)
-            .collect();
+    fn find_raises_invalid_currency_error_on_unknown_currency() {
+        assert_eq!(iso::find_by_alpha_code("fake"), None,);
 
-        numeric_codes.sort();
-        numeric_codes.dedup();
-        assert_eq!(ISO_CURRENCIES.len(), numeric_codes.len());
+        assert_eq!(iso::find_by_num_code("123"), None,);
+    }
+
+    #[test]
+    fn currency_can_be_accessed_by_reference() {
+        assert_eq!(iso::USD.iso_alpha_code, "USD");
+        assert_eq!(iso::USD.exponent, 2);
+        assert_eq!(iso::USD.symbol, "$");
+    }
+
+    #[test]
+    fn find_and_reference_point_to_same() {
+        assert_eq!(iso::USD, iso::find_by_alpha_code("USD").unwrap());
     }
 }

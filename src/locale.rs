@@ -11,7 +11,7 @@ pub enum Locale {
     EnBy,
 }
 
-/// A struct which contains currency formatting metadata for a region.
+/// Stores currency formatting metadata for a specific region (e.g. EN-US).
 #[derive(Debug, PartialEq, Eq)]
 pub struct LocalFormat {
     pub name: &'static str,

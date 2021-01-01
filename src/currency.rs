@@ -1,128 +1,158 @@
-mod iso;
-pub use crate::{LocalFormat, Locale, MoneyError};
-pub use iso::Iso;
-use std::collections::HashMap;
-use std::fmt;
+use crate::Locale;
 
-lazy_static! {
-    static ref CURRENCIES_BY_ALPHA_CODE: HashMap<String, Currency> =
-        Currency::generate_currencies_by_alpha_code();
-    static ref CURRENCIES_BY_NUM_CODE: HashMap<String, Currency> =
-        Currency::generate_currencies_by_num_code();
-}
+#[cfg(feature = "crypto")]
+mod crypto_currencies;
+#[cfg(feature = "crypto")]
+pub use crypto_currencies::crypto;
 
-/// A struct which represent an ISO-4127 currency.
+#[cfg(feature = "iso")]
+mod iso_currencies;
+#[cfg(feature = "iso")]
+pub use iso_currencies::iso;
+
+/// The `FormattableCurrency` trait
 ///
-/// Currency stores metadata like numeric code, full name and symbol. Operations on Currencies pass around references,
-/// since they are unchanging.
-#[derive(Debug, PartialEq, Eq)]
-pub struct Currency {
-    pub locale: Locale,
-    pub exponent: u32,
-    pub iso_alpha_code: &'static str,
-    pub iso_numeric_code: &'static str,
-    pub name: &'static str,
-    pub symbol: &'static str,
-    pub symbol_first: bool,
-    pub minor_denomination: u32,
+/// This trait is required for a Currency implementation to be accepted by Money as valid input.
+pub trait FormattableCurrency: PartialEq + Eq + Copy {
+    fn to_string(&self) -> String;
+
+    fn exponent(&self) -> u32;
+
+    fn code(&self) -> &'static str;
+
+    fn locale(&self) -> Locale;
+
+    fn symbol(&self) -> &'static str;
+
+    fn symbol_first(&self) -> bool;
 }
 
-impl fmt::Display for Currency {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.iso_alpha_code)
-    }
-}
+#[macro_export]
+macro_rules! define_currency_set {
+    (
+        $(
+            $module:ident {
+                $(
+                    $currency:ident: {
+                    code: $code:expr,
+                    exponent: $exp:expr,
+                    locale: $loc:expr,
+                    minor_units: $min_dem:expr,
+                    name: $name:expr,
+                    symbol: $sym:expr,
+                    symbol_first: $sym_first:expr,
+                    }
+                ),+
+            }
+        ),+
+    ) => {
+            $(
+                pub mod $module {
+                    use $crate::{Locale, FormattableCurrency, Locale::*};
+                    use std::fmt;
 
-impl Currency {
-    /// Returns a Currency given an ISO-4217 currency code as an str.
-    pub fn find(code: &str) -> Result<&'static Currency, MoneyError> {
-        Currency::from_string(code.to_string())
-    }
+                    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+                    pub struct Currency {
+                        pub code: &'static str,
+                        pub exponent: u32,
+                        pub locale: Locale,
+                        pub minor_units: u64,
+                        pub name: &'static str,
+                        pub symbol: &'static str,
+                        pub symbol_first: bool,
+                    }
 
-    /// Returns a Currency given a Currency enumeration.
-    pub fn get(code: Iso) -> &'static Currency {
-        Currency::from_string(code.to_string()).unwrap()
-    }
+                    impl FormattableCurrency for Currency {
+                        fn to_string(&self) -> String {
+                            self.code().to_string()
+                        }
 
-    /// Returns a Currency given an ISO-4217 currency code as a string.
-    pub fn from_string(code: String) -> Result<&'static Currency, MoneyError> {
-        if code.chars().all(char::is_alphabetic) {
-            Currency::find_by_alpha_iso(code).ok_or(MoneyError::InvalidCurrency)
-        } else if code.chars().all(char::is_numeric) {
-            Currency::find_by_numeric_iso(code).ok_or(MoneyError::InvalidCurrency)
-        } else {
-            Err(MoneyError::InvalidCurrency)
-        }
-    }
+                        fn exponent(&self) -> u32 {
+                            self.exponent
+                        }
 
-    /// Returns a Currency given an alphabetic ISO-4217 currency code.
-    pub fn find_by_alpha_iso(code: String) -> Option<&'static Currency> {
-        match CURRENCIES_BY_ALPHA_CODE.get(&code.to_uppercase()) {
-            Some(c) => Some(c),
-            None => None,
-        }
-    }
+                        fn code(&self) -> &'static str {
+                            self.code
+                        }
 
-    /// Returns a currency given a numeric ISO-4217 currency code.
-    pub fn find_by_numeric_iso(code: String) -> Option<&'static Currency> {
-        match CURRENCIES_BY_NUM_CODE.get(&code) {
-            Some(c) => Some(c),
-            None => None,
-        }
-    }
+                        fn locale(&self) -> Locale {
+                            self.locale
+                        }
 
-    /// Returns a Currency Hashmap, keyed by ISO alphabetic code.
-    fn generate_currencies_by_alpha_code() -> HashMap<String, Currency> {
-        let mut num_map: HashMap<String, Currency> = HashMap::new();
+                        fn symbol(&self) -> &'static str {
+                            self.symbol
+                        }
 
-        for item in iso::ISO_CURRENCIES {
-            let currency = iso::from_enum(item);
-            num_map.insert(currency.iso_alpha_code.to_string(), currency);
-        }
-        num_map
-    }
+                        fn symbol_first(&self) -> bool {
+                            self.symbol_first
+                        }
+                    }
 
-    /// Returns a Currency Hashmap, keyed by ISO numeric code.
-    fn generate_currencies_by_num_code() -> HashMap<String, Currency> {
-        let mut num_map: HashMap<String, Currency> = HashMap::new();
-        for item in iso::ISO_CURRENCIES {
-            let currency = iso::from_enum(item);
-            num_map.insert(currency.iso_numeric_code.to_string(), currency);
-        }
-        num_map
-    }
+                    $(
+                        pub const $currency: &'static self::Currency = &self::Currency {
+                        code: $code,
+                        exponent: $exp,
+                        locale: $loc,
+                        minor_units: $min_dem,
+                        name: $name,
+                        symbol: $sym,
+                        symbol_first: $sym_first,
+                        };
+                    )+
+
+                    pub fn find(code: &str) -> Option<&'static self::Currency> {
+                        match code {
+                            $($code => (Some($currency)),)+
+                            _ => None,
+                        }
+                    }
+
+                    impl fmt::Display for Currency {
+                        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                            write!(f, "{}", self.code)
+                        }
+                    }
+                }
+            )+
+    };
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use iso::Iso::*;
-    #[test]
-    fn currency_find_known_can_be_found() {
-        let currency_by_alpha = Currency::find("USD").unwrap();
-        assert_eq!(currency_by_alpha.iso_alpha_code, "USD");
-        assert_eq!(currency_by_alpha.exponent, 2);
-        assert_eq!(currency_by_alpha.symbol, "$");
+    define_currency_set!(
+      real {
+        USD: {
+          code: "USD",
+          exponent: 2,
+          locale: EnUs,
+          minor_units: 100,
+          name: "USD",
+          symbol: "$",
+          symbol_first: true,
+        }
+      },
+      magic {
+        FOO: {
+            code: "FOO",
+            exponent: 3,
+            locale: EnUs,
+            minor_units: 100,
+            name: "FOO",
+            symbol: "F",
+            symbol_first: true,
+          }
+      }
+    );
 
-        let currency_by_numeric = Currency::find("840").unwrap();
-        assert_eq!(currency_by_alpha, currency_by_numeric);
+    #[test]
+    fn currencies_in_different_modules_are_not_equal() {
+        assert_eq!(real::USD.code, "USD");
+        assert_eq!(magic::FOO.code, "FOO");
     }
 
     #[test]
-    fn currency_find_unknown_iso_codes_raise_invalid_currency_error() {
-        assert_eq!(
-            Currency::find("fake").unwrap_err(),
-            MoneyError::InvalidCurrency,
-        );
-
-        assert_eq!(
-            Currency::find("123").unwrap_err(),
-            MoneyError::InvalidCurrency,
-        );
-    }
-
-    #[test]
-    fn currency_get() {
-        assert_eq!(Currency::get(USD), Currency::find("USD").unwrap());
+    fn find_works_in_modules() {
+        assert_eq!(real::find("USD").unwrap().code, "USD");
+        assert_eq!(magic::find("FOO").unwrap().code, "FOO");
     }
 }

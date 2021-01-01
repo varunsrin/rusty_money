@@ -15,7 +15,7 @@
 
 ## [0.3.3] - 2020-03-13
 
-* Bugfix: Fixing incorrect name and iso_alpha_code for BRL (Brazilian real) [@diegooliveira]
+* Bugfix: Fixing incorrect name and code for BRL (Brazilian real) [@diegooliveira]
 
 ## [0.3.2] - 2020-01-26
 
@@ -53,5 +53,14 @@
 
 ### v0.4.0
 
-* Currency Declaration: Allow declaration of new currency types (e.g. a cryptocurrency).
-* Serialization & Deserialization support. 
+* Feature: CryptoCurrencies (BTC, ETH) are now supported.
+* Refactor: money! macro was deprecated, please use ::from_major, ::from_minor or ::from_str instead  (breaking change)
+* Refactor: Currency::get() was deprecated in favor of direct references (iso::USD)  (breaking change)
+* Refactor: Money::from_str() takes a reference (iso::USD) instead of string ("USD") for the currency (breaking change).
+* Refactor: Removed dependency on lazy_static! and made library thread safe.
+
+### v0.4.1
+
+* Serialization to store values in a database or send over web requests.
+* Feature Flags
+* Add crypto currencies

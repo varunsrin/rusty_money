@@ -3,55 +3,89 @@
 //!
 //! # Usage
 //!
-//! `Money` consists of an amount, which is represented by a Decimal type that it owns and a
-//! `Currency`, which is holds a reference to. `Currency` represents an ISO-4217 currency, and
-//!  stores metadata like its numeric code, full name and symbol.
+//! `Money` consists of an amount and a currency. An amount is a Decimal type that is owned by Money, while a currency
+//! is a reference to a struct that implements `FormattableCurrency`.
+//!
+//! You can create `Currencies` with the `define_currency_set!` macro and then create `Money` objects with them:  
 //!
 //! ```edition2018
-//! // Money can be initialized in a few ways:
-//! use rusty_money::{money, Money, Currency};
-//! use rusty_money::Iso::*;
+//! use rusty_money::{Money, define_currency_set};
 //!
-//! money!(2000, "USD");                            // 2000 USD
-//! money!("2000.00", "USD");                       // 2000 USD
-//! Money::new(200000, Currency::get(USD));         // 2000 USD
-//! Money::from_major(2000, Currency::get(USD));    // 2000 USD
-//! Money::from_minor(200000, Currency::get(USD));  // 2000 USD
-//! Money::from_str("2,000.00", "USD").unwrap();    // 2000 USD
+//! define_currency_set!(
+//!   video_game {
+//!     GIL: {
+//!       code: "GIL",
+//!       exponent: 2,
+//!       locale: Locale::EnUs,
+//!       minor_units: 100,
+//!       name: "GIL",
+//!       symbol: "G",
+//!       symbol_first: true,
+//!     }
+//!   }
+//! );
 //!
+//! Money::from_major(2_000, video_game::GIL);   // 2000 GIL
+//!  
+//! let gil = video_game::find("GIL").unwrap();                        
+//! Money::from_major(2_000, gil);               // 2000 GIL
+//! ```
 //!
-//! // Money objects with the same Currency can be compared:
-//! let hundred = money!(100, "USD");
-//! let thousand = money!(1000, "USD");
+//! ## Features: Currency Sets
+//! rusty_money provides two currency sets for convenience : `IsoCurrency`, which implements ISO-4217 currencies  
+//! and `CryptoCurrency` which implements popular cryptocurencies. This can be enabled in Cargo.toml:
+//!
+//! ```toml
+//! [dependencies]
+//! rusty_money = { version = "0.4.0", features = ["iso"] }
+//! ```
+//! And then you can use the currencies like this:
+//!
+//! ```edition2018
+//! use rusty_money::{Money, iso};
+//!   
+//! Money::from_major(2_000, iso::USD);              // 2000 USD
+//! Money::from_minor(200_000, iso::USD);            // 2000 USD
+//! Money::from_str("2,000.00", iso::USD).unwrap();  // 2000 USD
+//! ```
+//!
+//! Money objects with the same Currency can be compared:
+//!
+//!  ```edition2018
+//! use rusty_money::{Money, iso};
+//!
+//! let hundred = Money::from_minor(10_000, iso::USD);
+//! let thousand = Money::from_minor(100_000, iso::USD);
 //! println!("{}", thousand > hundred);     // false
 //! println!("{}", thousand.is_positive()); // true
 //! ```
 //!
-//! ## Precision and Rounding
+//! ## Precision, Rounding and Math
 //!
-//! Money objects are immutable, and operations that change the amount or currency of Money simply create
+//! Money objects are immutable, and operations that change the amount or currency of Money create a
 //! a new instance. Money uses a 128 bit fixed-precision [Decimal](https://github.com/paupino/rust-decimal)
 //! to represents amounts, and it represents values as large as 2<sup>96</sup> / 10<sup>28</sup>. By default
 //! operations on Money always retain maximum possible precision. When you do need to round money, you can call
 //!  the `round` function, which  supports three modes:
+//!
 //! * [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
 //! * [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
 //! * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency, Round};
+//! use rusty_money::{Money, Round, iso};
 //!
 //! // Money can be added, subtracted, multiplied and divided:
-//! money!(100, "USD") + money!(100, "USD");        // 200 USD
-//! money!(100, "USD") - money!(100, "USD");        // 0 USD
-//! money!(1, "USD") * 3;                           // 3 USD
-//! money!(3, "USD") / 3;                           // 0.333333333... USD
+//! Money::from_minor(100, iso::USD) + Money::from_minor(100, iso::USD);  // 2 USD
+//! Money::from_minor(100, iso::USD) - Money::from_minor(100, iso::USD);  // 0 USD
+//! Money::from_minor(100, iso::USD) * 3;                                 // 3 USD
+//! Money::from_minor(100, iso::USD) / 3;                                 // 0.333... USD
 //!
 //! // Money can be rounded by calling the round function:
-//! let usd = money!("-2000.005", "USD");           // 2000.005 USD
-//! usd.round(2, Round::HalfEven);                  // 2000.00 USD
-//! usd.round(2, Round::HalfUp);                    // 2000.01 USD
-//! usd.round(0, Round::HalfUp);                    // 2000 USD
+//! let usd = Money::from_str("-2000.005", iso::USD).unwrap();  // 2000.005 USD
+//! usd.round(2, Round::HalfEven);                              // 2000.00 USD
+//! usd.round(2, Round::HalfUp);                                // 2000.01 USD
+//! usd.round(0, Round::HalfUp);                                // 2000 USD
 //!```
 //!
 //! ## Formatting
@@ -61,11 +95,11 @@
 //! accepts a more detailed set of parameters.
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency};
+//! use rusty_money::{Money, iso};
 //!
 //! // Money objects can be pretty printed, with appropriate rounding and formatting:
-//! let usd = money!("-2000.009", "USD");
-//! let eur = money!("-2000.009", "EUR");
+//! let usd = Money::from_str("-2000.009", iso::USD).unwrap();
+//! let eur = Money::from_str("-2000.009", iso::EUR).unwrap();
 //! println!("{}", usd); // -$2,000.01
 //! println!("{}", eur); // -€2.000,01;
 //! ```
@@ -76,18 +110,17 @@
 //! to another.
 //!
 //! ```edition2018
-//! use rusty_money::{money, Money, Currency, Exchange, ExchangeRate};
-//! use rusty_money::Iso::*;
+//! use rusty_money::{Money, Exchange, ExchangeRate, iso};
 //! use rust_decimal_macros::*;
 //!
 //! // Convert 1000 USD to EUR at a 2:1 exchange rate.
-//! let rate = ExchangeRate::new(Currency::get(USD), Currency::get(EUR), dec!(0.5)).unwrap();
-//! rate.convert(money!(1000, "USD")); // 500 EUR
+//! let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.5)).unwrap();
+//! rate.convert(Money::from_minor(100_000, iso::USD));                                     // 500 EUR
 //!
 //! // An Exchange can be used to store ExchangeRates for later use
 //! let mut exchange = Exchange::new();
-//! exchange.add_or_update_rate(&rate);
-//! exchange.get_rate(Currency::get(USD), Currency::get(EUR));
+//! exchange.set_rate(&rate);
+//! exchange.get_rate(iso::USD, iso::EUR);
 //! ```
 //!
 
@@ -104,6 +137,3 @@ pub use exchange::*;
 pub use format::*;
 pub use locale::*;
 pub use money::*;
-
-#[macro_use]
-extern crate lazy_static;
