@@ -4,7 +4,7 @@ rust:
   - beta
   - nightly
 script:
-  cargo test --verbose
+  cargo test --verbose --all-features
 jobs:
   allow_failures:
     - rust: nightly
