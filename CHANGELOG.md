@@ -1,5 +1,22 @@
 # Change Log
 
+## [0.4.0] - 2021-01-02
+
+rusty_money now supports defining your own currencies and has a cryptocurrency module. It no longer depends on lazy_static!,
+is a bit faster and and simpler to use. Many breaking changes were needed to support this, so upgrade with care!
+
+* define_currency_set! allows you to create your own custom currency modules.
+* CryptoCurrencies (Bitcoin, Ethereum) are now available in the `crypto` module.
+* Removed dependency on lazy_static! and made library thread safe.
+
+Breaking Changes:
+
+* The Currency module is now called `iso::Currency`.
+* Currency::get() was deprecated in favor of direct module references like `iso::USD`.  
+* The `money!` macro was deprecated, please use `Money::from_str` instead.
+* `Money::from_str()` takes a reference `iso::USD` instead of string `"USD"` for the currency .
+* Currency::from_string is now <currency_module>::from and accepts `&str` instead of `String` [@ObsceneGiraffe].
+
 ## [0.3.6] - 2020-12-26
 
 * Upgraded dependencies.
@@ -51,23 +68,7 @@
 
 ## [Planned]
 
-### v0.4.0
-
-The big new feature is support for non-ISO currencies like crypto currencies. You can even define your own custom
-currencies. The library no longer depends on lazy_static!, is a bit faster and gives you feature flags to get more 
-control over the currency sets you need. Many breaking changes were needed to support this, so upgrade with care!
-
-* Feature: define_currency_set! allows you to create your own custom currency modules.
-* Feature: CryptoCurrencies (Bitcoin, Ethereum) are now available in a new crypto_currency module.
-* Refactor: The Currency module is now called iso::Currency. (breaking change)
-* Refactor: Currency::get() was deprecated in favor of direct module references like iso::USD.  (breaking change)
-* Refactor: The money! macro was deprecated since it is no longer syntactically useful in the new module structure. Please use ::from_major, ::from_minor or ::from_str instead  (breaking change)
-* Refactor: Money::from_str() takes a reference (iso::USD) instead of string ("USD") for the currency (breaking change).
-* Refactor: Currency::from_string is now <currency_module>::from and accepts &str instead of String [@ObsceneGiraffe]. (breaking change)
-* Refactor: Removed dependency on lazy_static! and made library thread safe.
-
-### v0.4.1
-
-* Serialization to store values in a database or send over web requests.
-* Feature Flags
-* Add crypto currencies
+* Serialization and Deserialization of Money.
+* Adding popular currencies to the crypto module.
+* Benchmarking performance.
+* no-std by default.

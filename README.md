@@ -35,7 +35,7 @@ define_currency_set!(
   }
 );
 Money::from_major(2_000, video_game::GIL);              // 2000 GIL
-Money::from_minor(200_000)                              // 2000 GIL
+Money::from_minor(200_000);                             // 2000 GIL
 Money::from_str("2,000.00", video_game::GIL).unwrap();  // 2000 GIL
  
 // Currencies can be looked up by code. 
