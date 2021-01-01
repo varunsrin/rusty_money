@@ -22,7 +22,7 @@ impl<'a> Formatter {
         let mut result = String::new();
         for position in params.positions.iter() {
             match position {
-                Position::Space => result.push_str(" "),
+                Position::Space => result.push(' '),
                 Position::Amount => result.push_str(&amount),
                 Position::Code => result.push_str(params.code.unwrap_or("")),
                 Position::Symbol => result.push_str(params.symbol.unwrap_or("")),
@@ -79,7 +79,7 @@ impl<'a> Formatter {
     }
 }
 
-/// Enumerates different items which can be positioned in a Money string.
+/// Items which must be positioned in a Money string.
 #[derive(Debug, Clone)]
 pub enum Position {
     Space,
@@ -89,7 +89,7 @@ pub enum Position {
     Sign,
 }
 
-/// Group of formatting parameters consumer by `Formatter`.
+/// Group of formatting parameters consumed by `Formatter`.
 #[derive(Debug, Clone)]
 pub struct Params {
     /// The character that separates grouped digits (e.g. 1,000,000)
@@ -128,7 +128,6 @@ mod tests {
     use super::*;
     use crate::define_currency_set;
 
-
     define_currency_set!(
         test {
             USD: {
@@ -145,8 +144,8 @@ mod tests {
 
     #[test]
     fn format_position() {
-        let _usd = test::find("USD");  // Prevents unused code warnings from the defined module.
-        
+        let _usd = test::find("USD"); // Prevents unused code warnings from the defined module.
+
         let money = Money::from_major(-1000, test::USD);
 
         // Test that you can position eSpace, Amount, Code, Symbol and Sign in different places

@@ -1,26 +1,27 @@
 use crate::define_currency_set;
 
 define_currency_set!(
-  crypto {
-      BTC: {
-          code: "BTC",
-          exponent: 8,
-          locale: EnUs,
-          minor_units: 100_000_000,
-          name: "Bitcoin",
-          symbol: "₿",
-          symbol_first: true,
-      },
-      ETH: {
-          code: "ETH",
-          exponent: 18,
-          locale: EnUs,
-          minor_units: 1_000_000_000_000_000_000,
-          name: "Ethereum",
-          symbol: "ETH",
-          symbol_first: false,
-      }
-  }
+    /// Crypto Currency Set
+    crypto {
+        BTC: {
+            code: "BTC",
+            exponent: 8,
+            locale: EnUs,
+            minor_units: 100_000_000,
+            name: "Bitcoin",
+            symbol: "₿",
+            symbol_first: true,
+        },
+        ETH: {
+            code: "ETH",
+            exponent: 18,
+            locale: EnUs,
+            minor_units: 1_000_000_000_000_000_000,
+            name: "Ethereum",
+            symbol: "ETH",
+            symbol_first: false,
+        }
+    }
 );
 
 #[cfg(test)]

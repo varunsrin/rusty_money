@@ -1,5 +1,24 @@
 # Change Log
 
+## [0.4.0] - 2021-01-02
+
+rusty_money now supports defining your own currencies and has a cryptocurrency module. It no longer depends on lazy_static!,
+is a bit faster and and simpler to use. Many breaking changes were needed to support this, so upgrade with care!
+
+* define_currency_set! allows you to create your own custom currency modules. [@jimpo]
+* CryptoCurrencies (Bitcoin, Ethereum) are now available in the `crypto` module.
+* Removed dependency on lazy_static! and made library thread safe.
+
+Breaking Changes:
+
+* The Currency module is now called `iso::Currency`.
+* `Currency::get()` was deprecated, please reference currencies directly by their module like `iso::USD`.  
+* `money!` macro was deprecated, please use `Money::from_str` instead.
+* `Money::new` was deprecated, please use `Money::from_minor` instead.
+* `Money::from_str()` accepts a currency reference `iso::USD` instead of string `"USD"`.
+* `Currency::from_string` is now <currency_module>::from and accepts `&str` instead of `String` [@ObsceneGiraffe].
+* `ExchangeRate::add_or_update_rate` was deprecated, please use `ExchangeRate::set_rate` instead. [@jimpo].
+
 ## [0.3.6] - 2020-12-26
 
 * Upgraded dependencies.
@@ -51,16 +70,7 @@
 
 ## [Planned]
 
-### v0.4.0
-
-* Feature: CryptoCurrencies (BTC, ETH) are now supported.
-* Refactor: money! macro was deprecated, please use ::from_major, ::from_minor or ::from_str instead  (breaking change)
-* Refactor: Currency::get() was deprecated in favor of direct references (iso::USD)  (breaking change)
-* Refactor: Money::from_str() takes a reference (iso::USD) instead of string ("USD") for the currency (breaking change).
-* Refactor: Removed dependency on lazy_static! and made library thread safe.
-
-### v0.4.1
-
-* Serialization to store values in a database or send over web requests.
-* Feature Flags
-* Add crypto currencies
+* Serialization and Deserialization of Money.
+* Adding popular currencies to the crypto module.
+* Benchmarking performance.
+* no-std by default.
