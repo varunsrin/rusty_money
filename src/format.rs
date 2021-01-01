@@ -22,7 +22,7 @@ impl<'a> Formatter {
         let mut result = String::new();
         for position in params.positions.iter() {
             match position {
-                Position::Space => result.push_str(" "),
+                Position::Space => result.push(' '),
                 Position::Amount => result.push_str(&amount),
                 Position::Code => result.push_str(params.code.unwrap_or("")),
                 Position::Symbol => result.push_str(params.symbol.unwrap_or("")),
