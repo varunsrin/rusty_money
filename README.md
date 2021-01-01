@@ -7,17 +7,15 @@
 [Docs]: https://docs.rs/rusty-money/badge.svg
 [docs.rs]: https://docs.rs/rusty-money
 
-rusty_money handles the messy parts of dealing with money like rounding, precision, parsing and 
-internationalization. It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) and common
-crypto currencies and also lets you define your own currencies.
-
-The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
+rusty_money handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
+It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) currencies, common crypto currencies and lets you
+define your own. The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
 
 ## Usage
 
 A `Money` object is created by supplying an amount and a currency. Amounts can be specified in numeric or string types
-but will be stored as precise decimals internally. You can select a bundled currency or make your own. Here's a 
-quick example of how you would make your own `Currency` and then create some `Money` with it: 
+but will be stored as precise decimals internally. You can select a bundled currency or make your own. Here's a
+quick example of how you would make your own `Currency` and then create some `Money` with it:
 
 ```rust
 use rusty_money::{Money, define_currency_set};
@@ -47,11 +45,11 @@ Money::from_major(2_000, gil);                          // 2000 GIL
 
 ## Features: Currency Sets
 
-rusty_money provides two currency sets for convenience : `IsoCurrency`, which implements ISO-4217 currencies  
-and `CryptoCurrency` which implements popular cryptocurencies. `iso` is enabled by default, and you can add 
-`crypto` by enabling the feature in your Cargo.toml: 
+rusty_money provides two currency sets for convenience : `iso`, which implements ISO-4217 currencies and `crypto` which
+implements popular cryptocurencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
 
 ```toml
+// Cargo.toml
 [dependencies]
 rusty_money = { version = "0.4.0", features = ["iso", "crypto"] }
 ```
@@ -78,9 +76,9 @@ println!("{}", thousand.is_positive()); // true
 
 ## Precision, Rounding and Math
 
-Money objects are immutable, and operations that change amounts create a new instance of Money. Amounts are stored 
-as 128 bit fixed-precision [Decimals](https://github.com/paupino/rust-decimal), and handle values as large as 
-2<sup>96</sup> / 10<sup>28</sup>. Operations on Money retain the maximum possible precision. When you want less 
+Money objects are immutable, and operations that change amounts create a new instance of Money. Amounts are stored
+as 128 bit fixed-precision [Decimals](https://github.com/paupino/rust-decimal), and handle values as large as
+2<sup>96</sup> / 10<sup>28</sup>. Operations on Money retain the maximum possible precision. When you want less
 precision, you call the `round` function, which  supports three modes:
 
 * [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)

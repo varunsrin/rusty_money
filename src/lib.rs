@@ -1,6 +1,6 @@
-//! rusty_money handles the messy parts of dealing with money like rounding, precision, parsing and 
-//! internationalization. It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) and common
-//! crypto currencies and also lets you define your own currencies. 
+//! rusty_money handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
+//! It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) currencies, common crypto currencies and lets you
+//! define your own. The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
 //! 
 //! The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
 //! 
@@ -37,9 +37,9 @@
 //! ```
 //!
 //! ## Features: Currency Sets
-//! rusty_money provides two currency sets for convenience : `IsoCurrency`, which implements ISO-4217 currencies  
-//! and `CryptoCurrency` which implements popular cryptocurencies. `iso` is enabled by default, and you can add 
-//! `crypto` by enabling the feature in your Cargo.toml: 
+//! 
+//! rusty_money provides two currency sets for convenience : `iso`, which implements ISO-4217 currencies and `crypto` which
+//! implements popular cryptocurencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
 //!
 //! ```toml
 //! [dependencies]
