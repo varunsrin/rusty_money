@@ -10,9 +10,7 @@ mod iso_currencies;
 #[cfg(feature = "iso")]
 pub use iso_currencies::iso;
 
-/// The `FormattableCurrency` trait
-///
-/// This trait is required for a Currency implementation to be accepted by Money as valid input.
+/// Pre-requisite for a Currency to be accepted by a Money.
 pub trait FormattableCurrency: PartialEq + Eq + Copy {
     fn to_string(&self) -> String;
 
@@ -28,9 +26,11 @@ pub trait FormattableCurrency: PartialEq + Eq + Copy {
 }
 
 #[macro_export]
+/// Create custom currencies for use with Money types
 macro_rules! define_currency_set {
     (
         $(
+            $(#[$attr:meta])*
             $module:ident {
                 $(
                     $currency:ident: {
@@ -47,6 +47,7 @@ macro_rules! define_currency_set {
         ),+
     ) => {
             $(
+                $(#[$attr])*
                 pub mod $module {
                     use $crate::{Locale, FormattableCurrency, Locale::*};
                     use std::fmt;

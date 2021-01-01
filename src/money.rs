@@ -313,7 +313,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 }
 
-/// Enumerates different strategies that can be used to round Money.
+/// Strategies that can be used to round Money.
 ///
 /// For more details, see (rust_decimal::Rounding_Strategy)[https://docs.rs/rust_decimal/1.1.0/rust_decimal/enum.RoundingStrategy.html]
 pub enum Round {

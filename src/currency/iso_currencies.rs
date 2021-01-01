@@ -1,3 +1,4 @@
+/// ISO-4217 Currency Set
 pub mod iso {
     use crate::{FormattableCurrency, Locale, Locale::*};
     use std::fmt;

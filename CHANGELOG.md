@@ -53,10 +53,17 @@
 
 ### v0.4.0
 
-* Feature: CryptoCurrencies (BTC, ETH) are now supported.
-* Refactor: money! macro was deprecated, please use ::from_major, ::from_minor or ::from_str instead  (breaking change)
-* Refactor: Currency::get() was deprecated in favor of direct references (iso::USD)  (breaking change)
+The big new feature is support for non-ISO currencies like crypto currencies. You can even define your own custom
+currencies. The library no longer depends on lazy_static!, is a bit faster and gives you feature flags to get more 
+control over the currency sets you need. Many breaking changes were needed to support this, so upgrade with care!
+
+* Feature: define_currency_set! allows you to create your own custom currency modules.
+* Feature: CryptoCurrencies (Bitcoin, Ethereum) are now available in a new crypto_currency module.
+* Refactor: The Currency module is now called iso::Currency. (breaking change)
+* Refactor: Currency::get() was deprecated in favor of direct module references like iso::USD.  (breaking change)
+* Refactor: The money! macro was deprecated since it is no longer syntactically useful in the new module structure. Please use ::from_major, ::from_minor or ::from_str instead  (breaking change)
 * Refactor: Money::from_str() takes a reference (iso::USD) instead of string ("USD") for the currency (breaking change).
+* Refactor: Currency::from_string is now <currency_module>::from and accepts &str instead of String [@ObsceneGiraffe]. (breaking change)
 * Refactor: Removed dependency on lazy_static! and made library thread safe.
 
 ### v0.4.1
