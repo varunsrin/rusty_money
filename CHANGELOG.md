@@ -5,17 +5,19 @@
 rusty_money now supports defining your own currencies and has a cryptocurrency module. It no longer depends on lazy_static!,
 is a bit faster and and simpler to use. Many breaking changes were needed to support this, so upgrade with care!
 
-* define_currency_set! allows you to create your own custom currency modules.
+* define_currency_set! allows you to create your own custom currency modules. [@jimpo]
 * CryptoCurrencies (Bitcoin, Ethereum) are now available in the `crypto` module.
 * Removed dependency on lazy_static! and made library thread safe.
 
 Breaking Changes:
 
 * The Currency module is now called `iso::Currency`.
-* Currency::get() was deprecated in favor of direct module references like `iso::USD`.  
-* The `money!` macro was deprecated, please use `Money::from_str` instead.
-* `Money::from_str()` takes a reference `iso::USD` instead of string `"USD"` for the currency .
-* Currency::from_string is now <currency_module>::from and accepts `&str` instead of `String` [@ObsceneGiraffe].
+* `Currency::get()` was deprecated, please reference currencies directly by their module like `iso::USD`.  
+* `money!` macro was deprecated, please use `Money::from_str` instead.
+* `Money::new` was deprecated, please use `Money::from_minor` instead.
+* `Money::from_str()` accepts a currency reference `iso::USD` instead of string `"USD"`.
+* `Currency::from_string` is now <currency_module>::from and accepts `&str` instead of `String` [@ObsceneGiraffe].
+* `ExchangeRate::add_or_update_rate` was deprecated, please use `ExchangeRate::set_rate` instead. [@jimpo].
 
 ## [0.3.6] - 2020-12-26
 
