@@ -1,23 +1,24 @@
 # Change Log
 
-## [0.4.0] - 2021-01-02
+## [0.4.0] - 2021-01-01
 
 rusty_money now supports defining your own currencies and has a cryptocurrency module. It no longer depends on lazy_static!,
 is a bit faster and and simpler to use. Many breaking changes were needed to support this, so upgrade with care!
 
-* define_currency_set! allows you to create your own custom currency modules. [@jimpo]
+* define_currency_set! allows you to create your own custom currency modules. [@jimpo](https://github.com/jimpo)
 * CryptoCurrencies (Bitcoin, Ethereum) are now available in the `crypto` module.
 * Removed dependency on lazy_static! and made library thread safe.
 
 Breaking Changes:
 
-* The Currency module is now called `iso::Currency`.
-* `Currency::get()` was deprecated, please reference currencies directly by their module like `iso::USD`.  
-* `money!` macro was deprecated, please use `Money::from_str` instead.
 * `Money::new` was deprecated, please use `Money::from_minor` instead.
 * `Money::from_str()` accepts a currency reference `iso::USD` instead of string `"USD"`.
-* `Currency::from_string` is now <currency_module>::from and accepts `&str` instead of `String` [@ObsceneGiraffe].
-* `ExchangeRate::add_or_update_rate` was deprecated, please use `ExchangeRate::set_rate` instead. [@jimpo].
+* `Money` requires lifetime and currency type annotiations.
+* `money!` macro was deprecated, please use `Money::from_str` instead.
+* `Currency::get()` was deprecated, please reference currencies directly by their module like `iso::USD`.
+* The old Currency module is now called `iso::Currency`.
+* `Currency::from_string` is now `iso::find` and accepts `&str` instead of `String` [@ObsceneGiraffe](https://github.com/ObsceneGiraffe).
+* `ExchangeRate::add_or_update_rate` was deprecated, please use `ExchangeRate::set_rate` instead. [@jimpo](https://github.com/jimpo).
 
 ## [0.3.6] - 2020-12-26
 
@@ -25,16 +26,16 @@ Breaking Changes:
 
 ## [0.3.5] - 2020-07-26
 
-* Bugfix: Incorrect metadata for CZK, HUF, ZMK [@zacharra]
-* Feature: Money objects can be multiplied by Decimals [@sjoerdsimons]
+* Bugfix: Incorrect metadata for CZK, HUF, ZMK [@zacharra](https://github.com/zacharra)
+* Feature: Money objects can be multiplied by Decimals [@sjoerdsimons](https://github.com/sjoerdsimons)
 
 ## [0.3.4] - 2020-04-19
 
-* Bugfix: from_string rejects incorrect digit separators like 1.00,00 EUR [@sjoerdsimons]
+* Bugfix: from_string rejects incorrect digit separators like 1.00,00 EUR [@sjoerdsimons](https://github.com/sjoerdsimons)
 
 ## [0.3.3] - 2020-03-13
 
-* Bugfix: Fixing incorrect name and code for BRL (Brazilian real) [@diegooliveira]
+* Bugfix: Fixing incorrect name and code for BRL (Brazilian real) [@diegooliveira](https://github.com/diegooliveira)
 
 ## [0.3.2] - 2020-01-26
 
