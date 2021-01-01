@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn find_returns_none_on_unknown_currency() {
-        assert_eq!(crypto::find("fake"), None,);
+        assert_eq!(crypto::find("fake"), None);
     }
 
     #[test]

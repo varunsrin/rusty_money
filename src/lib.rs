@@ -37,19 +37,16 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rusty_money = { version = "0.4.0", features = ["iso", "crypto"] }
+//! rusty_money = { version = "0.4.0", features = ["iso"] }
 //! ```
 //! And then you can use the currencies like this:
 //!
 //! ```edition2018
-//! use rusty_money::{Money, iso, crypto};
+//! use rusty_money::{Money, iso};
 //!   
 //! Money::from_major(2_000, iso::USD);              // 2000 USD
 //! Money::from_minor(200_000, iso::USD);            // 2000 USD
 //! Money::from_str("2,000.00", iso::USD).unwrap();  // 2000 USD
-//!
-//! Money::from_major(2, crypto::BTC);            // 2 BTC
-//! Money::from_minor(200_000_000, crypto::BTC);  // 2 BTC
 //! ```
 //!
 //! Money objects with the same Currency can be compared:

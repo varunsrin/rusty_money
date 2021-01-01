@@ -65,14 +65,47 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::currency::iso;
     use rust_decimal_macros::*;
+    use crate::define_currency_set;
+
+
+    define_currency_set!(
+        test {
+            USD: {
+                code: "USD",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 100,
+                name: "USD",
+                symbol: "$",
+                symbol_first: true,
+            },
+            GBP : {
+                code: "GBP",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 1,
+                name: "British Pound",
+                symbol: "£",
+                symbol_first: true,
+            },
+            EUR : {
+                code: "EUR",
+                exponent: 2,
+                locale: EnEu,
+                minor_units: 1,
+                name: "Euro",
+                symbol: "€",
+                symbol_first: true,
+            }
+        }
+    );
 
     #[test]
     fn exchange_stores_rates() {
-        let usd = iso::USD;
-        let eur = iso::EUR;
-        let gbp = iso::GBP;
+        let usd = test::find("USD").unwrap();
+        let eur = test::find("EUR").unwrap();
+        let gbp = test::find("GBP").unwrap();
 
         let eur_usd_rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
         let eur_gbp_rate = ExchangeRate::new(usd, gbp, dec!(1.6)).unwrap();
@@ -90,17 +123,17 @@ mod tests {
 
     #[test]
     fn rate_convert() {
-        let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(1.5)).unwrap();
-        let amount = Money::from_minor(1_000, iso::USD);
-        let expected_amount = Money::from_minor(1_500, iso::EUR);
+        let rate = ExchangeRate::new(test::USD, test::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(1_000, test::USD);
+        let expected_amount = Money::from_minor(1_500, test::EUR);
         let converted_rate = rate.convert(amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
 
     #[test]
     fn rate_convert_errors_if_currencies_dont_match() {
-        let rate = ExchangeRate::new(iso::GBP, iso::EUR, dec!(1.5)).unwrap();
-        let amount = Money::from_minor(1_000, iso::USD);
+        let rate = ExchangeRate::new(test::GBP, test::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(1_000, test::USD);
 
         assert_eq!(
             rate.convert(amount).unwrap_err(),
@@ -110,7 +143,7 @@ mod tests {
 
     #[test]
     fn rate_new_errors_if_currencies_are_equal() {
-        let rate = ExchangeRate::new(iso::GBP, iso::GBP, dec!(1.5));
+        let rate = ExchangeRate::new(test::GBP, test::GBP, dec!(1.5));
         assert_eq!(rate.unwrap_err(), MoneyError::InvalidCurrency,);
     }
 }
