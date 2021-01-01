@@ -1,15 +1,14 @@
-#[cfg(feature = "iso")]
-pub mod iso;
-#[cfg(feature = "iso")]
-mod iso_currency;
 use crate::Locale;
-#[cfg(feature = "iso")]
-pub use iso_currency::IsoCurrency;
 
 #[cfg(feature = "crypto")]
 mod crypto_currencies;
 #[cfg(feature = "crypto")]
 pub use crypto_currencies::crypto;
+
+#[cfg(feature = "iso")]
+mod iso_currencies;
+#[cfg(feature = "iso")]
+pub use iso_currencies::iso;
 
 /// The `FormattableCurrency` trait
 ///
