@@ -51,28 +51,28 @@ pub mod iso {
     macro_rules! define_iso {
     (
       $(
-        $currency:ident: {
-          exponent: $exp:expr,
-          iso_alpha_code: $alpha_code:expr,
-          iso_numeric_code: $num_code:expr,
-          locale: $loc:expr,
-          minor_units: $min_dem:expr,
-          name: $name:expr,
-          symbol: $sym:expr,
-          symbol_first: $sym_first:expr,
-        }
+            $currency:ident: {
+                exponent: $exp:expr,
+                iso_alpha_code: $alpha_code:expr,
+                iso_numeric_code: $num_code:expr,
+                locale: $loc:expr,
+                minor_units: $min_dem:expr,
+                name: $name:expr,
+                symbol: $sym:expr,
+                symbol_first: $sym_first:expr,
+            }
       ),+
     ) => {
       $(
         pub const $currency: &'static Currency = &Currency {
             iso_alpha_code: $alpha_code,
-          iso_numeric_code: $num_code,
-          exponent: $exp,
-          locale: $loc,
-          minor_units: $min_dem,
-          name: $name,
-          symbol: $sym,
-          symbol_first: $sym_first,
+            iso_numeric_code: $num_code,
+            exponent: $exp,
+            locale: $loc,
+            minor_units: $min_dem,
+            name: $name,
+            symbol: $sym,
+            symbol_first: $sym_first,
         };
       )+
 
@@ -111,6 +111,16 @@ pub mod iso {
             minor_units: 100,
             name: "Afghan Afghani",
             symbol: "؋",
+            symbol_first: false,
+        },
+        ALL : {
+            exponent: 2,
+            iso_alpha_code: "ALL",
+            iso_numeric_code: "008",
+            locale: EnEu,
+            minor_units: 1,
+            name: "Albanian lek",
+            symbol: "L",
             symbol_first: false,
         },
         AMD : {
@@ -231,7 +241,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 5,
             name: "Bahraini Dinar",
-            symbol: "ب.د",
+            symbol: "د.ب",
             symbol_first: true,
         },
         BIF : {
@@ -752,7 +762,7 @@ pub mod iso {
             locale: EnEu,
             minor_units: 1,
             name: "Icelandic Króna",
-            symbol: "kr",
+            symbol: "kr.",
             symbol_first: true,
         },
         JMD : {
@@ -1122,7 +1132,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 1,
             name: "Nepalese Rupee",
-            symbol: "₨",
+            symbol: "रु",
             symbol_first: true,
         },
         NZD : {
@@ -1395,6 +1405,16 @@ pub mod iso {
             symbol: "Db",
             symbol_first: false,
         },
+        STN : {
+            exponent: 2,
+            iso_alpha_code: "STN",
+            iso_numeric_code: "930",
+            locale: EnUs,
+            minor_units: 10,
+            name: "São Tomé and Príncipe Dobra",
+            symbol: "Db",
+            symbol_first: false,
+        },
         SVC : {
             exponent: 2,
             iso_alpha_code: "SVC",
@@ -1552,7 +1572,17 @@ pub mod iso {
             locale: EnEu,
             minor_units: 100,
             name: "Uruguayan Peso",
-            symbol: "$",
+            symbol: "$U",
+            symbol_first: true,
+        },
+        UYW : {
+            exponent: 4,
+            iso_alpha_code: "UYW",
+            iso_numeric_code: "927",
+            locale: EnEu,
+            minor_units: 1000,
+            name: "Unidad Previsional",
+            symbol: "UP",
             symbol_first: true,
         },
         UZS : {
