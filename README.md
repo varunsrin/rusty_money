@@ -7,7 +7,7 @@
 [Docs]: https://docs.rs/rusty-money/badge.svg
 [docs.rs]: https://docs.rs/rusty-money
 
-rusty_money handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
+rusty-money handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
 It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) currencies, common crypto currencies and lets you
 define your own. The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
 
@@ -18,7 +18,7 @@ but will be stored as precise decimals internally. You can select a bundled curr
 quick example of how you would make your own `Currency` and then create some `Money` with it:
 
 ```rust
-use rusty_money::{Money, define_currency_set};
+use rusty-money::{Money, define_currency_set};
 
 define_currency_set!(
   video_game {
@@ -50,14 +50,14 @@ implements popular cryptocurencies. `iso` is enabled by default, and you can add
 
 ```toml
 [dependencies]
-rusty_money = { version = "0.4.0", features = ["iso", "crypto"] }
+rusty-money = { version = "0.4.0", features = ["iso", "crypto"] }
 ```
 
 The currency sets can then be used like this:
 
 ```rust
-use rusty_money::{Money, iso, crypto};
-  
+use rusty-money::{Money, iso, crypto};
+
 Money::from_major(2_000, iso::USD);        // 2000 U.S Dollars
 Money::from_major(2_000, iso::GBP);        // 2000 British Pounds
 Money::from_major(2, crypto::BTC);         // 2 Bitcoin
@@ -66,9 +66,10 @@ Money::from_major(2, crypto::BTC);         // 2 Bitcoin
 Money objects of the same currency can be compared:
 
  ```rust
-use rusty_money::{Money, iso};
+use rusty-money::{Money, iso};
 let hundred = Money::from_minor(10_000, iso::USD);
 let thousand = Money::from_minor(100_000, iso::USD);
+
 println!("{}", thousand > hundred);     // false
 println!("{}", thousand.is_positive()); // true
 ```
@@ -87,15 +88,17 @@ precision, you call the `round` function, which  supports three modes:
 Money can be added, subtracted, multiplied and divided like this:
 
 ```rust
-use rusty_money::{Money, Round, iso};
+use rusty-money::{Money, Round, iso};
+
 Money::from_minor(100, iso::USD) + Money::from_minor(100, iso::USD);  // 2 USD
 Money::from_minor(100, iso::USD) - Money::from_minor(100, iso::USD);  // 0 USD
 Money::from_minor(100, iso::USD) * 3;                                 // 3 USD
 Money::from_minor(100, iso::USD) / 3;                                 // 0.333... USD
-let usd = Money::from_str("-2000.005", iso::USD).unwrap();  // 2000.005 USD
-usd.round(2, Round::HalfEven);                              // 2000.00 USD
-usd.round(2, Round::HalfUp);                                // 2000.01 USD
-usd.round(0, Round::HalfUp);                                // 2000 USD
+
+let usd = Money::from_str("-2000.005", iso::USD).unwrap();            // 2000.005 USD
+usd.round(2, Round::HalfEven);                                        // 2000.00 USD
+usd.round(2, Round::HalfUp);                                          // 2000.01 USD
+usd.round(0, Round::HalfUp);                                          // 2000 USD
 ```
 
 ## Formatting
@@ -105,11 +108,12 @@ according to the locale of the currency. If you need to customize this output, t
 accepts a more detailed set of parameters.
 
 ```rust
-use rusty_money::{Money, iso};
+use rusty-money::{Money, iso};
 let usd = Money::from_str("-2000.009", iso::USD).unwrap();
 let eur = Money::from_str("-2000.009", iso::EUR).unwrap();
-println!("{}", usd); // -$2,000.01
-println!("{}", eur); // -€2.000,01;
+
+println!("{}", usd);                                        // -$2,000.01
+println!("{}", eur);                                        // -€2.000,01;
 ```
 
 ## Exchange
@@ -118,12 +122,12 @@ The library also provides two additional types - `Exchange` and `ExchangeRates` 
 to another.
 
 ```rust
-use rusty_money::{Money, Exchange, ExchangeRate, iso};
+use rusty-money::{Money, Exchange, ExchangeRate, iso};
 use rust_decimal_macros::*;
 
 // Convert 1000 USD to EUR at a 2:1 exchange rate.
 let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.5)).unwrap();
-rate.convert(Money::from_minor(100_000, iso::USD));                                     // 500 EUR
+rate.convert(Money::from_minor(100_000, iso::USD));                    // 500 EUR
 
 // An Exchange can be used to store ExchangeRates for later use
 let mut exchange = Exchange::new();

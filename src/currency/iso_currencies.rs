@@ -51,28 +51,28 @@ pub mod iso {
     macro_rules! define_iso {
     (
       $(
-        $currency:ident: {
-          exponent: $exp:expr,
-          iso_alpha_code: $alpha_code:expr,
-          iso_numeric_code: $num_code:expr,
-          locale: $loc:expr,
-          minor_units: $min_dem:expr,
-          name: $name:expr,
-          symbol: $sym:expr,
-          symbol_first: $sym_first:expr,
-        }
+            $currency:ident: {
+                exponent: $exp:expr,
+                iso_alpha_code: $alpha_code:expr,
+                iso_numeric_code: $num_code:expr,
+                locale: $loc:expr,
+                minor_units: $min_dem:expr,
+                name: $name:expr,
+                symbol: $sym:expr,
+                symbol_first: $sym_first:expr,
+            }
       ),+
     ) => {
       $(
         pub const $currency: &'static Currency = &Currency {
             iso_alpha_code: $alpha_code,
-          iso_numeric_code: $num_code,
-          exponent: $exp,
-          locale: $loc,
-          minor_units: $min_dem,
-          name: $name,
-          symbol: $sym,
-          symbol_first: $sym_first,
+            iso_numeric_code: $num_code,
+            exponent: $exp,
+            locale: $loc,
+            minor_units: $min_dem,
+            name: $name,
+            symbol: $sym,
+            symbol_first: $sym_first,
         };
       )+
 
@@ -1577,7 +1577,7 @@ pub mod iso {
         },
         UYW : {
             exponent: 4,
-            iso_alpha_code: "UYU",
+            iso_alpha_code: "UYW",
             iso_numeric_code: "927",
             locale: EnEu,
             minor_units: 1000,
