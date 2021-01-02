@@ -241,7 +241,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 5,
             name: "Bahraini Dinar",
-            symbol: "ب.د",
+            symbol: "د.ب",
             symbol_first: true,
         },
         BIF : {
@@ -762,7 +762,7 @@ pub mod iso {
             locale: EnEu,
             minor_units: 1,
             name: "Icelandic Króna",
-            symbol: "kr",
+            symbol: "kr.",
             symbol_first: true,
         },
         JMD : {
@@ -1132,7 +1132,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 1,
             name: "Nepalese Rupee",
-            symbol: "₨",
+            symbol: "रु",
             symbol_first: true,
         },
         NZD : {
@@ -1572,7 +1572,7 @@ pub mod iso {
             locale: EnEu,
             minor_units: 100,
             name: "Uruguayan Peso",
-            symbol: "$",
+            symbol: "$U",
             symbol_first: true,
         },
         UYW : {
