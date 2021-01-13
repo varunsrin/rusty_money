@@ -2,11 +2,45 @@ use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::fmt;
+
+struct ExchangeRateQuery<'a, T: FormattableCurrency>{
+    from: &'a T,
+    to: &'a T,
+}
+
+impl<'a, T: FormattableCurrency> PartialEq for ExchangeRateQuery<'a, T>{
+    fn eq(&self, other: &Self) -> bool {
+        self.from == other.from && self.to == other.to
+    }
+}
+
+impl<'a, T: FormattableCurrency> Eq for ExchangeRateQuery<'a, T>{}
+
+impl<'a, T: FormattableCurrency> Hash for ExchangeRateQuery<'a, T>{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.from.to_string().hash(state);
+        self.to.to_string().hash(state);
+    }
+}
+
+impl<'a, T: FormattableCurrency> fmt::Debug for ExchangeRateQuery<'a, T>{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_fmt(format_args!("{}->{}", self.from.to_string(), self.to.to_string()))
+    }
+}
+
+impl<'a, T: FormattableCurrency> ExchangeRateQuery<'a, T>{
+    fn new(from: &'a T, to: &'a T) -> ExchangeRateQuery<'a, T>{
+        ExchangeRateQuery{ from, to }
+    }
+}
 
 /// Stores `ExchangeRate`s for easier access.
 #[derive(Debug, Default)]
 pub struct Exchange<'a, T: FormattableCurrency> {
-    map: HashMap<String, ExchangeRate<'a, T>>,
+    map: HashMap<ExchangeRateQuery<'a, T>, ExchangeRate<'a, T>>,
 }
 
 impl<'a, T: FormattableCurrency> Exchange<'a, T> {
@@ -18,21 +52,18 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
 
     /// Update an ExchangeRate or add it if does not exist.
     pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
-        let key = Exchange::generate_key(rate.from, rate.to);
-        self.map.insert(key, *rate);
+        let expected_query = ExchangeRateQuery::new(rate.from, rate.to);
+        self.map.insert(expected_query, *rate);
     }
 
     /// Return the ExchangeRate given the currency pair.
     pub fn get_rate(&self, from: &T, to: &T) -> Option<ExchangeRate<'a, T>> {
-        let key = Exchange::generate_key(from, to);
-        match self.map.get(&key) {
+        let query = ExchangeRateQuery::new(from, to);
+
+        match self.map.get(&query) {
             Some(v) => Some(*v),
             None => None,
         }
-    }
-
-    fn generate_key(from: &T, to: &T) -> String {
-        from.to_string() + "-" + &to.to_string()
     }
 }
 
