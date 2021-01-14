@@ -4,6 +4,7 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::fmt;
+use rust_decimal_macros::*;
 
 struct ExchangeRateQuery<'a, T: FormattableCurrency>{
     from: &'a T,
@@ -52,17 +53,35 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
 
     /// Update an ExchangeRate or add it if does not exist.
     pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
-        let expected_query = ExchangeRateQuery::new(rate.from, rate.to);
-        self.map.insert(expected_query, *rate);
+        let query = ExchangeRateQuery::new(rate.from, rate.to);
+        let reverse_query = ExchangeRateQuery::new(rate.to, rate.from);
+
+        if self.map.contains_key(&reverse_query){
+            let new_reverse_rate = ExchangeRate::new(rate.to, rate.from, dec!(1) / rate.rate);
+            self.map.insert(reverse_query, new_reverse_rate.unwrap());
+        }else{
+            self.map.insert(query, *rate);
+        }
     }
 
     /// Return the ExchangeRate given the currency pair.
-    pub fn get_rate(&self, from: &T, to: &T) -> Option<ExchangeRate<'a, T>> {
+    pub fn get_rate(&self, from: &'a T, to: &'a T) -> Option<ExchangeRate<'a, T>> {
         let query = ExchangeRateQuery::new(from, to);
+        let reverse_query = ExchangeRateQuery::new(to, from);
 
-        match self.map.get(&query) {
-            Some(v) => Some(*v),
-            None => None,
+        let query_results = (self.map.get(&query), self.map.get(&reverse_query));
+        match query_results {
+            (Some(query_result), Some(reverse_query_result)) => Some(*query_result),
+            (Some(query_result), None) => Some(*query_result),
+            (None, Some(reverse_query_result)) => {
+                let coerced_rate = ExchangeRate::new(from, to, dec!(1) / reverse_query_result.rate);
+                if let Ok(coerced_rate) = coerced_rate {
+                    Some(coerced_rate)
+                }else{
+                    None
+                }
+            },
+            (None, None) => None,
         }
     }
 }
@@ -149,6 +168,12 @@ mod tests {
 
         let fetched_rate = exchange.get_rate(usd, gbp).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.6));
+
+        let fetched_reverse_rate = exchange.get_rate(eur, usd).unwrap();
+        assert_eq!(fetched_reverse_rate.rate, dec!(1) / dec!(1.5));
+
+        let fetched_reverse_rate = exchange.get_rate(gbp, usd).unwrap();
+        assert_eq!(fetched_reverse_rate.rate, dec!(1) / dec!(1.6));
     }
 
     #[test]
