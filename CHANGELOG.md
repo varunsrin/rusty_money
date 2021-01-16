@@ -1,6 +1,6 @@
 # Change Log
 
-## [0.4.1] - 2021-1-16
+## [0.4.1] - 2021-01-16
 
 * ISO: Fixed symbols for BHD, ISK, NPR, UYU and alpha code for UYW.
 * ISO: Added ALL, STN, UYW currencies [@ObsceneGiraffe](https://github.com/ObsceneGiraffe).
