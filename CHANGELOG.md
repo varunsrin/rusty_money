@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.4.1] - 2021-1-16
+
+* ISO: Fixed symbols for BHD, ISK, NPR, UYU and alpha code for UYW.
+* ISO: Added ALL, STN, UYW currencies [@ObsceneGiraffe](https://github.com/ObsceneGiraffe).
+* Crypto: Added COMP, DAI, MKR, UNI, USDC, USDT, XTZ, ZEC
+* Fix: `Exchange::get_rate` returns a lifetime `Option<ExchangeRate<'a, T>>` to prevent lifetime conflicts [@RestitutorOrbis](https://github.com/RestitutorOrbis).
+
 ## [0.4.0] - 2021-01-01
 
 rusty_money now supports defining your own currencies and has a cryptocurrency module. It no longer depends on lazy_static!,
@@ -72,6 +79,5 @@ Breaking Changes:
 ## [Planned]
 
 * Serialization and Deserialization of Money.
-* Adding popular currencies to the crypto module.
 * Benchmarking performance.
 * no-std by default.
