@@ -92,7 +92,7 @@ define_currency_set!(
             name: "ZCash",
             symbol: "ZEC",
             symbol_first: false,
-        },
+        }
     }
 );
 
