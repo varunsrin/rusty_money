@@ -2,46 +2,12 @@ use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::fmt;
-use rust_decimal_macros::*;
-
-struct ExchangeRateQuery<'a, T: FormattableCurrency>{
-    from: &'a T,
-    to: &'a T,
-}
-
-impl<'a, T: FormattableCurrency> PartialEq for ExchangeRateQuery<'a, T>{
-    fn eq(&self, other: &Self) -> bool {
-        self.from == other.from && self.to == other.to
-    }
-}
-
-impl<'a, T: FormattableCurrency> Eq for ExchangeRateQuery<'a, T>{}
-
-impl<'a, T: FormattableCurrency> Hash for ExchangeRateQuery<'a, T>{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.from.to_string().hash(state);
-        self.to.to_string().hash(state);
-    }
-}
-
-impl<'a, T: FormattableCurrency> fmt::Debug for ExchangeRateQuery<'a, T>{
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_fmt(format_args!("{}->{}", self.from.to_string(), self.to.to_string()))
-    }
-}
-
-impl<'a, T: FormattableCurrency> ExchangeRateQuery<'a, T>{
-    fn new(from: &'a T, to: &'a T) -> ExchangeRateQuery<'a, T>{
-        ExchangeRateQuery{ from, to }
-    }
-}
+use rust_decimal_macros::dec;
 
 /// Stores `ExchangeRate`s for easier access.
 #[derive(Debug, Default)]
 pub struct Exchange<'a, T: FormattableCurrency> {
-    map: HashMap<ExchangeRateQuery<'a, T>, ExchangeRate<'a, T>>,
+    map: HashMap<String, ExchangeRate<'a, T>>,
 }
 
 impl<'a, T: FormattableCurrency> Exchange<'a, T> {
@@ -53,36 +19,35 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
 
     /// Update an ExchangeRate or add it if does not exist.
     pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
-        let query = ExchangeRateQuery::new(rate.from, rate.to);
-        let reverse_query = ExchangeRateQuery::new(rate.to, rate.from);
+        let key = Exchange::generate_key(rate.from, rate.to);
+        self.map.insert(key, *rate);
+    }
 
-        if self.map.contains_key(&reverse_query){
-            let new_reverse_rate = ExchangeRate::new(rate.to, rate.from, dec!(1) / rate.rate);
-            self.map.insert(reverse_query, new_reverse_rate.unwrap());
-        }else{
-            self.map.insert(query, *rate);
+    pub fn set_rate_and_inverse(&mut self, rate: &'a ExchangeRate<T>) -> Result<ExchangeRate<'a, T>, MoneyError> {
+        if rate.rate == dec!(0) {
+            return Err(MoneyError::DivideByZero)
         }
+
+        self.set_rate(rate);
+
+        let inverse = ExchangeRate::new(rate.from, rate.to, dec!(1) / rate.rate)?;
+        let inverse_key = Exchange::generate_key(rate.to, rate.from);
+        self.map.insert(inverse_key, inverse);
+
+        Ok(inverse)
     }
 
     /// Return the ExchangeRate given the currency pair.
-    pub fn get_rate(&self, from: &'a T, to: &'a T) -> Option<ExchangeRate<'a, T>> {
-        let query = ExchangeRateQuery::new(from, to);
-        let reverse_query = ExchangeRateQuery::new(to, from);
-
-        let query_results = (self.map.get(&query), self.map.get(&reverse_query));
-        match query_results {
-            (Some(query_result), Some(reverse_query_result)) => Some(*query_result),
-            (Some(query_result), None) => Some(*query_result),
-            (None, Some(reverse_query_result)) => {
-                let coerced_rate = ExchangeRate::new(from, to, dec!(1) / reverse_query_result.rate);
-                if let Ok(coerced_rate) = coerced_rate {
-                    Some(coerced_rate)
-                }else{
-                    None
-                }
-            },
-            (None, None) => None,
+    pub fn get_rate(&self, from: &T, to: &T) -> Option<ExchangeRate<'a, T>> {
+        let key = Exchange::generate_key(from, to);
+        match self.map.get(&key) {
+            Some(v) => Some(*v),
+            None => None,
         }
+    }
+
+    fn generate_key(from: &T, to: &T) -> String {
+        from.to_string() + "-" + &to.to_string()
     }
 }
 
@@ -156,12 +121,14 @@ mod tests {
         let eur = test::find("EUR").unwrap();
         let gbp = test::find("GBP").unwrap();
 
-        let eur_usd_rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
-        let eur_gbp_rate = ExchangeRate::new(usd, gbp, dec!(1.6)).unwrap();
+        let usd_eur_rate = ExchangeRate::new(usd, eur, dec!(1.5)).unwrap();
+        let usd_gbp_rate = ExchangeRate::new(usd, gbp, dec!(1.6)).unwrap();
 
         let mut exchange = Exchange::new();
-        exchange.set_rate(&eur_usd_rate);
-        exchange.set_rate(&eur_gbp_rate);
+        exchange.set_rate(&usd_eur_rate);
+
+        let inverse_rate = exchange.set_rate_and_inverse(&usd_gbp_rate).unwrap();
+        assert_eq!(inverse_rate.rate, dec!(1) / dec!(1.6));
 
         let fetched_rate = exchange.get_rate(usd, eur).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.5));
@@ -169,11 +136,43 @@ mod tests {
         let fetched_rate = exchange.get_rate(usd, gbp).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.6));
 
-        let fetched_reverse_rate = exchange.get_rate(eur, usd).unwrap();
-        assert_eq!(fetched_reverse_rate.rate, dec!(1) / dec!(1.5));
+        let fetched_inverse_rate = exchange.get_rate(gbp, usd).unwrap();
+        assert_eq!(fetched_inverse_rate.rate, dec!(1) / dec!(1.6));
+    }
 
-        let fetched_reverse_rate = exchange.get_rate(gbp, usd).unwrap();
-        assert_eq!(fetched_reverse_rate.rate, dec!(1) / dec!(1.6));
+    #[test]
+    fn exchange_fails_to_store_inverse_of_zero_rate(){
+        let usd = test::find("USD").unwrap();
+        let eur = test::find("EUR").unwrap();
+
+        let eur_usd_rate = ExchangeRate::new(usd, eur, dec!(0)).unwrap();
+
+        let mut exchange = Exchange::new();
+        let error = exchange.set_rate_and_inverse(&eur_usd_rate);
+
+        let expected = Err(MoneyError::DivideByZero);
+        assert_eq!(error, expected);
+
+        let fetched_rate = exchange.get_rate(usd, eur);
+        assert_eq!(fetched_rate.is_none(), true);
+
+        let fetched_rate = exchange.get_rate(usd, eur);
+        assert_eq!(fetched_rate.is_none(), true);
+    }
+
+    #[test]
+    fn exchange_stores_zero_rate(){
+        let usd = test::find("USD").unwrap();
+        let eur = test::find("EUR").unwrap();
+
+        let eur_usd_rate = ExchangeRate::new(usd, eur, dec!(0)).unwrap();
+
+        let mut exchange = Exchange::new();
+        exchange.set_rate(&eur_usd_rate);
+        
+
+        let fetched_rate = exchange.get_rate(usd, eur).unwrap();
+        assert_eq!(fetched_rate.rate, dec!(0));
     }
 
     #[test]

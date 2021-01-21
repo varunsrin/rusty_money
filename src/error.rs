@@ -6,6 +6,7 @@ pub enum MoneyError {
     InvalidCurrency,
     InvalidAmount,
     InvalidRatio,
+    DivideByZero,
 }
 
 impl fmt::Display for MoneyError {
@@ -14,6 +15,7 @@ impl fmt::Display for MoneyError {
             MoneyError::InvalidCurrency => write!(f, "Currency was not valid"),
             MoneyError::InvalidAmount => write!(f, "Amount not parseable"),
             MoneyError::InvalidRatio => write!(f, "Ratio was not valid"),
+            MoneyError::DivideByZero => write!(f, "Cannot divide by zero"),
         }
     }
 }
@@ -24,6 +26,7 @@ impl error::Error for MoneyError {
             MoneyError::InvalidCurrency => "Currency was not valid",
             MoneyError::InvalidAmount => "Amount not parseable",
             MoneyError::InvalidRatio => "Ratio was not valid",
+            MoneyError::DivideByZero => "Cannot divide by zero",
         }
     }
 }
