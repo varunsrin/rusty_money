@@ -30,8 +30,10 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
 
         self.set_rate(rate);
 
-        let inverse = ExchangeRate::new(rate.from, rate.to, dec!(1) / rate.rate)?;
-        let inverse_key = Exchange::generate_key(rate.to, rate.from);
+        let inverse_from = rate.to;
+        let inverse_to = rate.from;
+        let inverse = ExchangeRate::new(inverse_from, inverse_to, dec!(1) / rate.rate)?;
+        let inverse_key = Exchange::generate_key(inverse_from, inverse_to);
         self.map.insert(inverse_key, inverse);
 
         Ok(inverse)
@@ -129,15 +131,23 @@ mod tests {
 
         let inverse_rate = exchange.set_rate_and_inverse(&usd_gbp_rate).unwrap();
         assert_eq!(inverse_rate.rate, dec!(1) / dec!(1.6));
+        assert_eq!(inverse_rate.from, gbp);
+        assert_eq!(inverse_rate.to, usd);
 
         let fetched_rate = exchange.get_rate(usd, eur).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.5));
+        assert_eq!(fetched_rate.from, usd);
+        assert_eq!(fetched_rate.to, eur);
 
         let fetched_rate = exchange.get_rate(usd, gbp).unwrap();
         assert_eq!(fetched_rate.rate, dec!(1.6));
+        assert_eq!(fetched_rate.from, usd);
+        assert_eq!(fetched_rate.to, gbp);
 
         let fetched_inverse_rate = exchange.get_rate(gbp, usd).unwrap();
         assert_eq!(fetched_inverse_rate.rate, dec!(1) / dec!(1.6));
+        assert_eq!(fetched_inverse_rate.from, gbp);
+        assert_eq!(fetched_inverse_rate.to, usd);
     }
 
     #[test]
@@ -173,6 +183,8 @@ mod tests {
 
         let fetched_rate = exchange.get_rate(usd, eur).unwrap();
         assert_eq!(fetched_rate.rate, dec!(0));
+        assert_eq!(fetched_rate.from, usd);
+        assert_eq!(fetched_rate.to, eur);
     }
 
     #[test]
