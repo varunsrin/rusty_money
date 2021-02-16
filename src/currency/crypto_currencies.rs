@@ -92,7 +92,27 @@ define_currency_set!(
             name: "ZCash",
             symbol: "ZEC",
             symbol_first: false,
-        }
+        },
+        // https://www.bitcoincash.org/
+        BCH: {
+            code: "BCH",
+            exponent: 8,            
+            locale: EnUs,
+            minor_units: 100_000_000,
+            name: "Bitcoin Cash",
+            symbol: "BCH",
+            symbol_first: false,
+        },
+        // https://bitcoinsv.com/
+        BSV: {
+            code: "BSV",
+            exponent: 8,            
+            locale: EnUs,
+            minor_units: 100_000_000,
+            name: "Bitcoin SV",
+            symbol: "BSV",
+            symbol_first: false,
+        },
     }
 );
 
