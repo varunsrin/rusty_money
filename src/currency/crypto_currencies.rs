@@ -112,7 +112,7 @@ define_currency_set!(
             name: "Bitcoin SV",
             symbol: "BSV",
             symbol_first: false,
-        },
+        }
     }
 );
 
