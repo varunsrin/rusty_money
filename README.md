@@ -50,7 +50,7 @@ implements popular cryptocurencies. `iso` is enabled by default, and you can add
 
 ```toml
 [dependencies]
-rusty-money = { version = "0.4.0", features = ["iso", "crypto"] }
+rusty-money = { version = "0.4.1", features = ["iso", "crypto"] }
 ```
 
 The currency sets can then be used like this:
