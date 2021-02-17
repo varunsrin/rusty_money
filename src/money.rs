@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 /// Represents an amount of a given currency.
 ///
-/// Money represents financial amounts through a Decimal (owned) and a Currency (refernce).
+/// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
 #[derive(Debug, PartialEq, Eq, Clone)]
