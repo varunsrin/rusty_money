@@ -43,7 +43,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rusty_money = { version = "0.4.0", features = ["iso", "crypto"] }
+//! rusty_money = { version = "0.4.1", features = ["iso", "crypto"] }
 //! ```
 //! The currency sets can then be used like this:
 //!
