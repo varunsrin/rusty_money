@@ -14,7 +14,7 @@ use std::str::FromStr;
 /// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Money<'a, T: FormattableCurrency> {
     amount: Decimal,
     currency: &'a T,
@@ -181,14 +181,14 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            i32::from_str(&amount_parts[1])?;
+            i32::from_str(amount_parts[1])?;
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
             return Err(MoneyError::InvalidAmount);
         }
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
-        Ok(Money::from_decimal(decimal, &currency))
+        Ok(Money::from_decimal(decimal, currency))
     }
 
     /// Creates a Money object given an integer and a currency reference.
@@ -295,18 +295,20 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
     pub fn round(&self, digits: u32, strategy: Round) -> Money<'a, T> {
-        let mut money = self.clone();
+        let mut money = *self;
 
         money.amount = match strategy {
             Round::HalfDown => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfDown),
-            Round::HalfUp => money
-                .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfUp),
-            Round::HalfEven => money
-                .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::BankersRounding),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointTowardZero),
+            Round::HalfUp => money.amount.round_dp_with_strategy(
+                digits,
+                rust_decimal::RoundingStrategy::MidpointAwayFromZero,
+            ),
+            Round::HalfEven => money.amount.round_dp_with_strategy(
+                digits,
+                rust_decimal::RoundingStrategy::MidpointNearestEven,
+            ),
         };
 
         money
@@ -339,11 +341,10 @@ impl<'a, T: FormattableCurrency + FormattableCurrency> fmt::Display for Money<'a
 
         if currency.symbol_first() {
             format_params.positions = vec![Position::Sign, Position::Symbol, Position::Amount];
-            write!(f, "{}", Formatter::money(self, format_params))
         } else {
             format_params.positions = vec![Position::Sign, Position::Amount, Position::Symbol];
-            write!(f, "{}", Formatter::money(self, format_params))
         }
+        write!(f, "{}", Formatter::money(self, format_params))
     }
 }
 
