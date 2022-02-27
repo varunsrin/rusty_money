@@ -2,12 +2,14 @@ use crate::currency::FormattableCurrency;
 use crate::format::{Formatter, Params, Position};
 use crate::locale::LocalFormat;
 use crate::MoneyError;
-use rust_decimal::Decimal;
-use rust_decimal_macros::*;
+
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
+
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 /// Represents an amount of a given currency.
 ///
@@ -181,14 +183,14 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            i32::from_str(&amount_parts[1])?;
+            i32::from_str(amount_parts[1])?;
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
             return Err(MoneyError::InvalidAmount);
         }
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
-        Ok(Money::from_decimal(decimal, &currency))
+        Ok(Money::from_decimal(decimal, currency))
     }
 
     /// Creates a Money object given an integer and a currency reference.
@@ -300,13 +302,13 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         money.amount = match strategy {
             Round::HalfDown => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfDown),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointTowardZero),
             Round::HalfUp => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfUp),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointAwayFromZero),
             Round::HalfEven => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::BankersRounding),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven),
         };
 
         money

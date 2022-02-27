@@ -25,10 +25,7 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
     /// Return the ExchangeRate given the currency pair.
     pub fn get_rate(&self, from: &T, to: &T) -> Option<ExchangeRate<'a, T>> {
         let key = Exchange::generate_key(from, to);
-        match self.map.get(&key) {
-            Some(v) => Some(*v),
-            None => None,
-        }
+        self.map.get(&key).copied()
     }
 
     fn generate_key(from: &T, to: &T) -> String {
