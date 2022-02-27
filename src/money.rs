@@ -9,7 +9,6 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 
 /// Represents an amount of a given currency.
 ///
@@ -226,17 +225,17 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns true if amount == 0.
     pub fn is_zero(&self) -> bool {
-        self.amount == dec!(0.0)
+        self.amount == Decimal::ZERO
     }
 
     /// Returns true if amount > 0.
     pub fn is_positive(&self) -> bool {
-        self.amount.is_sign_positive() && self.amount != dec!(0.0)
+        self.amount.is_sign_positive() && self.amount != Decimal::ZERO
     }
 
     /// Returns true if amount < 0.
     pub fn is_negative(&self) -> bool {
-        self.amount.is_sign_negative() && self.amount != dec!(0.0)
+        self.amount.is_sign_negative() && self.amount != Decimal::ZERO
     }
 
     /// Divides money equally into n shares.
@@ -263,12 +262,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             .collect();
 
         let mut remainder = self.amount;
-        let ratio_total: Decimal = ratios.iter().fold(dec!(0.0), |acc, x| acc + x);
+        let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
 
         let mut allocations: Vec<Money<'a, T>> = Vec::new();
 
         for ratio in ratios {
-            if ratio <= dec!(0.0) {
+            if ratio <= Decimal::ZERO {
                 return Err(MoneyError::InvalidRatio);
             }
 
@@ -278,18 +277,18 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             remainder -= share;
         }
 
-        if remainder < dec!(0.0) {
+        if remainder < Decimal::ZERO {
             panic!("Remainder was negative, should be 0 or positive");
         }
 
-        if remainder - remainder.floor() != dec!(0.0) {
+        if remainder - remainder.floor() != Decimal::ZERO {
             panic!("Remainder is not an integer, should be an integer");
         }
 
         let mut i: usize = 0;
-        while remainder > dec!(0.0) {
-            allocations[i].amount += dec!(1.0);
-            remainder -= dec!(1.0);
+        while remainder > Decimal::ZERO {
+            allocations[i].amount += Decimal::ONE;
+            remainder -= Decimal::ONE;
             i += 1;
         }
         Ok(allocations)
