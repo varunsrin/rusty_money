@@ -2,12 +2,13 @@ use crate::currency::FormattableCurrency;
 use crate::format::{Formatter, Params, Position};
 use crate::locale::LocalFormat;
 use crate::MoneyError;
-use rust_decimal::Decimal;
-use rust_decimal_macros::*;
+
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
+
+use rust_decimal::Decimal;
 
 /// Represents an amount of a given currency.
 ///
@@ -181,14 +182,14 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            i32::from_str(&amount_parts[1])?;
+            i32::from_str(amount_parts[1])?;
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
             return Err(MoneyError::InvalidAmount);
         }
 
         let decimal = Decimal::from_str(&parsed_decimal).unwrap();
-        Ok(Money::from_decimal(decimal, &currency))
+        Ok(Money::from_decimal(decimal, currency))
     }
 
     /// Creates a Money object given an integer and a currency reference.
@@ -224,17 +225,17 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns true if amount == 0.
     pub fn is_zero(&self) -> bool {
-        self.amount == dec!(0.0)
+        self.amount == Decimal::ZERO
     }
 
     /// Returns true if amount > 0.
     pub fn is_positive(&self) -> bool {
-        self.amount.is_sign_positive() && self.amount != dec!(0.0)
+        self.amount.is_sign_positive() && self.amount != Decimal::ZERO
     }
 
     /// Returns true if amount < 0.
     pub fn is_negative(&self) -> bool {
-        self.amount.is_sign_negative() && self.amount != dec!(0.0)
+        self.amount.is_sign_negative() && self.amount != Decimal::ZERO
     }
 
     /// Divides money equally into n shares.
@@ -261,12 +262,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             .collect();
 
         let mut remainder = self.amount;
-        let ratio_total: Decimal = ratios.iter().fold(dec!(0.0), |acc, x| acc + x);
+        let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
 
         let mut allocations: Vec<Money<'a, T>> = Vec::new();
 
         for ratio in ratios {
-            if ratio <= dec!(0.0) {
+            if ratio <= Decimal::ZERO {
                 return Err(MoneyError::InvalidRatio);
             }
 
@@ -276,18 +277,18 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             remainder -= share;
         }
 
-        if remainder < dec!(0.0) {
+        if remainder < Decimal::ZERO {
             panic!("Remainder was negative, should be 0 or positive");
         }
 
-        if remainder - remainder.floor() != dec!(0.0) {
+        if remainder - remainder.floor() != Decimal::ZERO {
             panic!("Remainder is not an integer, should be an integer");
         }
 
         let mut i: usize = 0;
-        while remainder > dec!(0.0) {
-            allocations[i].amount += dec!(1.0);
-            remainder -= dec!(1.0);
+        while remainder > Decimal::ZERO {
+            allocations[i].amount += Decimal::ONE;
+            remainder -= Decimal::ONE;
             i += 1;
         }
         Ok(allocations)
@@ -300,13 +301,13 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         money.amount = match strategy {
             Round::HalfDown => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfDown),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointTowardZero),
             Round::HalfUp => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::RoundHalfUp),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointAwayFromZero),
             Round::HalfEven => money
                 .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::BankersRounding),
+                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven),
         };
 
         money
