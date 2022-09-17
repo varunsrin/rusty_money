@@ -120,7 +120,7 @@
 //!
 //! // Convert 1000 USD to EUR at a 2:1 exchange rate.
 //! let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.5)).unwrap();
-//! rate.convert(Money::from_minor(100_000, iso::USD));                    // 500 EUR
+//! rate.convert(&Money::from_minor(100_000, iso::USD));                    // 500 EUR
 //!
 //! // An Exchange can be used to store ExchangeRates for later use
 //! let mut exchange = Exchange::new();
