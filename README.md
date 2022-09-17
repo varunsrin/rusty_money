@@ -1,10 +1,10 @@
 # rusty-money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Docs]][docs.rs]
 
-[Build Status]: https://travis-ci.com/varunsrin/rusty_money.svg?branch=master
+[build status]: https://travis-ci.com/varunsrin/rusty_money.svg?branch=master
 [travis]: https://travis-ci.com/varunsrin/rusty_money
-[Latest Version]: https://img.shields.io/crates/v/rusty-money.svg
+[latest version]: https://img.shields.io/crates/v/rusty-money.svg
 [crates.io]: https://crates.io/crates/rusty-money
-[Docs]: https://docs.rs/rusty-money/badge.svg
+[docs]: https://docs.rs/rusty-money/badge.svg
 [docs.rs]: https://docs.rs/rusty-money
 
 rusty-money handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
@@ -37,9 +37,9 @@ define_currency_set!(
 Money::from_major(2_000, video_game::GIL);              // 2000 GIL
 Money::from_minor(200_000, video_game::GIL);            // 2000 GIL
 Money::from_str("2,000.00", video_game::GIL).unwrap();  // 2000 GIL
- 
-// Currencies can be looked up by code. 
-let gil = video_game::find("GIL").unwrap();                        
+
+// Currencies can be looked up by code.
+let gil = video_game::find("GIL").unwrap();
 Money::from_major(2_000, gil);                          // 2000 GIL
 ```
 
@@ -65,7 +65,7 @@ Money::from_major(2, crypto::BTC);         // 2 Bitcoin
 
 Money objects of the same currency can be compared:
 
- ```rust
+```rust
 use rusty-money::{Money, iso};
 let hundred = Money::from_minor(10_000, iso::USD);
 let thousand = Money::from_minor(100_000, iso::USD);
@@ -79,11 +79,11 @@ println!("{}", thousand.is_positive()); // true
 Money objects are immutable, and operations that change amounts create a new instance of Money. Amounts are stored
 as 128 bit fixed-precision [Decimals](https://github.com/paupino/rust-decimal), and handle values as large as
 2<sup>96</sup> / 10<sup>28</sup>. Operations on Money retain the maximum possible precision. When you want less
-precision, you call the `round` function, which  supports three modes:
+precision, you call the `round` function, which supports three modes:
 
-* [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
-* [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
-* [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
+- [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
+- [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
+- [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 
 Money can be added, subtracted, multiplied and divided like this:
 
@@ -127,7 +127,7 @@ use rust_decimal_macros::*;
 
 // Convert 1000 USD to EUR at a 2:1 exchange rate.
 let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.5)).unwrap();
-rate.convert(Money::from_minor(100_000, iso::USD));                    // 500 EUR
+rate.convert(&Money::from_minor(100_000, iso::USD));                    // 500 EUR
 
 // An Exchange can be used to store ExchangeRates for later use
 let mut exchange = Exchange::new();
