@@ -1355,6 +1355,16 @@ pub mod iso {
             symbol: "Sk",
             symbol_first: true,
         },
+        SLE : {
+            exponent: 2,
+            iso_alpha_code: "SLE",
+            iso_numeric_code: "925",
+            locale: EnUs,
+            minor_units: 1000,
+            name: "Sierra Leonean Leone",
+            symbol: "Le",
+            symbol_first: false,
+        },
         SLL : {
             exponent: 2,
             iso_alpha_code: "SLL",
