@@ -1342,7 +1342,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 1,
             name: "Singapore Dollar",
-            symbol: "$",
+            symbol: "S$",
             symbol_first: true,
         },
         SHP : {
