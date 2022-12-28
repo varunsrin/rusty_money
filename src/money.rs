@@ -15,7 +15,7 @@ use rust_decimal::Decimal;
 /// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Money<'a, T: FormattableCurrency> {
     amount: Decimal,
     currency: &'a T,
@@ -302,12 +302,14 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             Round::HalfDown => money
                 .amount
                 .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointTowardZero),
-            Round::HalfUp => money
-                .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointAwayFromZero),
-            Round::HalfEven => money
-                .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven),
+            Round::HalfUp => money.amount.round_dp_with_strategy(
+                digits,
+                rust_decimal::RoundingStrategy::MidpointAwayFromZero,
+            ),
+            Round::HalfEven => money.amount.round_dp_with_strategy(
+                digits,
+                rust_decimal::RoundingStrategy::MidpointNearestEven,
+            ),
         };
 
         money
@@ -784,5 +786,14 @@ mod tests {
         let mut money = Money::from_minor(20_000, test::BHD);
         money /= 3;
         assert_eq!(money.round(3, Round::HalfEven), expected_money);
+    }
+
+    #[test]
+    fn money_ops_uses_impl_copy() {
+        let money = Money::from_major(1, test::USD);
+        let _1st_derived_money = money * 3;
+        // if Money didn't impl Copy, this second multiplication would result in a compilation error
+        // becase money would be moved (and consumed) in the 1st multiplication above:
+        let _2nd_derived_money = money * 3;
     }
 }
