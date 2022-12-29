@@ -1242,7 +1242,17 @@ pub mod iso {
             locale: EnEu,
             minor_units: 1,
             name: "Romanian Leu",
-            symbol: "ر.ق",
+            symbol: "RON",
+            symbol_first: false,
+        },
+        ROL : {
+            exponent: 0,
+            iso_alpha_code: "ROL",
+            iso_numeric_code: "642",
+            locale: EnEu,
+            minor_units: 1,
+            name: "Romanian Leu",
+            symbol: "ROL",
             symbol_first: false,
         },
         RSD : {
