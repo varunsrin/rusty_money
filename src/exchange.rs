@@ -50,7 +50,7 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
-    pub fn convert(&self, amount: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
+    pub fn convert(&self, amount: &Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if amount.currency() != self.from {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -122,7 +122,7 @@ mod tests {
         let rate = ExchangeRate::new(test::USD, test::EUR, dec!(1.5)).unwrap();
         let amount = Money::from_minor(1_000, test::USD);
         let expected_amount = Money::from_minor(1_500, test::EUR);
-        let converted_rate = rate.convert(amount).unwrap();
+        let converted_rate = rate.convert(&amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
 
@@ -132,7 +132,7 @@ mod tests {
         let amount = Money::from_minor(1_000, test::USD);
 
         assert_eq!(
-            rate.convert(amount).unwrap_err(),
+            rate.convert(&amount).unwrap_err(),
             MoneyError::InvalidCurrency,
         );
     }
