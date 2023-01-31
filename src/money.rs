@@ -5,7 +5,7 @@ use crate::MoneyError;
 
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::str::FromStr;
 
 use rust_decimal::Decimal;
@@ -63,6 +63,17 @@ impl<'a, T: FormattableCurrency> SubAssign for Money<'a, T> {
             amount: self.amount - other.amount,
             currency: self.currency,
         };
+    }
+}
+
+impl<'a, T: FormattableCurrency> Neg for Money<'a, T> {
+    type Output = Money<'a, T>;
+
+    fn neg(self) -> Self::Output {
+        Money {
+            amount: -self.amount,
+            currency: self.currency,
+        }
     }
 }
 
@@ -645,6 +656,13 @@ mod tests {
         let mut money = Money::from_minor(100, test::USD);
         money /= Decimal::new(-2, 0);
         assert_eq!(Money::from_minor(-50, test::USD), money);
+    }
+
+    #[test]
+    fn money_negation() {
+        let money = Money::from_minor(100, test::USD);
+
+        assert_eq!(-money, Money::from_minor(-100, test::USD));
     }
 
     #[test]
