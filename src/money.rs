@@ -161,8 +161,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
         let mut split_decimal: Vec<&str> = amount_parts[0].split(format.digit_separator).collect();
         let mut parsed_decimal = split_decimal.concat();
-        //
-        //
+
         // Sanity check the decimal seperation
         for &num in format.digit_separator_pattern().iter() {
             if split_decimal.len() <= 1 {
