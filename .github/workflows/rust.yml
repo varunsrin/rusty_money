@@ -38,7 +38,16 @@ jobs:
           key: ${{ matrix.toolchain }}
 
       - name: Install rust ${{ matrix.toolchain }} toolchain
-        run: rustup toolchain add ${{ matrix.toolchain }}
+        # We add the `clippy` component only on `stable`
+        run: rustup toolchain add ${{ matrix.toolchain }} ${{ matrix.toolchain == 'stable' && '--component=clippy' || '' }}
+
+      - name: Check rust is formatted
+        if: ${{ matrix.toolchain == 'stable' }}
+        run: cargo fmt --check
+
+      - name: Check clippy
+        if: ${{ matrix.toolchain == 'stable' }}
+        run: cargo clippy --all-features --all-targets
 
       - name: Execute cargo tests
         run: cargo +${{ matrix.toolchain }} test --verbose --all-features

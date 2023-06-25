@@ -307,7 +307,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
     pub fn round(&self, digits: u32, strategy: Round) -> Money<'a, T> {
-        let mut money = self.clone();
+        let mut money = *self;
 
         money.amount = match strategy {
             Round::HalfDown => money
@@ -668,36 +668,24 @@ mod tests {
     #[test]
     fn money_comparison() {
         // Greater Than
-        assert_eq!(
-            true,
-            Money::from_minor(200, test::USD) > Money::from_minor(100, test::USD)
-        );
+        assert!(Money::from_minor(200, test::USD) > Money::from_minor(100, test::USD));
         // Less Than
-        assert_eq!(
-            false,
-            Money::from_minor(200, test::USD) < Money::from_minor(100, test::USD)
-        );
+        assert!(Money::from_minor(100, test::USD) < Money::from_minor(200, test::USD));
         // Equals
-        assert_eq!(
-            true,
-            Money::from_minor(100, test::USD) == Money::from_minor(100, test::USD)
-        );
-        assert_eq!(
-            false,
-            Money::from_minor(100, test::USD) == Money::from_minor(100, test::GBP)
-        );
+        assert!(Money::from_minor(100, test::USD) == Money::from_minor(100, test::USD));
+        assert!(Money::from_minor(100, test::USD) != Money::from_minor(100, test::GBP));
         // is positive
-        assert_eq!(true, Money::from_minor(100, test::USD).is_positive());
-        assert_eq!(false, Money::from_minor(0, test::USD).is_positive());
-        assert_eq!(false, Money::from_minor(-100, test::USD).is_positive());
+        assert!(Money::from_minor(100, test::USD).is_positive());
+        assert!(!Money::from_minor(0, test::USD).is_positive());
+        assert!(!Money::from_minor(-100, test::USD).is_positive());
         // is zero
-        assert_eq!(true, Money::from_minor(0, test::USD).is_zero());
-        assert_eq!(false, Money::from_minor(100, test::USD).is_zero());
-        assert_eq!(false, Money::from_minor(-100, test::USD).is_zero());
+        assert!(Money::from_minor(0, test::USD).is_zero());
+        assert!(!Money::from_minor(100, test::USD).is_zero());
+        assert!(!Money::from_minor(-100, test::USD).is_zero());
         // is negative
-        assert_eq!(true, Money::from_minor(-100, test::USD).is_negative());
-        assert_eq!(false, Money::from_minor(100, test::USD).is_negative());
-        assert_eq!(false, Money::from_minor(0, test::USD).is_negative());
+        assert!(Money::from_minor(-100, test::USD).is_negative());
+        assert!(!Money::from_minor(100, test::USD).is_negative());
+        assert!(!Money::from_minor(0, test::USD).is_negative());
     }
 
     #[test]

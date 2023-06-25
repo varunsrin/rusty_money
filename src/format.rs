@@ -218,7 +218,7 @@ mod tests {
 
         // For 0 Chars
         let money = Money::from_major(0, test::USD);
-        assert_eq!("0", Formatter::money(&money, params.clone()));
+        assert_eq!("0", Formatter::money(&money, params));
     }
 
     #[test]
@@ -228,14 +228,14 @@ mod tests {
             ..Default::default()
         };
 
-        let money = Money::from_major(1_00_00_000, test::USD);
+        let money = Money::from_major(10_000_000, test::USD);
         assert_eq!("1,00,00,000", Formatter::money(&money, params.clone()));
 
-        let money = Money::from_major(1_00_000, test::USD);
+        let money = Money::from_major(100_000, test::USD);
         assert_eq!("1,00,000", Formatter::money(&money, params.clone()));
 
         let money = Money::from_major(1_000, test::USD);
-        assert_eq!("1,000", Formatter::money(&money, params.clone()));
+        assert_eq!("1,000", Formatter::money(&money, params));
 
         // With a zero sequence
         let params = Params {
@@ -247,7 +247,7 @@ mod tests {
         assert_eq!("1,00,", Formatter::money(&money, params.clone()));
 
         let money = Money::from_major(0, test::USD);
-        assert_eq!("0,", Formatter::money(&money, params.clone()));
+        assert_eq!("0,", Formatter::money(&money, params));
     }
 
     // What if pattern includes a zero or negative number?
