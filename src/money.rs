@@ -259,7 +259,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 
     /// Divides money into n shares according to a particular ratio.
-    ///  
+    ///
     /// If the divison cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money<'a, T>>, MoneyError> {

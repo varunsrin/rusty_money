@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-/// Enumerates regions which have unique formatting standards for Currencies.  
+/// Enumerates regions which have unique formatting standards for Currencies.
 ///
 /// Each Locale maps 1:1 to a LocalFormat, which contains the characteristics for formatting.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -23,7 +23,7 @@ pub struct LocalFormat {
 impl LocalFormat {
     /// Returns a vector indicating where digit separators should be applied on a Money amount.
     ///
-    /// For example, [3,3,3] indicates that the digit separator should be applied after the 3rd, 6th and 9th digits.  
+    /// For example, [3,3,3] indicates that the digit separator should be applied after the 3rd, 6th and 9th digits.
     pub fn digit_separator_pattern(&self) -> Vec<usize> {
         let v: Vec<&str> = self.digit_separator_pattern.split(", ").collect();
         v.iter().map(|x| usize::from_str(x).unwrap()).collect()
