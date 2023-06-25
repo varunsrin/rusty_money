@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 pub struct Formatter;
 
 impl<'a> Formatter {
-    /// Returns a formatted Money String given parameters and a Money object.  
+    /// Returns a formatted Money String given parameters and a Money object.
     pub fn money<T: FormattableCurrency>(money: &Money<'a, T>, params: Params) -> String {
         let mut decimal = *money.amount();
 
