@@ -8,7 +8,7 @@ readme = "README.md"
 repository = "https://github.com/varunsrin/rusty_money"
 documentation = "https://docs.rs/rusty-money"
 description = """
-Parse, format and perform calculations with money safely.    
+Parse, format and perform calculations with money safely.
 """
 keywords = ["money", "currency", "iso-4217", "crypto", "cryptocurrency"]
 categories = ["data-structures", "rust-patterns", "cryptography::cryptocurrencies"]
@@ -19,7 +19,7 @@ iso = []
 crypto = []
 
 [dependencies]
-rust_decimal = { default-features = false, version = "1.22.0" }
+rust_decimal = { default-features = false, version = "1.30.0" }
 
 [dev-dependencies]
-rust_decimal_macros = "1.22.0"
+rust_decimal_macros = "1.30.0"
