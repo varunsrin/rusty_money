@@ -17,7 +17,7 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
     }
 
     /// Update an ExchangeRate or add it if does not exist.
-    pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
+    pub fn set_rate(&mut self, rate: &ExchangeRate<'a, T>) {
         let key = Exchange::generate_key(rate.from, rate.to);
         self.map.insert(key, *rate);
     }
@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn rate_convert_errors_if_currencies_dont_match() {
+    fn rate_convert_errors_if_currencies_do_not_match() {
         let rate = ExchangeRate::new(test::GBP, test::EUR, dec!(1.5)).unwrap();
         let amount = Money::from_minor(1_000, test::USD);
 

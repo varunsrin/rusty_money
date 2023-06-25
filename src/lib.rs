@@ -30,16 +30,16 @@
 //! Money::from_major(2_000, video_game::GIL);              // 2000 GIL
 //! Money::from_minor(200_000, video_game::GIL);            // 2000 GIL
 //! Money::from_str("2,000.00", video_game::GIL).unwrap();  // 2000 GIL
-//!  
+//!
 //! // Currencies can be looked up by code.
-//! let gil = video_game::find("GIL").unwrap();                        
+//! let gil = video_game::find("GIL").unwrap();
 //! Money::from_major(2_000, gil);                          // 2000 GIL
 //! ```
 //!
 //! ## Features: Currency Sets
 //!
 //! rusty_money provides two currency sets for convenience : `iso`, which implements ISO-4217 currencies and `crypto` which
-//! implements popular cryptocurencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
+//! implements popular cryptocurrencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
 //!
 //! ```toml
 //! [dependencies]
@@ -49,7 +49,7 @@
 //!
 //! ```edition2018
 //! use rusty_money::{Money, iso};
-//!   
+//!
 //! Money::from_major(2_000, iso::USD);        // 2000 U.S Dollars
 //! Money::from_major(2_000, iso::GBP);        // 2000 British Pounds
 //! ```
