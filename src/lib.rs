@@ -39,7 +39,7 @@
 //! ## Features: Currency Sets
 //!
 //! rusty_money provides two currency sets for convenience : `iso`, which implements ISO-4217 currencies and `crypto` which
-//! implements popular cryptocurencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
+//! implements popular cryptocurrencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
 //!
 //! ```toml
 //! [dependencies]

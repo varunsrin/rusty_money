@@ -176,7 +176,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         // Sanity check whether the decimal part can be parsed as an i32
         i32::from_str(&parsed_decimal)?;
 
-        // Sanity check the decimal seperation
+        // Sanity check the decimal separation
         for &num in format.digit_separator_pattern().iter() {
             if split_decimal.len() <= 1 {
                 break;
@@ -251,7 +251,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Divides money equally into n shares.
     ///
-    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
     pub fn allocate_to(&self, number: i32) -> Result<Vec<Money<'a, T>>, MoneyError> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
@@ -260,7 +260,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Divides money into n shares according to a particular ratio.
     ///
-    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if ratios.is_empty() {
@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn money_from_string_parse_errs() {
-        // If the delimiter preceeds the separators
+        // If the delimiter precede the separators
         let money = Money::from_str("1.0000,000", test::GBP);
         assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn money_subtractionpanics_on_different_currencies() {
+    fn money_subtraction_panics_on_different_currencies() {
         let _no_op = Money::from_minor(100, test::USD) - Money::from_minor(100, test::GBP);
     }
 
@@ -715,13 +715,13 @@ mod tests {
     #[test]
     fn money_allocate() {
         let money = Money::from_minor(1_100, test::USD);
-        let allocs = money.allocate(vec![1, 1, 1]).unwrap();
+        let allocated = money.allocate(vec![1, 1, 1]).unwrap();
         let expected_results = vec![
             Money::from_minor(400, test::USD),
             Money::from_minor(400, test::USD),
             Money::from_minor(300, test::USD),
         ];
-        assert_eq!(expected_results, allocs);
+        assert_eq!(expected_results, allocated);
 
         // Error if the ratio vector is empty
         let monies = Money::from_minor(100, test::USD).allocate(Vec::new());
@@ -811,7 +811,7 @@ mod tests {
         let money = Money::from_major(1, test::USD);
         let _1st_derived_money = money * 3;
         // if Money didn't impl Copy, this second multiplication would result in a compilation error
-        // becase money would be moved (and consumed) in the 1st multiplication above:
+        // because money would be moved (and consumed) in the 1st multiplication above:
         let _2nd_derived_money = money * 3;
     }
 }
