@@ -1,13 +1,17 @@
-# rusty-money &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Docs]][docs.rs]
+# rusty-money
 
-[Build Status]: https://travis-ci.com/varunsrin/rusty_money.svg?branch=master
-[travis]: https://travis-ci.com/varunsrin/rusty_money
+[![Build Status]][Github Action]
+[![Latest Version]][crates.io]
+[![Docs]][docs.rs]
+
+[Build Status]: https://github.com/varunsrin/rusty_money/actions/workflows/rust.yml/badge.svg
+[Github Action]: https://github.com/varunsrin/rusty_money/actions/workflows/rust.yml
 [Latest Version]: https://img.shields.io/crates/v/rusty-money.svg
 [crates.io]: https://crates.io/crates/rusty-money
 [Docs]: https://docs.rs/rusty-money/badge.svg
 [docs.rs]: https://docs.rs/rusty-money
 
-rusty-money handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
+`rusty-money` handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
 It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) currencies, common crypto currencies and lets you
 define your own. The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
 
@@ -37,16 +41,16 @@ define_currency_set!(
 Money::from_major(2_000, video_game::GIL);              // 2000 GIL
 Money::from_minor(200_000, video_game::GIL);            // 2000 GIL
 Money::from_str("2,000.00", video_game::GIL).unwrap();  // 2000 GIL
- 
-// Currencies can be looked up by code. 
-let gil = video_game::find("GIL").unwrap();                        
+
+// Currencies can be looked up by code.
+let gil = video_game::find("GIL").unwrap();
 Money::from_major(2_000, gil);                          // 2000 GIL
 ```
 
 ## Features: Currency Sets
 
 rusty_money provides two currency sets for convenience : `iso`, which implements ISO-4217 currencies and `crypto` which
-implements popular cryptocurencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
+implements popular cryptocurrencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
 
 ```toml
 [dependencies]
@@ -78,7 +82,7 @@ println!("{}", thousand.is_positive()); // true
 
 Money objects are immutable, and operations that change amounts create a new instance of Money. Amounts are stored
 as 128 bit fixed-precision [Decimals](https://github.com/paupino/rust-decimal), and handle values as large as
-2<sup>96</sup> / 10<sup>28</sup>. Operations on Money retain the maximum possible precision. When you want less
+$2^{96}$ / $10^{28}$. Operations on Money retain the maximum possible precision. When you want less
 precision, you call the `round` function, which  supports three modes:
 
 * [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
