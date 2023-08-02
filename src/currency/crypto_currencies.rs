@@ -96,7 +96,7 @@ define_currency_set!(
         // https://www.bitcoincash.org/
         BCH: {
             code: "BCH",
-            exponent: 8,            
+            exponent: 8,
             locale: EnUs,
             minor_units: 100_000_000,
             name: "Bitcoin Cash",
@@ -106,7 +106,7 @@ define_currency_set!(
         // https://bitcoinsv.com/
         BSV: {
             code: "BSV",
-            exponent: 8,            
+            exponent: 8,
             locale: EnUs,
             minor_units: 100_000_000,
             name: "Bitcoin SV",

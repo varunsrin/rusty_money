@@ -5,7 +5,7 @@ use crate::MoneyError;
 
 use std::cmp::Ordering;
 use std::fmt;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::str::FromStr;
 
 use rust_decimal::Decimal;
@@ -15,7 +15,7 @@ use rust_decimal::Decimal;
 /// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Money<'a, T: FormattableCurrency> {
     amount: Decimal,
     currency: &'a T,
@@ -63,6 +63,17 @@ impl<'a, T: FormattableCurrency> SubAssign for Money<'a, T> {
             amount: self.amount - other.amount,
             currency: self.currency,
         };
+    }
+}
+
+impl<'a, T: FormattableCurrency> Neg for Money<'a, T> {
+    type Output = Money<'a, T>;
+
+    fn neg(self) -> Self::Output {
+        Money {
+            amount: -self.amount,
+            currency: self.currency,
+        }
     }
 }
 
@@ -162,9 +173,6 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         let mut split_decimal: Vec<&str> = amount_parts[0].split(format.digit_separator).collect();
         let mut parsed_decimal = split_decimal.concat();
 
-        // Sanity check whether the decimal part can be parsed as an i32
-        i32::from_str(&parsed_decimal)?;
-
         // Sanity check the decimal seperation
         for &num in format.digit_separator_pattern().iter() {
             if split_decimal.len() <= 1 {
@@ -240,7 +248,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Divides money equally into n shares.
     ///
-    /// If the divison cannot be applied perfectly, it allocates the remainder
+    /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
     pub fn allocate_to(&self, number: i32) -> Result<Vec<Money<'a, T>>, MoneyError> {
         let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
@@ -248,8 +256,8 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 
     /// Divides money into n shares according to a particular ratio.
-    ///  
-    /// If the divison cannot be applied perfectly, it allocates the remainder
+    ///
+    /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
     pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if ratios.is_empty() {
@@ -296,18 +304,20 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
     pub fn round(&self, digits: u32, strategy: Round) -> Money<'a, T> {
-        let mut money = self.clone();
+        let mut money = *self;
 
         money.amount = match strategy {
             Round::HalfDown => money
                 .amount
                 .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointTowardZero),
-            Round::HalfUp => money
-                .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointAwayFromZero),
-            Round::HalfEven => money
-                .amount
-                .round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven),
+            Round::HalfUp => money.amount.round_dp_with_strategy(
+                digits,
+                rust_decimal::RoundingStrategy::MidpointAwayFromZero,
+            ),
+            Round::HalfEven => money.amount.round_dp_with_strategy(
+                digits,
+                rust_decimal::RoundingStrategy::MidpointNearestEven,
+            ),
         };
 
         money
@@ -316,7 +326,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
 /// Strategies that can be used to round Money.
 ///
-/// For more details, see (rust_decimal::Rounding_Strategy)[https://docs.rs/rust_decimal/1.1.0/rust_decimal/enum.RoundingStrategy.html]
+/// For more details, see [rust_decimal::RoundingStrategy]
 pub enum Round {
     HalfUp,
     HalfDown,
@@ -428,6 +438,13 @@ mod tests {
     }
 
     #[test]
+    fn money_from_string_parses_correctly_for_64_bit_numbers() {
+        let expected_money = Money::from_major(i64::MAX, test::GBP);
+        let money = Money::from_str(&i64::MAX.to_string(), test::GBP).unwrap();
+        assert_eq!(money, expected_money);
+    }
+
+    #[test]
     fn money_from_string_parses_signs() {
         let expected_money = Money::from_minor(-300, test::GBP);
         let money = Money::from_str("-3", test::GBP).unwrap();
@@ -468,7 +485,7 @@ mod tests {
 
     #[test]
     fn money_from_string_parse_errs() {
-        // If the delimiter preceeds the separators
+        // If the delimiter precede the separators
         let money = Money::from_str("1.0000,000", test::GBP);
         assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
 
@@ -532,7 +549,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn money_subtractionpanics_on_different_currencies() {
+    fn money_subtraction_panics_on_different_currencies() {
         let _no_op = Money::from_minor(100, test::USD) - Money::from_minor(100, test::GBP);
     }
 
@@ -646,38 +663,33 @@ mod tests {
     }
 
     #[test]
+    fn money_negation() {
+        let money = Money::from_minor(100, test::USD);
+
+        assert_eq!(-money, Money::from_minor(-100, test::USD));
+    }
+
+    #[test]
     fn money_comparison() {
         // Greater Than
-        assert_eq!(
-            true,
-            Money::from_minor(200, test::USD) > Money::from_minor(100, test::USD)
-        );
+        assert!(Money::from_minor(200, test::USD) > Money::from_minor(100, test::USD));
         // Less Than
-        assert_eq!(
-            false,
-            Money::from_minor(200, test::USD) < Money::from_minor(100, test::USD)
-        );
+        assert!(Money::from_minor(100, test::USD) < Money::from_minor(200, test::USD));
         // Equals
-        assert_eq!(
-            true,
-            Money::from_minor(100, test::USD) == Money::from_minor(100, test::USD)
-        );
-        assert_eq!(
-            false,
-            Money::from_minor(100, test::USD) == Money::from_minor(100, test::GBP)
-        );
+        assert!(Money::from_minor(100, test::USD) == Money::from_minor(100, test::USD));
+        assert!(Money::from_minor(100, test::USD) != Money::from_minor(100, test::GBP));
         // is positive
-        assert_eq!(true, Money::from_minor(100, test::USD).is_positive());
-        assert_eq!(false, Money::from_minor(0, test::USD).is_positive());
-        assert_eq!(false, Money::from_minor(-100, test::USD).is_positive());
+        assert!(Money::from_minor(100, test::USD).is_positive());
+        assert!(!Money::from_minor(0, test::USD).is_positive());
+        assert!(!Money::from_minor(-100, test::USD).is_positive());
         // is zero
-        assert_eq!(true, Money::from_minor(0, test::USD).is_zero());
-        assert_eq!(false, Money::from_minor(100, test::USD).is_zero());
-        assert_eq!(false, Money::from_minor(-100, test::USD).is_zero());
+        assert!(Money::from_minor(0, test::USD).is_zero());
+        assert!(!Money::from_minor(100, test::USD).is_zero());
+        assert!(!Money::from_minor(-100, test::USD).is_zero());
         // is negative
-        assert_eq!(true, Money::from_minor(-100, test::USD).is_negative());
-        assert_eq!(false, Money::from_minor(100, test::USD).is_negative());
-        assert_eq!(false, Money::from_minor(0, test::USD).is_negative());
+        assert!(Money::from_minor(-100, test::USD).is_negative());
+        assert!(!Money::from_minor(100, test::USD).is_negative());
+        assert!(!Money::from_minor(0, test::USD).is_negative());
     }
 
     #[test]
@@ -695,13 +707,13 @@ mod tests {
     #[test]
     fn money_allocate() {
         let money = Money::from_minor(1_100, test::USD);
-        let allocs = money.allocate(vec![1, 1, 1]).unwrap();
+        let allocated = money.allocate(vec![1, 1, 1]).unwrap();
         let expected_results = vec![
             Money::from_minor(400, test::USD),
             Money::from_minor(400, test::USD),
             Money::from_minor(300, test::USD),
         ];
-        assert_eq!(expected_results, allocs);
+        assert_eq!(expected_results, allocated);
 
         // Error if the ratio vector is empty
         let monies = Money::from_minor(100, test::USD).allocate(Vec::new());
@@ -784,5 +796,14 @@ mod tests {
         let mut money = Money::from_minor(20_000, test::BHD);
         money /= 3;
         assert_eq!(money.round(3, Round::HalfEven), expected_money);
+    }
+
+    #[test]
+    fn money_ops_uses_impl_copy() {
+        let money = Money::from_major(1, test::USD);
+        let _1st_derived_money = money * 3;
+        // if Money didn't impl Copy, this second multiplication would result in a compilation error
+        // because money would be moved (and consumed) in the 1st multiplication above:
+        let _2nd_derived_money = money * 3;
     }
 }

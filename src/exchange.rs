@@ -17,7 +17,7 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
     }
 
     /// Update an ExchangeRate or add it if does not exist.
-    pub fn set_rate(&mut self, rate: &'a ExchangeRate<T>) {
+    pub fn set_rate(&mut self, rate: &ExchangeRate<'a, T>) {
         let key = Exchange::generate_key(rate.from, rate.to);
         self.map.insert(key, *rate);
     }
@@ -50,7 +50,7 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
-    pub fn convert(&self, amount: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
+    pub fn convert(&self, amount: &Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if amount.currency() != self.from {
             return Err(MoneyError::InvalidCurrency);
         }
@@ -122,17 +122,17 @@ mod tests {
         let rate = ExchangeRate::new(test::USD, test::EUR, dec!(1.5)).unwrap();
         let amount = Money::from_minor(1_000, test::USD);
         let expected_amount = Money::from_minor(1_500, test::EUR);
-        let converted_rate = rate.convert(amount).unwrap();
+        let converted_rate = rate.convert(&amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
     }
 
     #[test]
-    fn rate_convert_errors_if_currencies_dont_match() {
+    fn rate_convert_errors_if_currencies_do_not_match() {
         let rate = ExchangeRate::new(test::GBP, test::EUR, dec!(1.5)).unwrap();
         let amount = Money::from_minor(1_000, test::USD);
 
         assert_eq!(
-            rate.convert(amount).unwrap_err(),
+            rate.convert(&amount).unwrap_err(),
             MoneyError::InvalidCurrency,
         );
     }

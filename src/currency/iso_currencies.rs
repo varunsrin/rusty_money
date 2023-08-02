@@ -4,7 +4,7 @@ pub mod iso {
     use std::fmt;
 
     /// Represents a single ISO-4217 currency (e.g. USD).
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct Currency {
         pub iso_alpha_code: &'static str,
         pub exponent: u32,
@@ -1242,7 +1242,17 @@ pub mod iso {
             locale: EnEu,
             minor_units: 1,
             name: "Romanian Leu",
-            symbol: "ر.ق",
+            symbol: "RON",
+            symbol_first: false,
+        },
+        ROL : {
+            exponent: 0,
+            iso_alpha_code: "ROL",
+            iso_numeric_code: "642",
+            locale: EnEu,
+            minor_units: 1,
+            name: "Romanian Leu",
+            symbol: "ROL",
             symbol_first: false,
         },
         RSD : {
@@ -1354,6 +1364,16 @@ pub mod iso {
             name: "Slovak Koruna",
             symbol: "Sk",
             symbol_first: true,
+        },
+        SLE : {
+            exponent: 2,
+            iso_alpha_code: "SLE",
+            iso_numeric_code: "925",
+            locale: EnUs,
+            minor_units: 1000,
+            name: "Sierra Leonean Leone",
+            symbol: "Le",
+            symbol_first: false,
         },
         SLL : {
             exponent: 2,
