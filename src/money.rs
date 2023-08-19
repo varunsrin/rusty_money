@@ -15,7 +15,7 @@ use rust_decimal::Decimal;
 /// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
 /// Operations on Money objects always create new instances of Money, with the exception
 /// of `round()`.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Money<'a, T: FormattableCurrency> {
     amount: Decimal,
     currency: &'a T,
