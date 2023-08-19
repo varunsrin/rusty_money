@@ -39,6 +39,15 @@ define_currency_set!(
             symbol: "ETH",
             symbol_first: false,
         },
+        LTC: {
+            code: "LTC",
+            exponent: 8,
+            locale: EnUs,
+            minor_units: 100_000_000,
+            name: "Litecoin",
+            symbol: "Ł",
+            symbol_first: true,
+        },
         MKR: {
             code: "MKR",
             exponent: 18,
