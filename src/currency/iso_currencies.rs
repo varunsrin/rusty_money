@@ -64,7 +64,7 @@ pub mod iso {
       ),+
     ) => {
       $(
-        pub const $currency: &'static Currency = &Currency {
+        pub const $currency: Currency = Currency {
             iso_alpha_code: $alpha_code,
             iso_numeric_code: $num_code,
             exponent: $exp,
@@ -76,14 +76,14 @@ pub mod iso {
         };
       )+
 
-      pub fn find(code: &str) -> Option<&'static Currency> {
+      pub fn find(code: &str) -> Option<Currency> {
         match code {
           $($alpha_code => (Some($currency)),)+
           _ => None,
         }
       }
 
-      pub fn find_by_num_code(code: &str) -> Option<&'static Currency> {
+      pub fn find_by_num_code(code: &str) -> Option<Currency> {
         match code {
           $($num_code => (Some($currency)),)+
           _ => None,

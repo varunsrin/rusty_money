@@ -90,7 +90,7 @@ macro_rules! define_currency_set {
                     }
 
                     $(
-                        pub const $currency: &'static self::Currency = &self::Currency {
+                        pub const $currency: self::Currency = self::Currency {
                         code: $code,
                         exponent: $exp,
                         locale: $loc,
@@ -101,7 +101,7 @@ macro_rules! define_currency_set {
                         };
                     )+
 
-                    pub fn find(code: &str) -> Option<&'static self::Currency> {
+                    pub fn find(code: &str) -> Option<self::Currency> {
                         match code {
                             $($code => (Some($currency)),)+
                             _ => None,
