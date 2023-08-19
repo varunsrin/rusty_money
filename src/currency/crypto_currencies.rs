@@ -48,6 +48,15 @@ define_currency_set!(
             symbol: "MKR",
             symbol_first: false,
         },
+        TRX: {
+            code: "TRX",
+            exponent: 6,
+            locale: EnUs,
+            minor_units: 1_000_000,
+            name: "TRON",
+            symbol: "TRX",
+            symbol_first: false,
+        },
         UNI: {
             code: "UNI",
             exponent: 18,
