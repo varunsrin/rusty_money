@@ -77,6 +77,18 @@ impl<'a, T: FormattableCurrency> Neg for Money<'a, T> {
     }
 }
 
+// Money divided by Money is a scalar
+impl<'a, T: FormattableCurrency> Div for Money<'a, T> {
+    type Output = Decimal;
+
+    fn div(self, other: Money<'a, T>) -> Decimal {
+        if self.currency != other.currency {
+            panic!();
+        }
+        self.amount / other.amount
+    }
+}
+
 macro_rules! impl_mul_div {
     ($type:ty) => {
         impl<'a, T: FormattableCurrency> Mul<$type> for Money<'a, T> {
@@ -532,6 +544,15 @@ mod tests {
         assert_eq!(
             Money::from_major(0, test::USD),
             Money::from_major(1, test::USD) - Money::from_major(1, test::USD)
+        );
+    }
+
+    #[test]
+    fn money_division() {
+        // Division
+        assert_eq!(
+            Decimal::new(2, 0),
+            Money::from_major(2, test::USD) / Money::from_major(1, test::USD)
         );
     }
 
