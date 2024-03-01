@@ -115,14 +115,8 @@ macro_rules! impl_mul_div {
             }
         }
 
-        impl<'a, T: FormattableCurrency> Div<Money<'a, T>> for $type {
-            type Output = Money<'a, T>;
-
-            fn div(self, rhs: Money<'a, T>) -> Money<'a, T> {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(lhs / rhs.amount, rhs.currency)
-            }
-        }
+        // scalar divided by Money is invalid and explicitly not implemented
+        // impl<'a, T: FormattableCurrency> Div<Money<'a, T>> for $type
 
         impl<'a, T: FormattableCurrency> DivAssign<$type> for Money<'a, T> {
             fn div_assign(&mut self, rhs: $type) {
@@ -610,10 +604,11 @@ mod tests {
             Money::from_minor(200, test::USD),
             Money::from_minor(-400, test::USD) / -2
         );
-        assert_eq!(
-            Money::from_minor(50, test::USD),
-            -1 / Money::from_minor(-200, test::USD)
-        );
+        // Invalid test case: Scalar division by Money is explicitly not implemented
+        // assert_eq!(
+        //     Money::from_minor(50, test::USD),
+        //     -1 / Money::from_minor(-200, test::USD)
+        // );
         assert_eq!(
             Money::from_minor(200, test::USD),
             Money::from_minor(-200, test::USD) / -1
@@ -628,10 +623,11 @@ mod tests {
             Money::from_minor(200, test::USD),
             Money::from_minor(-400, test::USD) / Decimal::new(-2, 0)
         );
-        assert_eq!(
-            Money::from_minor(50, test::USD),
-            Decimal::new(-1, 0) / Money::from_minor(-200, test::USD)
-        );
+        // Invalid test case: Scalar division by Money is explicitly not implemented
+        // assert_eq!(
+        //     Money::from_minor(50, test::USD),
+        //     Decimal::new(-1, 0) / Money::from_minor(-200, test::USD)
+        // );
         assert_eq!(
             Money::from_minor(200, test::USD),
             Money::from_minor(-200, test::USD) / Decimal::new(-1, 0)
