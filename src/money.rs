@@ -151,7 +151,76 @@ impl_mul_div!(u8);
 impl_mul_div!(u16);
 impl_mul_div!(u32);
 impl_mul_div!(u64);
-impl_mul_div!(Decimal);
+
+// Implement specializations for arithmetic operations between Money and Decimal
+impl<'a, T: FormattableCurrency> Mul<Decimal> for Money<'a, T> {
+    type Output = Money<'a, T>;
+
+    fn mul(self, rhs: Decimal) -> Money<'a, T> {
+        Money::from_decimal(self.amount * rhs, self.currency)
+    }
+}
+
+impl<'a, T: FormattableCurrency> Mul<&Decimal> for Money<'a, T> {
+    type Output = Money<'a, T>;
+
+    fn mul(self, rhs: &Decimal) -> Money<'a, T> {
+        Money::from_decimal(self.amount * rhs, self.currency)
+    }
+}
+
+impl<'a, T: FormattableCurrency> Mul<Money<'a, T>> for Decimal {
+    type Output = Money<'a, T>;
+
+    fn mul(self, rhs: Money<'a, T>) -> Money<'a, T> {
+        Money::from_decimal(self * rhs.amount, rhs.currency)
+    }
+}
+
+impl<'a, T: FormattableCurrency> Mul<&Money<'a, T>> for Decimal {
+    type Output = Money<'a, T>;
+
+    fn mul(self, rhs: &Money<'a, T>) -> Money<'a, T> {
+        Money::from_decimal(self * rhs.amount, rhs.currency)
+    }
+}
+
+impl<'a, T: FormattableCurrency> MulAssign<Decimal> for Money<'a, T> {
+    fn mul_assign(&mut self, rhs: Decimal) {
+        *self = Self {
+            amount: self.amount * rhs,
+            currency: self.currency,
+        };
+    }
+}
+
+impl<'a, T: FormattableCurrency> Div<Decimal> for Money<'a, T> {
+    type Output = Money<'a, T>;
+
+    fn div(self, rhs: Decimal) -> Money<'a, T> {
+        Money::from_decimal(self.amount / rhs, self.currency)
+    }
+}
+
+impl<'a, T: FormattableCurrency> Div<&Decimal> for Money<'a, T> {
+    type Output = Money<'a, T>;
+
+    fn div(self, rhs: &Decimal) -> Money<'a, T> {
+        Money::from_decimal(self.amount / rhs, self.currency)
+    }
+}
+
+// scalar divided by Money is invalid and explicitly not implemented
+// impl<'a, T: FormattableCurrency> Div<Money<'a, T>> for Decimal
+
+impl<'a, T: FormattableCurrency> DivAssign<Decimal> for Money<'a, T> {
+    fn div_assign(&mut self, rhs: Decimal) {
+        *self = Self {
+            amount: self.amount / rhs,
+            currency: self.currency,
+        };
+    }
+}
 
 impl<'a, T: FormattableCurrency> PartialOrd for Money<'a, T> {
     fn partial_cmp(&self, other: &Money<'a, T>) -> Option<Ordering> {
