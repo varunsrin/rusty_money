@@ -263,16 +263,6 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         if ratios.is_empty() {
             return Err(MoneyError::InvalidRatio);
         }
-
-        // get original index of sorted ratios
-        let argsort = |data: &Vec<i32>| -> Vec<usize> {
-            let mut indices = (0..data.len()).collect::<Vec<_>>();
-            indices.sort_by_key(|&i| &data[i]);
-            indices
-        };
-        // "weight" used when remainder not zero
-        let mut weight = argsort(&ratios);
-
         let ratios: Vec<Decimal> = ratios
             .iter()
             .map(|x| Decimal::from_str(&x.to_string()).unwrap())
@@ -282,6 +272,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
 
         let mut allocations: Vec<Money<'a, T>> = Vec::new();
+        let mut fractions: Vec<Decimal> = Vec::new();
 
         for ratio in ratios {
             if ratio <= Decimal::ZERO {
@@ -290,6 +281,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
             let share = (self.amount * ratio / ratio_total).floor();
 
+            fractions.push((self.amount * ratio / ratio_total) - share);
             allocations.push(Money::from_decimal(share, self.currency));
             remainder -= share;
         }
@@ -302,12 +294,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             panic!("Remainder is not an integer, should be an integer");
         }
 
-        // allocate remainder by ratio size (weight)
-        let mut i: usize = 0;
         while remainder > Decimal::ZERO {
-            allocations[weight[i]].amount += Decimal::ONE;
+            let max = *fractions.iter().max().unwrap();
+            let index = fractions.iter().position(|&r| r == max).unwrap();
+            allocations[index].amount += Decimal::ONE;
             remainder -= Decimal::ONE;
-            i += 1;
+            fractions[index] = Decimal::ZERO;
         }
         Ok(allocations)
     }
