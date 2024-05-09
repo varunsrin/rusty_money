@@ -264,6 +264,15 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             return Err(MoneyError::InvalidRatio);
         }
 
+        // get original index of sorted ratios
+        let argsort = |data: &Vec<i32>| -> Vec<usize> {
+            let mut indices = (0..data.len()).collect::<Vec<_>>();
+            indices.sort_by_key(|&i| &data[i]);
+            indices
+        };
+        // "weight" used when remainder not zero
+        let mut weight = argsort(&ratios);
+
         let ratios: Vec<Decimal> = ratios
             .iter()
             .map(|x| Decimal::from_str(&x.to_string()).unwrap())
@@ -293,9 +302,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             panic!("Remainder is not an integer, should be an integer");
         }
 
+        // allocate remainder by ratio size (weight)
         let mut i: usize = 0;
         while remainder > Decimal::ZERO {
-            allocations[i].amount += Decimal::ONE;
+            allocations[weight[i]].amount += Decimal::ONE;
             remainder -= Decimal::ONE;
             i += 1;
         }
