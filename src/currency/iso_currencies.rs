@@ -160,7 +160,7 @@ pub mod iso {
             locale: EnEu,
             minor_units: 1,
             name: "Argentine Peso",
-            symbol: "$",
+            symbol: "ARS$",
             symbol_first: true,
         },
         AUD : {
@@ -170,7 +170,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 5,
             name: "Australian Dollar",
-            symbol: "$",
+            symbol: "AUD$",
             symbol_first: true,
         },
         AWG : {
@@ -362,7 +362,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 5,
             name: "Canadian Dollar",
-            symbol: "$",
+            symbol: "CAD$",
             symbol_first: true,
         },
         CDF : {
@@ -402,7 +402,7 @@ pub mod iso {
             locale: EnEu,
             minor_units: 1,
             name: "Chilean Peso",
-            symbol: "$",
+            symbol: "CLP$",
             symbol_first: true,
         },
         CNY : {
@@ -422,7 +422,7 @@ pub mod iso {
             locale: EnEu,
             minor_units: 20,
             name: "Colombian Peso",
-            symbol: "$",
+            symbol: "COL$",
             symbol_first: true,
         },
         CRC : {
@@ -662,7 +662,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 10,
             name: "Hong Kong Dollar",
-            symbol: "$",
+            symbol: "HK$",
             symbol_first: true,
         },
         HNL : {
@@ -1062,7 +1062,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 5,
             name: "Mexican Peso",
-            symbol: "$",
+            symbol: "MEX$",
             symbol_first: true,
         },
         MYR : {
@@ -1092,7 +1092,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 5,
             name: "Namibian Dollar",
-            symbol: "$",
+            symbol: "N$",
             symbol_first: false,
         },
         NGN : {
@@ -1142,7 +1142,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 10,
             name: "New Zealand Dollar",
-            symbol: "$",
+            symbol: "NZ$",
             symbol_first: true,
         },
         OMR : {
@@ -1542,7 +1542,7 @@ pub mod iso {
             locale: EnUs,
             minor_units: 50,
             name: "New Taiwan Dollar",
-            symbol: "$",
+            symbol: "NT$",
             symbol_first: true,
         },
         TZS : {
