@@ -83,8 +83,7 @@ macro_rules! impl_mul_div {
             type Output = Money<'a, T>;
 
             fn mul(self, rhs: $type) -> Money<'a, T> {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::from_decimal(self.amount * rhs, self.currency)
+                Money::from_decimal(self.amount * Decimal::from(rhs), self.currency)
             }
         }
 
@@ -92,8 +91,7 @@ macro_rules! impl_mul_div {
             type Output = Money<'a, T>;
 
             fn mul(self, rhs: Money<'a, T>) -> Money<'a, T> {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(rhs.amount * lhs, rhs.currency)
+                Money::from_decimal(rhs.amount * Decimal::from(self), rhs.currency)
             }
         }
 
@@ -110,8 +108,7 @@ macro_rules! impl_mul_div {
             type Output = Money<'a, T>;
 
             fn div(self, rhs: $type) -> Money<'a, T> {
-                let rhs = Decimal::from_str(&rhs.to_string()).unwrap();
-                Money::from_decimal(self.amount / rhs, self.currency)
+                Money::from_decimal(self.amount / Decimal::from(rhs), self.currency)
             }
         }
 
@@ -119,8 +116,7 @@ macro_rules! impl_mul_div {
             type Output = Money<'a, T>;
 
             fn div(self, rhs: Money<'a, T>) -> Money<'a, T> {
-                let lhs = Decimal::from_str(&self.to_string()).unwrap();
-                Money::from_decimal(lhs / rhs.amount, rhs.currency)
+                Money::from_decimal(Decimal::from(self) / rhs.amount, rhs.currency)
             }
         }
 
@@ -196,7 +192,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             return Err(MoneyError::InvalidAmount);
         }
 
-        let decimal = Decimal::from_str(&parsed_decimal).unwrap();
+        let decimal = Decimal::from_str(&parsed_decimal).map_err(|_| MoneyError::InvalidAmount)?;
         Ok(Money::from_decimal(decimal, currency))
     }
 
@@ -264,10 +260,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             return Err(MoneyError::InvalidRatio);
         }
 
-        let ratios: Vec<Decimal> = ratios
-            .iter()
-            .map(|x| Decimal::from_str(&x.to_string()).unwrap())
-            .collect();
+        let ratios: Vec<Decimal> = ratios.iter().map(|&x| Decimal::from(x)).collect();
 
         let mut remainder = self.amount;
         let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
@@ -333,7 +326,7 @@ pub enum Round {
     HalfEven,
 }
 
-impl<'a, T: FormattableCurrency + FormattableCurrency> fmt::Display for Money<'a, T> {
+impl<'a, T: FormattableCurrency> fmt::Display for Money<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
         let format = LocalFormat::from_locale(currency.locale());
