@@ -263,7 +263,6 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         if ratios.is_empty() {
             return Err(MoneyError::InvalidRatio);
         }
-
         let ratios: Vec<Decimal> = ratios
             .iter()
             .map(|x| Decimal::from_str(&x.to_string()).unwrap())
@@ -273,6 +272,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
 
         let mut allocations: Vec<Money<'a, T>> = Vec::new();
+        let mut fractions: Vec<Decimal> = Vec::new();
 
         for ratio in ratios {
             if ratio <= Decimal::ZERO {
@@ -281,6 +281,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
             let share = (self.amount * ratio / ratio_total).floor();
 
+            fractions.push((self.amount * ratio / ratio_total) - share);
             allocations.push(Money::from_decimal(share, self.currency));
             remainder -= share;
         }
@@ -293,11 +294,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             panic!("Remainder is not an integer, should be an integer");
         }
 
-        let mut i: usize = 0;
         while remainder > Decimal::ZERO {
-            allocations[i].amount += Decimal::ONE;
+            let max = *fractions.iter().max().unwrap();
+            let index = fractions.iter().position(|&r| r == max).unwrap();
+            allocations[index].amount += Decimal::ONE;
             remainder -= Decimal::ONE;
-            i += 1;
+            fractions[index] = Decimal::ZERO;
         }
         Ok(allocations)
     }
