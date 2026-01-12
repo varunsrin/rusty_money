@@ -1,5 +1,21 @@
 # Change Log
 
+## [0.4.2] - 2026-01-12
+
+ISO: Added SLE (Sierra Leonean Leone) @takenoko-gohan.
+ISO: Fixed RON symbol (was incorrectly set to Qatari Riyal symbol) and added ROL @Paul-Sebastian Manole.
+Crypto: Added BCH (Bitcoin Cash), BSV (Bitcoin SV) @Rai.
+Money: Implemented Copy trait @Paul-Sebastian Manole.
+Money: Implemented Neg trait (enables -money syntax) @Dominik Otkiński.
+Money: Derived Hash for Currency types @FirelightFlagboy.
+Fix: Removed i32 parse check in Money::from_str that prevented parsing 64-bit numbers @Dominik Otkiński.
+Fix: Removed unnecessary move from Exchange::convert method @affanshahid.
+Fix: Added type annotation on ExchangeRate in set_rate @Affan Shahid.
+Deps: Updated rust_decimal to 1.39.0, Rust edition to 2024. 
+Deps: Moved rust_decimal_macros to dev-dependencies.
+CI: Replaced Travis CI with GitHub Actions @FirelightFlagboy.
+CI: Added rustfmt and clippy checks @FirelightFlagboy.
+
 ## [0.4.1] - 2021-01-16
 
 * ISO: Fixed symbols for BHD, ISK, NPR, UYU and alpha code for UYW.
