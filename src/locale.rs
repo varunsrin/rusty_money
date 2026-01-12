@@ -4,6 +4,7 @@ use std::str::FromStr;
 ///
 /// Each Locale maps 1:1 to a LocalFormat, which contains the characteristics for formatting.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Locale {
     EnUs,
     EnIn,

@@ -25,6 +25,13 @@ pub trait FormattableCurrency: PartialEq + Eq + Copy {
     fn symbol_first(&self) -> bool;
 }
 
+/// Trait for currency types that can be looked up by code.
+/// Required for deserializing Money.
+pub trait Findable: FormattableCurrency + Sized {
+    /// Look up a currency by its code (e.g., "USD").
+    fn find(code: &str) -> Option<&'static Self>;
+}
+
 #[macro_export]
 /// Create custom currencies for use with Money types
 macro_rules! define_currency_set {
@@ -49,10 +56,11 @@ macro_rules! define_currency_set {
             $(
                 $(#[$attr])*
                 pub mod $module {
-                    use $crate::{Locale, FormattableCurrency, Locale::*};
+                    use $crate::{Locale, FormattableCurrency, Findable, Locale::*};
                     use std::fmt;
 
                     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+                    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
                     pub struct Currency {
                         pub code: &'static str,
                         pub exponent: u32,
@@ -86,6 +94,12 @@ macro_rules! define_currency_set {
 
                         fn symbol_first(&self) -> bool {
                             self.symbol_first
+                        }
+                    }
+
+                    impl Findable for Currency {
+                        fn find(code: &str) -> Option<&'static Self> {
+                            find(code)
                         }
                     }
 

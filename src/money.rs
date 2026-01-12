@@ -370,6 +370,93 @@ impl<'a, T: FormattableCurrency> fmt::Display for Money<'a, T> {
     }
 }
 
+// Serde support
+#[cfg(feature = "serde")]
+mod serde_support {
+    use super::*;
+    use crate::currency::Findable;
+    use rust_decimal::Decimal;
+    use serde::de::{self, Deserializer, MapAccess, Visitor};
+    use serde::ser::{SerializeStruct, Serializer};
+    use serde::{Deserialize, Serialize};
+    use std::fmt;
+    use std::marker::PhantomData;
+
+    impl<T: FormattableCurrency> Serialize for Money<'_, T> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let mut state = serializer.serialize_struct("Money", 2)?;
+            state.serialize_field("amount", &self.amount)?;
+            state.serialize_field("currency", self.currency.code())?;
+            state.end()
+        }
+    }
+
+    impl<'de, T: Findable + 'static> Deserialize<'de> for Money<'static, T> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            #[derive(Deserialize)]
+            #[serde(field_identifier, rename_all = "lowercase")]
+            enum Field {
+                Amount,
+                Currency,
+            }
+
+            struct MoneyVisitor<T>(PhantomData<T>);
+
+            impl<'de, T: Findable + 'static> Visitor<'de> for MoneyVisitor<T> {
+                type Value = Money<'static, T>;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    formatter.write_str("struct Money with amount and currency fields")
+                }
+
+                fn visit_map<V>(self, mut map: V) -> Result<Money<'static, T>, V::Error>
+                where
+                    V: MapAccess<'de>,
+                {
+                    let mut amount: Option<Decimal> = None;
+                    let mut currency_code: Option<String> = None;
+
+                    while let Some(key) = map.next_key()? {
+                        match key {
+                            Field::Amount => {
+                                if amount.is_some() {
+                                    return Err(de::Error::duplicate_field("amount"));
+                                }
+                                amount = Some(map.next_value()?);
+                            }
+                            Field::Currency => {
+                                if currency_code.is_some() {
+                                    return Err(de::Error::duplicate_field("currency"));
+                                }
+                                currency_code = Some(map.next_value()?);
+                            }
+                        }
+                    }
+
+                    let amount = amount.ok_or_else(|| de::Error::missing_field("amount"))?;
+                    let currency_code =
+                        currency_code.ok_or_else(|| de::Error::missing_field("currency"))?;
+
+                    let currency = T::find(&currency_code).ok_or_else(|| {
+                        de::Error::custom(format!("unknown currency code: {}", currency_code))
+                    })?;
+
+                    Ok(Money::from_decimal(amount, currency))
+                }
+            }
+
+            const FIELDS: &[&str] = &["amount", "currency"];
+            deserializer.deserialize_struct("Money", FIELDS, MoneyVisitor(PhantomData))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -849,5 +936,113 @@ mod tests {
             "from_minor and from_major should format identically"
         );
         assert_eq!("$100.00", major_fmt);
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use crate::Money;
+    use crate::define_currency_set;
+
+    define_currency_set!(
+        test {
+            USD: {
+                code: "USD",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 100,
+                name: "US Dollar",
+                symbol: "$",
+                symbol_first: true,
+            },
+            EUR: {
+                code: "EUR",
+                exponent: 2,
+                locale: EnEu,
+                minor_units: 1,
+                name: "Euro",
+                symbol: "€",
+                symbol_first: true,
+            }
+        }
+    );
+
+    #[test]
+    fn serialize_money_to_json() {
+        let money = Money::from_minor(12345, test::USD);
+        let json = serde_json::to_string(&money).unwrap();
+        assert_eq!(json, r#"{"amount":"123.45","currency":"USD"}"#);
+    }
+
+    #[test]
+    fn serialize_negative_money() {
+        let money = Money::from_minor(-9999, test::EUR);
+        let json = serde_json::to_string(&money).unwrap();
+        assert_eq!(json, r#"{"amount":"-99.99","currency":"EUR"}"#);
+    }
+
+    #[test]
+    fn deserialize_money_from_json() {
+        let json = r#"{"amount":"123.45","currency":"USD"}"#;
+        let money: Money<test::Currency> = serde_json::from_str(json).unwrap();
+        assert_eq!(money, Money::from_minor(12345, test::USD));
+    }
+
+    #[test]
+    fn deserialize_money_reversed_field_order() {
+        let json = r#"{"currency":"EUR","amount":"50.00"}"#;
+        let money: Money<test::Currency> = serde_json::from_str(json).unwrap();
+        assert_eq!(money, Money::from_minor(5000, test::EUR));
+    }
+
+    #[test]
+    fn deserialize_negative_money() {
+        let json = r#"{"amount":"-99.99","currency":"EUR"}"#;
+        let money: Money<test::Currency> = serde_json::from_str(json).unwrap();
+        assert_eq!(money, Money::from_minor(-9999, test::EUR));
+    }
+
+    #[test]
+    fn roundtrip_serialization() {
+        let original = Money::from_minor(123456789, test::USD);
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: Money<test::Currency> = serde_json::from_str(&json).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn deserialize_unknown_currency_fails() {
+        let json = r#"{"amount":"100.00","currency":"XYZ"}"#;
+        let result: Result<Money<test::Currency>, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unknown currency"));
+    }
+
+    #[test]
+    fn deserialize_missing_amount_fails() {
+        let json = r#"{"currency":"USD"}"#;
+        let result: Result<Money<test::Currency>, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("amount"));
+    }
+
+    #[test]
+    fn deserialize_missing_currency_fails() {
+        let json = r#"{"amount":"100.00"}"#;
+        let result: Result<Money<test::Currency>, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("currency"));
+    }
+
+    #[test]
+    fn serialize_preserves_precision() {
+        // Test with many decimal places
+        let money = Money::from_decimal(
+            rust_decimal::Decimal::new(123456789012345678, 18),
+            test::USD,
+        );
+        let json = serde_json::to_string(&money).unwrap();
+        let deserialized: Money<test::Currency> = serde_json::from_str(&json).unwrap();
+        assert_eq!(money.amount(), deserialized.amount());
     }
 }
