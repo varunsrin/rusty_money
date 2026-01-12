@@ -1,7 +1,7 @@
+use crate::MoneyError;
 use crate::currency::FormattableCurrency;
 use crate::format::{Formatter, Params, Position};
 use crate::locale::LocalFormat;
-use crate::MoneyError;
 
 use std::cmp::Ordering;
 use std::fmt;
