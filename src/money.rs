@@ -806,4 +806,36 @@ mod tests {
         // because money would be moved (and consumed) in the 1st multiplication above:
         let _2nd_derived_money = money * 3;
     }
+
+    #[test]
+    fn money_from_minor_vs_from_major_eur() {
+        let from_minor = Money::from_minor(10000, test::EUR);
+        let from_major = Money::from_major(100, test::EUR);
+
+        let minor_fmt = format!("{}", from_minor);
+        let major_fmt = format!("{}", from_major);
+
+        // Both should format the same
+        assert_eq!(
+            minor_fmt, major_fmt,
+            "from_minor and from_major should format identically"
+        );
+        assert_eq!("€100,00", major_fmt);
+    }
+
+    #[test]
+    fn money_from_minor_vs_from_major_usd() {
+        let from_minor = Money::from_minor(10000, test::USD);
+        let from_major = Money::from_major(100, test::USD);
+
+        let minor_fmt = format!("{}", from_minor);
+        let major_fmt = format!("{}", from_major);
+
+        // Both should format the same
+        assert_eq!(
+            minor_fmt, major_fmt,
+            "from_minor and from_major should format identically"
+        );
+        assert_eq!("$100.00", major_fmt);
+    }
 }
