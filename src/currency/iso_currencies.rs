@@ -289,7 +289,7 @@ pub mod iso {
             exponent: 2,
             iso_alpha_code: "BRL",
             iso_numeric_code: "986",
-            locale: EnUs,
+            locale: EnEu,
             minor_units: 5,
             name: "Brazilian real",
             symbol: "R$",
