@@ -1,8 +1,8 @@
 [package]
 name = "rusty-money"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Varun Srinivasan <varunsrin@gmail.com>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/varunsrin/rusty_money"
@@ -19,7 +19,7 @@ iso = []
 crypto = []
 
 [dependencies]
-rust_decimal = { default-features = false, version = "1.30.0" }
+rust_decimal = { default-features = false, version = "1.39.0" }
 
 [dev-dependencies]
-rust_decimal_macros = "1.30.0"
+rust_decimal_macros = "1.39.0"
