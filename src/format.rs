@@ -10,9 +10,10 @@ impl<'a> Formatter {
     pub fn money<T: FormattableCurrency>(money: &Money<'a, T>, params: Params) -> String {
         let mut decimal = *money.amount();
 
-        // Round the decimal
+        // Round the decimal and ensure it has the correct scale
         if let Some(x) = params.rounding {
             decimal = *money.round(x, Round::HalfEven).amount();
+            decimal.rescale(x);
         }
 
         // Format the Amount String
