@@ -25,7 +25,11 @@ impl<'a, T: FormattableCurrency> Add for Money<'a, T> {
     type Output = Money<'a, T>;
     fn add(self, other: Money<'a, T>) -> Money<'a, T> {
         if self.currency != other.currency {
-            panic!();
+            panic!(
+                "Cannot add Money with currency {} to Money with currency {}",
+                self.currency.code(),
+                other.currency.code()
+            );
         }
         Money::from_decimal(self.amount + other.amount, self.currency)
     }
@@ -34,7 +38,11 @@ impl<'a, T: FormattableCurrency> Add for Money<'a, T> {
 impl<'a, T: FormattableCurrency> AddAssign for Money<'a, T> {
     fn add_assign(&mut self, other: Self) {
         if self.currency != other.currency {
-            panic!();
+            panic!(
+                "Cannot add Money with currency {} to Money with currency {}",
+                self.currency.code(),
+                other.currency.code()
+            );
         }
         *self = Self {
             amount: self.amount + other.amount,
@@ -47,7 +55,11 @@ impl<'a, T: FormattableCurrency> Sub for Money<'a, T> {
     type Output = Money<'a, T>;
     fn sub(self, other: Money<'a, T>) -> Money<'a, T> {
         if self.currency != other.currency {
-            panic!();
+            panic!(
+                "Cannot subtract Money with currency {} from Money with currency {}",
+                other.currency.code(),
+                self.currency.code()
+            );
         }
         Money::from_decimal(self.amount - other.amount, self.currency)
     }
@@ -56,9 +68,12 @@ impl<'a, T: FormattableCurrency> Sub for Money<'a, T> {
 impl<'a, T: FormattableCurrency> SubAssign for Money<'a, T> {
     fn sub_assign(&mut self, other: Self) {
         if self.currency != other.currency {
-            panic!();
+            panic!(
+                "Cannot subtract Money with currency {} from Money with currency {}",
+                other.currency.code(),
+                self.currency.code()
+            );
         }
-
         *self = Self {
             amount: self.amount - other.amount,
             currency: self.currency,
@@ -156,7 +171,11 @@ impl<'a, T: FormattableCurrency> PartialOrd for Money<'a, T> {
 impl<'a, T: FormattableCurrency> Ord for Money<'a, T> {
     fn cmp(&self, other: &Money<'a, T>) -> Ordering {
         if self.currency != other.currency {
-            panic!();
+            panic!(
+                "Cannot compare Money with currency {} to Money with currency {}",
+                self.currency.code(),
+                other.currency.code()
+            );
         }
         self.amount.cmp(&other.amount)
     }
