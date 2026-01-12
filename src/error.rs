@@ -22,7 +22,7 @@ impl error::Error for MoneyError {
     fn description(&self) -> &str {
         match *self {
             MoneyError::InvalidCurrency => "Currency was not valid",
-            MoneyError::InvalidAmount => "Amount not pauseable",
+            MoneyError::InvalidAmount => "Amount not parsable",
             MoneyError::InvalidRatio => "Ratio was not valid",
         }
     }
