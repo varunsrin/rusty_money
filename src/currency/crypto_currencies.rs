@@ -39,6 +39,15 @@ define_currency_set!(
             symbol: "ETH",
             symbol_first: false,
         },
+        LTC: {
+            code: "LTC",
+            exponent: 8,
+            locale: EnUs,
+            minor_units: 100_000_000,
+            name: "Litecoin",
+            symbol: "Ł",
+            symbol_first: true,
+        },
         MKR: {
             code: "MKR",
             exponent: 18,
@@ -46,6 +55,15 @@ define_currency_set!(
             minor_units: 1_000_000_000_000_000_000,
             name: "Maker",
             symbol: "MKR",
+            symbol_first: false,
+        },
+        TRX: {
+            code: "TRX",
+            exponent: 6,
+            locale: EnUs,
+            minor_units: 1_000_000,
+            name: "TRON",
+            symbol: "TRX",
             symbol_first: false,
         },
         UNI: {
