@@ -1245,6 +1245,7 @@ pub mod iso {
             symbol: "RON",
             symbol_first: false,
         },
+        // Deprecated: ROL was replaced by RON on July 1, 2005 at a rate of 10,000 ROL = 1 RON.
         ROL : {
             exponent: 0,
             iso_alpha_code: "ROL",
@@ -1375,6 +1376,7 @@ pub mod iso {
             symbol: "Le",
             symbol_first: false,
         },
+        // Deprecated: SLL was replaced by SLE on April 1, 2022 at a rate of 1,000 SLL = 1 SLE.
         SLL : {
             exponent: 2,
             iso_alpha_code: "SLL",
