@@ -52,7 +52,7 @@ macro_rules! define_currency_set {
                     use $crate::{Locale, FormattableCurrency, Locale::*};
                     use std::fmt;
 
-                    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+                    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
                     pub struct Currency {
                         pub code: &'static str,
                         pub exponent: u32,
