@@ -265,8 +265,8 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate_to(&self, number: i32) -> Result<Vec<Money<'a, T>>, MoneyError> {
-        let ratios: Vec<i32> = (0..number).map(|_| 1).collect();
+    pub fn allocate_to(&self, number: u32) -> Result<Vec<Money<'a, T>>, MoneyError> {
+        let ratios: Vec<u32> = (0..number).map(|_| 1).collect();
         self.allocate(ratios)
     }
 
@@ -274,23 +274,23 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate(&self, ratios: Vec<i32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
+    pub fn allocate(&self, ratios: Vec<u32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if ratios.is_empty() {
             return Err(MoneyError::InvalidRatio);
         }
 
         let ratios: Vec<Decimal> = ratios.iter().map(|&x| Decimal::from(x)).collect();
+        let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
+
+        if ratio_total == Decimal::ZERO {
+            return Err(MoneyError::InvalidRatio);
+        }
 
         let mut remainder = self.amount;
-        let ratio_total: Decimal = ratios.iter().fold(Decimal::ZERO, |acc, x| acc + x);
 
         let mut allocations: Vec<Money<'a, T>> = Vec::new();
 
         for ratio in ratios {
-            if ratio <= Decimal::ZERO {
-                return Err(MoneyError::InvalidRatio);
-            }
-
             let share = (self.amount * ratio / ratio_total).floor();
 
             allocations.push(Money::from_decimal(share, self.currency));
@@ -818,9 +818,16 @@ mod tests {
         let monies = Money::from_minor(100, test::USD).allocate(Vec::new());
         assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
 
-        // Error if any ratio is zero
-        let monies = Money::from_minor(100, test::USD).allocate(vec![1, 0]);
+        // Error if all ratios are zero (would cause division by zero)
+        let monies = Money::from_minor(100, test::USD).allocate(vec![0, 0, 0]);
         assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
+
+        // Zero ratios are allowed if at least one is non-zero
+        let money = Money::from_minor(1_000, test::USD);
+        let allocated = money.allocate(vec![1, 0, 0]).unwrap();
+        assert_eq!(allocated[0], Money::from_minor(1_000, test::USD));
+        assert_eq!(allocated[1], Money::from_minor(0, test::USD));
+        assert_eq!(allocated[2], Money::from_minor(0, test::USD));
     }
 
     #[test]
