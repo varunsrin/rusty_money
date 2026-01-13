@@ -610,41 +610,26 @@ mod tests {
         }
 
         #[test]
-        fn from_str_decimal_sanity() {
-            let money = Money::from_str("1,00.00", test::GBP);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-            let money = Money::from_str("1.00,00", test::EUR);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-            let money = Money::from_str("1.00.000,00", test::EUR);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-            let money = Money::from_str("1.00.000.000,00", test::EUR);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-            let money = Money::from_str("1,00.00", test::INR);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-
-            let money = Money::from_str("1.000.000.00", test::INR);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
-        }
-
-        #[test]
         fn from_str_parse_errors() {
-            // If the delimiter precedes the separators
-            let money = Money::from_str("1.0000,000", test::GBP);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+            // Delimiter precedes separators
+            assert_eq!(
+                Money::from_str("1.0000,000", test::GBP).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
 
-            // If there are multiple delimiters
-            let money = Money::from_str("1.0000.000", test::GBP);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+            // Multiple delimiters
+            assert_eq!(
+                Money::from_str("1.0000.000", test::GBP).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
 
-            // If there is an unrecognized character
-            let money = Money::from_str("1.0000!000", test::GBP);
-            assert_eq!(money.unwrap_err(), MoneyError::InvalidAmount);
+            // Unrecognized character
+            assert_eq!(
+                Money::from_str("1.0000!000", test::GBP).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
 
-            // If there are no characters other than separators
+            // Only separators, no digits
             assert_eq!(
                 Money::from_str(",", test::GBP).unwrap_err(),
                 MoneyError::InvalidAmount
@@ -664,13 +649,39 @@ mod tests {
                 MoneyError::InvalidAmount
             );
 
+            // Leading/trailing spaces
+            assert_eq!(
+                Money::from_str(" 100 ", test::USD).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
+
             // Empty string parses to zero (arguably a bug, but documenting current behavior)
             let empty = Money::from_str("", test::USD).unwrap();
             assert_eq!(empty, Money::from_minor(0, test::USD));
 
-            // Leading/trailing spaces should fail (strict parsing)
+            // Invalid decimal/separator combinations per locale
             assert_eq!(
-                Money::from_str(" 100 ", test::USD).unwrap_err(),
+                Money::from_str("1,00.00", test::GBP).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
+            assert_eq!(
+                Money::from_str("1.00,00", test::EUR).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
+            assert_eq!(
+                Money::from_str("1.00.000,00", test::EUR).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
+            assert_eq!(
+                Money::from_str("1.00.000.000,00", test::EUR).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
+            assert_eq!(
+                Money::from_str("1,00.00", test::INR).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
+            assert_eq!(
+                Money::from_str("1.000.000.00", test::INR).unwrap_err(),
                 MoneyError::InvalidAmount
             );
         }
@@ -867,7 +878,7 @@ mod tests {
         #[test]
         #[should_panic]
         fn greater_than_panics_on_different_currencies() {
-            assert!(Money::from_minor(100, test::USD) < Money::from_minor(100, test::GBP));
+            assert!(Money::from_minor(100, test::USD) > Money::from_minor(100, test::GBP));
         }
 
         #[test]
@@ -901,16 +912,20 @@ mod tests {
         }
 
         #[test]
-        fn allocate_with_indivisible_amount() {
+        fn allocate_indivisible_remainder() {
             // 11.00 USD split into thirds: 3.67 + 3.67 + 3.66 = 11.00
             let money = Money::from_minor(1_100, test::USD);
-            let allocated = money.allocate(vec![1, 1, 1]).unwrap();
-            let expected_results = vec![
+            let expected = vec![
                 Money::from_minor(367, test::USD),
                 Money::from_minor(367, test::USD),
                 Money::from_minor(366, test::USD),
             ];
-            assert_eq!(expected_results, allocated);
+
+            // Using allocate with equal shares
+            assert_eq!(expected, money.allocate(vec![1, 1, 1]).unwrap());
+
+            // Using allocate_to (convenience wrapper)
+            assert_eq!(expected, money.allocate_to(3).unwrap());
         }
 
         #[test]
@@ -998,21 +1013,8 @@ mod tests {
             // Error if all shares are zero (would cause division by zero)
             let monies = Money::from_minor(100, test::USD).allocate(vec![0, 0, 0]);
             assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
-        }
 
-        #[test]
-        fn allocate_to_basic() {
-            // 11.00 USD split into thirds: 3.67 + 3.67 + 3.66 = 11.00
-            let money = Money::from_minor(1_100, test::USD);
-            let monies = money.allocate_to(3).unwrap();
-            let expected_results = vec![
-                Money::from_minor(367, test::USD),
-                Money::from_minor(367, test::USD),
-                Money::from_minor(366, test::USD),
-            ];
-            assert_eq!(expected_results, monies);
-
-            // Zero shares is invalid
+            // Error if allocate_to is called with zero
             let monies = Money::from_minor(100, test::USD).allocate_to(0);
             assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
         }
