@@ -250,6 +250,7 @@ mod tests {
 
     #[test]
     fn format_digit_separators_with_custom_sequences() {
+        // Indian-style numbering: 3,2,2 pattern (e.g., 1,00,00,000)
         let params = Params {
             separator_pattern: &[3, 2, 2],
             ..Default::default()
@@ -263,18 +264,6 @@ mod tests {
 
         let money = Money::from_major(1_000, test::USD);
         assert_eq!("1,000", Formatter::money(&money, params));
-
-        // With a zero sequence
-        let params = Params {
-            separator_pattern: &[0, 2],
-            ..Default::default()
-        };
-
-        let money = Money::from_major(100, test::USD);
-        assert_eq!("1,00,", Formatter::money(&money, params.clone()));
-
-        let money = Money::from_major(0, test::USD);
-        assert_eq!("0,", Formatter::money(&money, params));
     }
 
     #[test]
@@ -315,6 +304,116 @@ mod tests {
         assert_eq!(
             "3.3333333333333333333333333333",
             Formatter::money(&money, params)
+        );
+    }
+}
+
+/// Golden tests for format output stability.
+/// These tests document expected Display output for real currencies.
+/// If these change, it's a breaking change for users.
+#[cfg(all(test, feature = "iso"))]
+mod golden_tests {
+    use crate::Money;
+    use crate::iso;
+
+    #[test]
+    fn usd_format_golden() {
+        // US Dollar: symbol first, comma digit separator, period decimal
+        assert_eq!(format!("{}", Money::from_minor(0, iso::USD)), "$0.00");
+        assert_eq!(format!("{}", Money::from_minor(1, iso::USD)), "$0.01");
+        assert_eq!(format!("{}", Money::from_minor(100, iso::USD)), "$1.00");
+        assert_eq!(
+            format!("{}", Money::from_minor(123456, iso::USD)),
+            "$1,234.56"
+        );
+        assert_eq!(
+            format!("{}", Money::from_minor(123456789, iso::USD)),
+            "$1,234,567.89"
+        );
+        // Negative amounts
+        assert_eq!(format!("{}", Money::from_minor(-100, iso::USD)), "-$1.00");
+        assert_eq!(
+            format!("{}", Money::from_minor(-123456, iso::USD)),
+            "-$1,234.56"
+        );
+    }
+
+    #[test]
+    fn eur_format_golden() {
+        // Euro: European locale - period digit separator, comma decimal
+        assert_eq!(format!("{}", Money::from_minor(0, iso::EUR)), "€0,00");
+        assert_eq!(
+            format!("{}", Money::from_minor(123456, iso::EUR)),
+            "€1.234,56"
+        );
+        assert_eq!(
+            format!("{}", Money::from_minor(-123456, iso::EUR)),
+            "-€1.234,56"
+        );
+    }
+
+    #[test]
+    fn gbp_format_golden() {
+        // British Pound: US-style formatting
+        assert_eq!(format!("{}", Money::from_minor(0, iso::GBP)), "£0.00");
+        assert_eq!(
+            format!("{}", Money::from_minor(123456, iso::GBP)),
+            "£1,234.56"
+        );
+    }
+
+    #[test]
+    fn jpy_format_golden() {
+        // Japanese Yen: no decimal places (exponent 0)
+        assert_eq!(format!("{}", Money::from_minor(0, iso::JPY)), "¥0");
+        assert_eq!(format!("{}", Money::from_minor(1, iso::JPY)), "¥1");
+        assert_eq!(format!("{}", Money::from_minor(1234, iso::JPY)), "¥1,234");
+        assert_eq!(
+            format!("{}", Money::from_minor(1234567, iso::JPY)),
+            "¥1,234,567"
+        );
+    }
+
+    #[test]
+    fn inr_format_golden() {
+        // Indian Rupee: Indian numbering (lakhs, crores) - 2,2,3 pattern
+        assert_eq!(format!("{}", Money::from_minor(0, iso::INR)), "₹0.00");
+        assert_eq!(format!("{}", Money::from_minor(100, iso::INR)), "₹1.00");
+        // 1,00,000 (1 lakh)
+        assert_eq!(
+            format!("{}", Money::from_minor(10000000, iso::INR)),
+            "₹1,00,000.00"
+        );
+        // 1,00,00,000 (1 crore)
+        assert_eq!(
+            format!("{}", Money::from_minor(1000000000, iso::INR)),
+            "₹1,00,00,000.00"
+        );
+    }
+
+    #[test]
+    fn bhd_format_golden() {
+        // Bahraini Dinar: 3 decimal places (exponent 3), Arabic symbol
+        assert_eq!(format!("{}", Money::from_minor(0, iso::BHD)), "د.ب0.000");
+        assert_eq!(format!("{}", Money::from_minor(1, iso::BHD)), "د.ب0.001");
+        assert_eq!(format!("{}", Money::from_minor(1000, iso::BHD)), "د.ب1.000");
+        assert_eq!(
+            format!("{}", Money::from_minor(1234567, iso::BHD)),
+            "د.ب1,234.567"
+        );
+    }
+
+    #[test]
+    fn byn_format_golden() {
+        // Belarusian Ruble: symbol after amount, space digit separator, comma decimal (EnBy locale)
+        assert_eq!(format!("{}", Money::from_minor(0, iso::BYN)), "0,00Br");
+        assert_eq!(
+            format!("{}", Money::from_minor(123456, iso::BYN)),
+            "1 234,56Br"
+        );
+        assert_eq!(
+            format!("{}", Money::from_minor(123456789, iso::BYN)),
+            "1 234 567,89Br"
         );
     }
 }

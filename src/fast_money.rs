@@ -153,13 +153,16 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
 
     /// Divides the amount by an integer scalar (truncating toward zero).
     ///
-    /// Returns an error on division by zero.
+    /// Returns an error on division by zero or overflow (i64::MIN / -1).
     #[inline]
     pub fn div(&self, n: i64) -> Result<Self, MoneyError> {
         if n == 0 {
             return Err(MoneyError::DivisionByZero);
         }
-        let minor_units = self.minor_units / n;
+        let minor_units = self
+            .minor_units
+            .checked_div(n)
+            .ok_or(MoneyError::Overflow)?;
         Ok(FastMoney {
             minor_units,
             currency: self.currency,
@@ -185,21 +188,27 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     }
 
     /// Returns the absolute value of the amount.
+    ///
+    /// Returns an error on overflow (abs(i64::MIN) would exceed i64::MAX).
     #[inline]
-    pub fn abs(&self) -> Self {
-        FastMoney {
-            minor_units: self.minor_units.abs(),
+    pub fn abs(&self) -> Result<Self, MoneyError> {
+        let minor_units = self.minor_units.checked_abs().ok_or(MoneyError::Overflow)?;
+        Ok(FastMoney {
+            minor_units,
             currency: self.currency,
-        }
+        })
     }
 
     /// Returns the negation of the amount.
+    ///
+    /// Returns an error on overflow (negating i64::MIN would exceed i64::MAX).
     #[inline]
-    pub fn neg(&self) -> Self {
-        FastMoney {
-            minor_units: -self.minor_units,
+    pub fn neg(&self) -> Result<Self, MoneyError> {
+        let minor_units = self.minor_units.checked_neg().ok_or(MoneyError::Overflow)?;
+        Ok(FastMoney {
+            minor_units,
             currency: self.currency,
-        }
+        })
     }
 
     /// Compares two FastMoney values.
@@ -660,27 +669,51 @@ mod tests {
     #[test]
     fn abs_returns_absolute_value() {
         assert_eq!(
-            FastMoney::from_minor(-100, test::USD).abs().minor_units(),
+            FastMoney::from_minor(-100, test::USD)
+                .abs()
+                .unwrap()
+                .minor_units(),
             100
         );
         assert_eq!(
-            FastMoney::from_minor(100, test::USD).abs().minor_units(),
+            FastMoney::from_minor(100, test::USD)
+                .abs()
+                .unwrap()
+                .minor_units(),
             100
         );
-        assert_eq!(FastMoney::from_minor(0, test::USD).abs().minor_units(), 0);
+        assert_eq!(
+            FastMoney::from_minor(0, test::USD)
+                .abs()
+                .unwrap()
+                .minor_units(),
+            0
+        );
     }
 
     #[test]
     fn neg_negates_value() {
         assert_eq!(
-            FastMoney::from_minor(100, test::USD).neg().minor_units(),
+            FastMoney::from_minor(100, test::USD)
+                .neg()
+                .unwrap()
+                .minor_units(),
             -100
         );
         assert_eq!(
-            FastMoney::from_minor(-100, test::USD).neg().minor_units(),
+            FastMoney::from_minor(-100, test::USD)
+                .neg()
+                .unwrap()
+                .minor_units(),
             100
         );
-        assert_eq!(FastMoney::from_minor(0, test::USD).neg().minor_units(), 0);
+        assert_eq!(
+            FastMoney::from_minor(0, test::USD)
+                .neg()
+                .unwrap()
+                .minor_units(),
+            0
+        );
     }
 
     // ============ Comparison Tests ============
@@ -775,6 +808,143 @@ mod tests {
         let formatted = format!("{}", money);
         assert!(formatted.contains("12.34") || formatted.contains("12,34"));
     }
+
+    // ============ Boundary Value Tests ============
+    // Tests for i64 boundary conditions where subtle overflow bugs can hide
+
+    #[test]
+    fn add_near_max_boundary() {
+        // One below max: can add 1 but not 2
+        let near_max = FastMoney::from_minor(i64::MAX - 1, test::USD);
+        assert!(near_max.add(FastMoney::from_minor(1, test::USD)).is_ok());
+
+        let at_max = FastMoney::from_minor(i64::MAX, test::USD);
+        assert_eq!(
+            at_max.add(FastMoney::from_minor(1, test::USD)),
+            Err(MoneyError::Overflow)
+        );
+    }
+
+    #[test]
+    fn add_near_min_boundary() {
+        // Adding negative at min boundary
+        let at_min = FastMoney::from_minor(i64::MIN, test::USD);
+        assert_eq!(
+            at_min.add(FastMoney::from_minor(-1, test::USD)),
+            Err(MoneyError::Overflow)
+        );
+
+        // One above min: can add -1 but not -2
+        let near_min = FastMoney::from_minor(i64::MIN + 1, test::USD);
+        assert!(near_min.add(FastMoney::from_minor(-1, test::USD)).is_ok());
+    }
+
+    #[test]
+    fn sub_near_min_boundary() {
+        // Subtracting positive at min boundary
+        let at_min = FastMoney::from_minor(i64::MIN, test::USD);
+        assert_eq!(
+            at_min.sub(FastMoney::from_minor(1, test::USD)),
+            Err(MoneyError::Overflow)
+        );
+
+        let near_min = FastMoney::from_minor(i64::MIN + 1, test::USD);
+        assert!(near_min.sub(FastMoney::from_minor(1, test::USD)).is_ok());
+    }
+
+    #[test]
+    fn sub_near_max_boundary() {
+        // Subtracting negative at max boundary (equivalent to adding positive)
+        let at_max = FastMoney::from_minor(i64::MAX, test::USD);
+        assert_eq!(
+            at_max.sub(FastMoney::from_minor(-1, test::USD)),
+            Err(MoneyError::Overflow)
+        );
+    }
+
+    #[test]
+    fn mul_overflow_detection() {
+        // Large value * 2 should overflow
+        let large = FastMoney::from_minor(i64::MAX / 2 + 1, test::USD);
+        assert_eq!(large.mul(2), Err(MoneyError::Overflow));
+
+        // Large value * 2 just under threshold should succeed
+        let safe_large = FastMoney::from_minor(i64::MAX / 2, test::USD);
+        assert!(safe_large.mul(2).is_ok());
+    }
+
+    #[test]
+    fn mul_negative_overflow() {
+        // MIN * -1 would be MAX + 1, which overflows
+        let at_min = FastMoney::from_minor(i64::MIN, test::USD);
+        assert_eq!(at_min.mul(-1), Err(MoneyError::Overflow));
+
+        // But MIN + 1 * -1 should work
+        let near_min = FastMoney::from_minor(i64::MIN + 1, test::USD);
+        assert!(near_min.mul(-1).is_ok());
+    }
+
+    #[test]
+    fn div_at_boundaries() {
+        // Division should never overflow (result is always smaller or equal)
+        let at_max = FastMoney::from_minor(i64::MAX, test::USD);
+        assert!(at_max.div(1).is_ok());
+        assert!(at_max.div(2).is_ok());
+        assert!(at_max.div(-1).is_ok());
+
+        let at_min = FastMoney::from_minor(i64::MIN, test::USD);
+        assert!(at_min.div(1).is_ok());
+        assert!(at_min.div(2).is_ok());
+        // MIN / -1 would overflow to MAX + 1, returns Err
+        assert_eq!(at_min.div(-1), Err(MoneyError::Overflow));
+    }
+
+    #[test]
+    fn neg_at_boundaries() {
+        // Negating MAX should work fine
+        let at_max = FastMoney::from_minor(i64::MAX, test::USD);
+        assert_eq!(at_max.neg().unwrap().minor_units(), -i64::MAX);
+
+        // Negating near-MIN should work
+        let near_min = FastMoney::from_minor(i64::MIN + 1, test::USD);
+        assert_eq!(near_min.neg().unwrap().minor_units(), i64::MAX);
+
+        // Negating MIN overflows, returns Err
+        let at_min = FastMoney::from_minor(i64::MIN, test::USD);
+        assert_eq!(at_min.neg(), Err(MoneyError::Overflow));
+    }
+
+    #[test]
+    fn abs_at_boundaries() {
+        // Regular abs should work
+        let negative = FastMoney::from_minor(-1000, test::USD);
+        assert_eq!(negative.abs().unwrap().minor_units(), 1000);
+
+        let positive = FastMoney::from_minor(1000, test::USD);
+        assert_eq!(positive.abs().unwrap().minor_units(), 1000);
+
+        let zero = FastMoney::from_minor(0, test::USD);
+        assert_eq!(zero.abs().unwrap().minor_units(), 0);
+
+        // Near MIN should work
+        let near_min = FastMoney::from_minor(i64::MIN + 1, test::USD);
+        assert_eq!(near_min.abs().unwrap().minor_units(), i64::MAX);
+
+        // abs(MIN) overflows, returns Err
+        let at_min = FastMoney::from_minor(i64::MIN, test::USD);
+        assert_eq!(at_min.abs(), Err(MoneyError::Overflow));
+    }
+
+    #[test]
+    fn from_major_overflow_with_exponent() {
+        // MAX / 100 * 100 should be safe, but MAX * 100 overflows
+        let result = FastMoney::from_major(i64::MAX, test::USD); // USD has exponent 2
+        assert_eq!(result, Err(MoneyError::Overflow));
+
+        // A value that fits when multiplied by 100
+        let safe_result = FastMoney::from_major(i64::MAX / 100, test::USD);
+        assert!(safe_result.is_ok());
+    }
 }
 
 #[cfg(test)]
@@ -849,13 +1019,17 @@ mod proptest_tests {
         #[test]
         fn neg_neg_is_identity(a in safe_amount()) {
             let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.neg().neg(), ma);
+            // neg().neg() should return to original (within safe range, no overflow)
+            let result = ma.neg().and_then(|m| m.neg());
+            prop_assert_eq!(result, Ok(ma));
         }
 
         #[test]
         fn abs_is_non_negative(a in safe_amount()) {
             let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert!(ma.abs().minor_units() >= 0);
+            // abs() should always succeed within safe range and return non-negative
+            let result = ma.abs().unwrap();
+            prop_assert!(result.minor_units() >= 0);
         }
 
         #[test]

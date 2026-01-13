@@ -1214,53 +1214,34 @@ mod tests {
         }
 
         #[test]
-        fn gt_helper() {
+        fn comparison_helpers() {
             let small = Money::from_minor(100, test::USD);
             let large = Money::from_minor(200, test::USD);
+            let equal = Money::from_minor(100, test::USD);
 
+            // gt: greater than (strict)
             assert!(large.gt(&small).unwrap());
             assert!(!small.gt(&large).unwrap());
-            assert!(!small.gt(&small).unwrap());
-        }
+            assert!(!small.gt(&equal).unwrap()); // equal is not greater
 
-        #[test]
-        fn gte_helper() {
-            let small = Money::from_minor(100, test::USD);
-            let large = Money::from_minor(200, test::USD);
-
+            // gte: greater than or equal
             assert!(large.gte(&small).unwrap());
             assert!(!small.gte(&large).unwrap());
-            assert!(small.gte(&small).unwrap());
-        }
+            assert!(small.gte(&equal).unwrap()); // equal satisfies >=
 
-        #[test]
-        fn lt_helper() {
-            let small = Money::from_minor(100, test::USD);
-            let large = Money::from_minor(200, test::USD);
-
+            // lt: less than (strict)
             assert!(small.lt(&large).unwrap());
             assert!(!large.lt(&small).unwrap());
-            assert!(!small.lt(&small).unwrap());
-        }
+            assert!(!small.lt(&equal).unwrap()); // equal is not less
 
-        #[test]
-        fn lte_helper() {
-            let small = Money::from_minor(100, test::USD);
-            let large = Money::from_minor(200, test::USD);
-
+            // lte: less than or equal
             assert!(small.lte(&large).unwrap());
             assert!(!large.lte(&small).unwrap());
-            assert!(small.lte(&small).unwrap());
-        }
+            assert!(small.lte(&equal).unwrap()); // equal satisfies <=
 
-        #[test]
-        fn eq_helper() {
-            let a = Money::from_minor(100, test::USD);
-            let b = Money::from_minor(100, test::USD);
-            let c = Money::from_minor(200, test::USD);
-
-            assert!(a.eq(&b).unwrap());
-            assert!(!a.eq(&c).unwrap());
+            // eq: equality
+            assert!(small.eq(&equal).unwrap());
+            assert!(!small.eq(&large).unwrap());
         }
 
         #[test]
@@ -1396,6 +1377,118 @@ mod tests {
             // Error if split is called with zero
             let monies = Money::from_minor(100, test::USD).split(0);
             assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
+        }
+
+        // ============ Sum Invariant Tests ============
+        // These tests verify the critical invariant: money is never created or destroyed
+
+        #[test]
+        fn split_sum_equals_original() {
+            // Test various amounts and split counts to ensure sum always equals original
+            let amounts = [1, 2, 3, 7, 10, 11, 100, 101, 999, 1000, 10001, 123456];
+            let splits = [2, 3, 5, 7, 11, 13];
+
+            for &amount in &amounts {
+                for &n in &splits {
+                    let money = Money::from_minor(amount, test::USD);
+                    let parts = money.split(n).unwrap();
+
+                    // Sum all parts
+                    let sum = parts
+                        .iter()
+                        .fold(Money::from_minor(0, test::USD), |acc, &m| {
+                            acc.add(m).unwrap()
+                        });
+
+                    assert_eq!(
+                        sum.to_minor_units(),
+                        money.to_minor_units(),
+                        "split({}) of {} minor units: sum {} != original {}",
+                        n,
+                        amount,
+                        sum.to_minor_units(),
+                        money.to_minor_units()
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn allocate_sum_equals_original() {
+            // Test weighted allocation preserves total
+            let test_cases: Vec<(i64, Vec<u32>)> = vec![
+                (10000, vec![70, 20, 10]),      // Standard percentage split
+                (1100, vec![1, 1, 1]),          // Equal thirds with remainder
+                (100, vec![1, 2, 3, 4]),        // Unequal weights
+                (7, vec![1, 1, 1, 1, 1, 1, 1]), // More shares than cents
+                (1000000, vec![33, 33, 34]),    // Large amount
+                (1, vec![1, 1, 1]),             // Single cent split 3 ways
+            ];
+
+            for (amount, shares) in test_cases {
+                let money = Money::from_minor(amount, test::USD);
+                let parts = money.allocate(shares.clone()).unwrap();
+
+                let sum = parts
+                    .iter()
+                    .fold(Money::from_minor(0, test::USD), |acc, m| {
+                        acc.add(*m).unwrap()
+                    });
+
+                assert_eq!(
+                    sum.to_minor_units(),
+                    money.to_minor_units(),
+                    "allocate({:?}) of {} minor units: sum {} != original {}",
+                    shares,
+                    amount,
+                    sum.to_minor_units(),
+                    money.to_minor_units()
+                );
+            }
+        }
+
+        #[test]
+        fn split_sum_equals_original_negative() {
+            // Negative amounts must also preserve sum
+            let money = Money::from_minor(-1100, test::USD);
+            let parts = money.split(3).unwrap();
+
+            let sum = parts
+                .iter()
+                .fold(Money::from_minor(0, test::USD), |acc, &m| {
+                    acc.add(m).unwrap()
+                });
+
+            assert_eq!(sum.to_minor_units(), money.to_minor_units());
+        }
+
+        #[test]
+        fn split_sum_equals_original_different_exponents() {
+            // Test with currencies of different exponents
+            let currencies_and_amounts: Vec<(&test::Currency, i64)> = vec![
+                (test::USD, 12345), // exponent 2
+                (test::JPY, 12345), // exponent 0
+                (test::BHD, 12345), // exponent 3
+            ];
+
+            for (currency, amount) in currencies_and_amounts {
+                let money = Money::from_minor(amount, currency);
+                let parts = money.split(7).unwrap();
+
+                let sum = parts
+                    .iter()
+                    .fold(Money::from_minor(0, currency), |acc, &m| {
+                        acc.add(m).unwrap()
+                    });
+
+                assert_eq!(
+                    sum.to_minor_units(),
+                    money.to_minor_units(),
+                    "Currency {} with exponent {}: sum mismatch",
+                    currency.code(),
+                    currency.exponent()
+                );
+            }
         }
     }
 
