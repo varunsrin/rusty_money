@@ -5,9 +5,9 @@ use std::cmp::Ordering;
 /// Converts Money objects into human readable strings.
 pub struct Formatter;
 
-impl<'a> Formatter {
+impl Formatter {
     /// Returns a formatted Money String given parameters and a Money object.
-    pub fn money<T: FormattableCurrency>(money: &Money<'a, T>, params: Params) -> String {
+    pub fn money<'a, T: FormattableCurrency>(money: &Money<'a, T>, params: Params<'_>) -> String {
         let mut decimal = *money.amount();
 
         // Round the decimal and ensure it has the correct scale
@@ -34,7 +34,7 @@ impl<'a> Formatter {
     }
 
     /// Returns a formatted amount String, given the raw amount and formatting parameters.
-    fn amount(raw_amount: &str, params: &Params) -> String {
+    fn amount(raw_amount: &str, params: &Params<'_>) -> String {
         // Split amount into digits and exponent.
         let amount_split: Vec<&str> = raw_amount.split('.').collect();
         let mut amount_digits = amount_split[0].to_string();
@@ -44,7 +44,7 @@ impl<'a> Formatter {
         amount_digits = Formatter::digits(
             &amount_digits,
             params.digit_separator,
-            &params.separator_pattern,
+            params.separator_pattern,
         );
         let mut result = amount_digits;
 
@@ -73,7 +73,7 @@ impl<'a> Formatter {
         let mut digits = raw_digits.to_string();
 
         let mut current_position: usize = 0;
-        for position in pattern.iter() {
+        for &position in pattern.iter() {
             current_position += position;
             if digits.len() > current_position {
                 digits.insert(digits.len() - current_position, separator);
@@ -96,15 +96,15 @@ pub enum Position {
 
 /// Group of formatting parameters consumed by `Formatter`.
 #[derive(Debug, Clone)]
-pub struct Params {
+pub struct Params<'a> {
     /// The character that separates grouped digits (e.g. 1,000,000)
     pub digit_separator: char,
     /// The character that separates minor units from major units (e.g. 1,000.00)
     pub exponent_separator: char,
     /// The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
-    pub separator_pattern: Vec<usize>,
+    pub separator_pattern: &'a [usize],
     /// The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
-    pub positions: Vec<Position>,
+    pub positions: &'a [Position],
     /// The number of minor unit digits should remain after Round::HalfEven is applied.
     pub rounding: Option<u32>,
     /// The symbol of the currency (e.g. $)
@@ -113,14 +113,18 @@ pub struct Params {
     pub code: Option<&'static str>,
 }
 
-impl Default for Params {
+// Default patterns as static arrays for zero-allocation formatting
+const DEFAULT_SEPARATOR_PATTERN: &[usize] = &[3, 3, 3];
+const DEFAULT_POSITIONS: &[Position] = &[Position::Sign, Position::Symbol, Position::Amount];
+
+impl Default for Params<'_> {
     /// Defines the default parameters to format a Money string.
-    fn default() -> Params {
+    fn default() -> Self {
         Params {
             digit_separator: ',',
             exponent_separator: '.',
-            separator_pattern: vec![3, 3, 3],
-            positions: vec![Position::Sign, Position::Symbol, Position::Amount],
+            separator_pattern: DEFAULT_SEPARATOR_PATTERN,
+            positions: DEFAULT_POSITIONS,
             rounding: None,
             symbol: None,
             code: None,
@@ -157,7 +161,7 @@ mod tests {
         let params = Params {
             symbol: Some("$"),
             code: Some("USD"),
-            positions: vec![
+            positions: &[
                 Position::Sign,
                 Position::Space,
                 Position::Symbol,
@@ -172,7 +176,7 @@ mod tests {
         let params = Params {
             symbol: Some("$"),
             code: Some("USD"),
-            positions: vec![
+            positions: &[
                 Position::Code,
                 Position::Space,
                 Position::Amount,
@@ -186,21 +190,21 @@ mod tests {
 
         // Test that you can omit some, and it works fine.
         let params = Params {
-            positions: vec![Position::Amount],
+            positions: &[Position::Amount],
             ..Default::default()
         };
         assert_eq!("1,000", Formatter::money(&money, params));
 
         let params = Params {
             symbol: Some("$"),
-            positions: vec![Position::Symbol],
+            positions: &[Position::Symbol],
             ..Default::default()
         };
         assert_eq!("$", Formatter::money(&money, params));
 
         // Missing Optionals Insert Nothing
         let params = Params {
-            positions: vec![Position::Amount, Position::Symbol],
+            positions: &[Position::Amount, Position::Symbol],
             ..Default::default()
         };
         assert_eq!("1,000", Formatter::money(&money, params));
@@ -208,7 +212,7 @@ mod tests {
         // Sign between symbol and amount
         let params = Params {
             symbol: Some("$"),
-            positions: vec![Position::Symbol, Position::Sign, Position::Amount],
+            positions: &[Position::Symbol, Position::Sign, Position::Amount],
             ..Default::default()
         };
         assert_eq!("$-1,000", Formatter::money(&money, params));
@@ -247,7 +251,7 @@ mod tests {
     #[test]
     fn format_digit_separators_with_custom_sequences() {
         let params = Params {
-            separator_pattern: vec![3, 2, 2],
+            separator_pattern: &[3, 2, 2],
             ..Default::default()
         };
 
@@ -262,7 +266,7 @@ mod tests {
 
         // With a zero sequence
         let params = Params {
-            separator_pattern: vec![0, 2],
+            separator_pattern: &[0, 2],
             ..Default::default()
         };
 
@@ -277,7 +281,7 @@ mod tests {
     fn format_zero_amount() {
         let params = Params {
             symbol: Some("$"),
-            positions: vec![Position::Sign, Position::Symbol, Position::Amount],
+            positions: &[Position::Sign, Position::Symbol, Position::Amount],
             ..Default::default()
         };
 

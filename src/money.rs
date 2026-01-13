@@ -25,6 +25,7 @@ pub struct Money<'a, T: FormattableCurrency> {
 impl<'a, T: FormattableCurrency> Neg for Money<'a, T> {
     type Output = Money<'a, T>;
 
+    #[inline]
     fn neg(self) -> Self::Output {
         Money {
             amount: -self.amount,
@@ -49,7 +50,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         let mut parsed_decimal = split_decimal.concat();
 
         // Sanity check the decimal seperation
-        for &num in format.digit_separator_pattern().iter() {
+        for &num in format.digit_separator_pattern.iter() {
             if split_decimal.len() <= 1 {
                 break;
             }
@@ -97,26 +98,31 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 
     /// Returns a reference to the Decimal amount.
+    #[inline]
     pub fn amount(&self) -> &Decimal {
         &self.amount
     }
 
     /// Returns the Currency type.
+    #[inline]
     pub fn currency(&self) -> &'a T {
         self.currency
     }
 
     /// Returns true if amount == 0.
+    #[inline]
     pub fn is_zero(&self) -> bool {
         self.amount == Decimal::ZERO
     }
 
     /// Returns true if amount > 0.
+    #[inline]
     pub fn is_positive(&self) -> bool {
         self.amount.is_sign_positive() && self.amount != Decimal::ZERO
     }
 
     /// Returns true if amount < 0.
+    #[inline]
     pub fn is_negative(&self) -> bool {
         self.amount.is_sign_negative() && self.amount != Decimal::ZERO
     }
@@ -130,6 +136,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// let positive = negative.abs();
     /// assert_eq!(positive, Money::from_minor(500, iso::USD));
     /// ```
+    #[inline]
     pub fn abs(&self) -> Money<'a, T> {
         Money::from_decimal(self.amount.abs(), self.currency)
     }
@@ -151,13 +158,11 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// let jpy = Money::from_major(500, iso::JPY);   // ¥500 (exponent 0)
     /// assert_eq!(jpy.to_minor_units(), 500);
     /// ```
+    #[inline]
     pub fn to_minor_units(&self) -> i64 {
+        use rust_decimal::prelude::ToPrimitive;
         let scale = Decimal::from(10u64.pow(self.currency.exponent()));
-        (self.amount * scale)
-            .trunc()
-            .to_string()
-            .parse()
-            .unwrap_or(0)
+        (self.amount * scale).trunc().to_i64().unwrap_or(0)
     }
 
     /// Returns the amount as a 64-bit float.
@@ -200,11 +205,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    #[inline]
     pub fn add(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if self.currency != other.currency {
             return Err(MoneyError::CurrencyMismatch {
-                expected: self.currency.code().to_string(),
-                actual: other.currency.code().to_string(),
+                expected: self.currency.code(),
+                actual: other.currency.code(),
             });
         }
         Ok(Money::from_decimal(
@@ -226,11 +232,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    #[inline]
     pub fn sub(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if self.currency != other.currency {
             return Err(MoneyError::CurrencyMismatch {
-                expected: self.currency.code().to_string(),
-                actual: other.currency.code().to_string(),
+                expected: self.currency.code(),
+                actual: other.currency.code(),
             });
         }
         Ok(Money::from_decimal(
@@ -251,6 +258,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::Overflow` if the multiplication overflows.
+    #[inline]
     pub fn mul<N: Into<Decimal>>(&self, n: N) -> Result<Money<'a, T>, MoneyError> {
         self.amount
             .checked_mul(n.into())
@@ -270,6 +278,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::DivisionByZero` if `n` is zero.
+    #[inline]
     pub fn div<N: Into<Decimal> + Copy + PartialEq + Default>(
         &self,
         n: N,
@@ -327,11 +336,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    #[inline]
     pub fn compare(&self, other: &Money<'a, T>) -> Result<Ordering, MoneyError> {
         if self.currency != other.currency {
             return Err(MoneyError::CurrencyMismatch {
-                expected: self.currency.code().to_string(),
-                actual: other.currency.code().to_string(),
+                expected: self.currency.code(),
+                actual: other.currency.code(),
             });
         }
         Ok(self.amount.cmp(&other.amount))
@@ -341,6 +351,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if currencies don't match.
+    #[inline]
     pub fn gt(&self, other: &Money<'a, T>) -> Result<bool, MoneyError> {
         Ok(self.compare(other)?.is_gt())
     }
@@ -349,6 +360,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if currencies don't match.
+    #[inline]
     pub fn gte(&self, other: &Money<'a, T>) -> Result<bool, MoneyError> {
         Ok(self.compare(other)?.is_ge())
     }
@@ -357,6 +369,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if currencies don't match.
+    #[inline]
     pub fn lt(&self, other: &Money<'a, T>) -> Result<bool, MoneyError> {
         Ok(self.compare(other)?.is_lt())
     }
@@ -365,6 +378,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if currencies don't match.
+    #[inline]
     pub fn lte(&self, other: &Money<'a, T>) -> Result<bool, MoneyError> {
         Ok(self.compare(other)?.is_le())
     }
@@ -373,6 +387,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if currencies don't match.
+    #[inline]
     pub fn eq(&self, other: &Money<'a, T>) -> Result<bool, MoneyError> {
         Ok(self.compare(other)?.is_eq())
     }
@@ -392,8 +407,38 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// assert_eq!(parts[2], Money::from_minor(333, iso::USD)); // $3.33
     /// ```
     pub fn split(&self, n: u32) -> Result<Vec<Money<'a, T>>, MoneyError> {
-        let shares: Vec<u32> = (0..n).map(|_| 1).collect();
-        self.allocate(shares)
+        use rust_decimal::prelude::ToPrimitive;
+
+        if n == 0 {
+            return Err(MoneyError::InvalidRatio);
+        }
+
+        // Convert to minor units
+        let minor_per_major = Decimal::from(10u64.pow(self.currency.exponent()));
+        let total_minor = (self.amount * minor_per_major).floor();
+        let major_per_minor = Decimal::new(1, self.currency.exponent());
+
+        // Calculate base share and remainder
+        let n_decimal = Decimal::from(n);
+        let base_share = (total_minor / n_decimal).floor();
+        let remainder = total_minor - (base_share * n_decimal);
+        let remainder_count = remainder.to_usize().unwrap_or(0);
+
+        // Pre-compute the two possible share values
+        let high_share =
+            Money::from_decimal((base_share + Decimal::ONE) * major_per_minor, self.currency);
+        let low_share = Money::from_decimal(base_share * major_per_minor, self.currency);
+
+        let mut result = Vec::with_capacity(n as usize);
+        for i in 0..n as usize {
+            if i < remainder_count {
+                result.push(high_share);
+            } else {
+                result.push(low_share);
+            }
+        }
+
+        Ok(result)
     }
 
     /// Divides money into n shares according to the given weights.
@@ -474,28 +519,32 @@ pub enum Round {
     HalfEven,
 }
 
+// Static position arrays for zero-allocation Display formatting
+const POSITIONS_SYMBOL_FIRST: &[Position] = &[Position::Sign, Position::Symbol, Position::Amount];
+const POSITIONS_SYMBOL_LAST: &[Position] = &[Position::Sign, Position::Amount, Position::Symbol];
+
 impl<'a, T: FormattableCurrency> fmt::Display for Money<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let currency = self.currency;
         let format = LocalFormat::from_locale(currency.locale());
 
-        let mut format_params = Params {
+        let positions = if currency.symbol_first() {
+            POSITIONS_SYMBOL_FIRST
+        } else {
+            POSITIONS_SYMBOL_LAST
+        };
+
+        let format_params = Params {
             digit_separator: format.digit_separator,
             exponent_separator: format.exponent_separator,
-            separator_pattern: format.digit_separator_pattern(),
+            separator_pattern: format.digit_separator_pattern,
+            positions,
             rounding: Some(currency.exponent()),
             symbol: Some(currency.symbol()),
             code: Some(currency.code()),
-            ..Default::default()
         };
 
-        if currency.symbol_first() {
-            format_params.positions = vec![Position::Sign, Position::Symbol, Position::Amount];
-            write!(f, "{}", Formatter::money(self, format_params))
-        } else {
-            format_params.positions = vec![Position::Sign, Position::Amount, Position::Symbol];
-            write!(f, "{}", Formatter::money(self, format_params))
-        }
+        write!(f, "{}", Formatter::money(self, format_params))
     }
 }
 
@@ -508,6 +557,7 @@ mod serde_support {
     use serde::de::{self, Deserializer, MapAccess, Visitor};
     use serde::ser::{SerializeStruct, Serializer};
     use serde::{Deserialize, Serialize};
+    use std::borrow::Cow;
     use std::fmt;
     use std::marker::PhantomData;
 
@@ -549,7 +599,7 @@ mod serde_support {
                     V: MapAccess<'de>,
                 {
                     let mut amount: Option<Decimal> = None;
-                    let mut currency_code: Option<String> = None;
+                    let mut currency_code: Option<Cow<'de, str>> = None;
 
                     while let Some(key) = map.next_key()? {
                         match key {
