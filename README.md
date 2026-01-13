@@ -67,15 +67,22 @@ Money::from_major(2_000, iso::GBP);        // 2000 British Pounds
 Money::from_major(2, crypto::BTC);         // 2 Bitcoin
 ```
 
-Money objects of the same currency can be compared:
+Money objects of the same currency can be compared using helper methods:
 
  ```rust
 use rusty_money::{Money, iso};
+
 let hundred = Money::from_minor(10_000, iso::USD);
 let thousand = Money::from_minor(100_000, iso::USD);
 
-println!("{}", thousand > hundred);     // false
-println!("{}", thousand.is_positive()); // true
+// Comparison helpers return Result<bool, MoneyError>
+println!("{}", thousand.gt(&hundred).unwrap());   // true
+println!("{}", hundred.lte(&thousand).unwrap());  // true
+println!("{}", hundred.eq(&hundred).unwrap());    // true
+
+// Sign predicates
+println!("{}", thousand.is_positive());           // true
+println!("{}", hundred.is_zero());                // false
 ```
 
 ## Precision, Rounding and Math
@@ -89,20 +96,32 @@ precision, you call the `round` function, which  supports three modes:
 * [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
 * [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
 
-Money can be added, subtracted, multiplied and divided like this:
+All Money arithmetic uses methods that return `Result`, enabling safe error handling for:
+- Currency mismatches (e.g., adding USD to EUR)
+- Division by zero
+- Arithmetic overflow
+
+This design prevents silent failures in financial calculations.
 
 ```rust
-use rusty_money::{Money, Round, iso};
+use rusty_money::{Money, Round, iso, MoneyError};
 
-Money::from_minor(100, iso::USD) + Money::from_minor(100, iso::USD);  // 2 USD
-Money::from_minor(100, iso::USD) - Money::from_minor(100, iso::USD);  // 0 USD
-Money::from_minor(100, iso::USD) * 3;                                 // 3 USD
-Money::from_minor(100, iso::USD) / 3;                                 // 0.333... USD
+let a = Money::from_minor(100, iso::USD);
+let b = Money::from_minor(100, iso::USD);
 
-let usd = Money::from_str("-2000.005", iso::USD).unwrap();            // 2000.005 USD
+// All arithmetic operations return Result for safe error handling
+let sum = a.add(b).unwrap();                                          // 2 USD
+let diff = a.sub(b).unwrap();                                         // 0 USD
+let tripled = a.mul(3).unwrap();                                      // 3 USD
+let half = a.div(2).unwrap();                                         // 0.50 USD
+
+// Currency mismatch returns an error instead of panicking
+let eur = Money::from_minor(100, iso::EUR);
+assert!(a.add(eur).is_err());
+
+let usd = Money::from_str("-2000.005", iso::USD).unwrap();
 usd.round(2, Round::HalfEven);                                        // 2000.00 USD
 usd.round(2, Round::HalfUp);                                          // 2000.01 USD
-usd.round(0, Round::HalfUp);                                          // 2000 USD
 ```
 
 ## Formatting
