@@ -48,6 +48,12 @@ pub mod iso {
         }
     }
 
+    impl crate::Findable for Currency {
+        fn find(code: &str) -> Option<&'static Self> {
+            find(code)
+        }
+    }
+
     macro_rules! define_iso {
     (
       $(

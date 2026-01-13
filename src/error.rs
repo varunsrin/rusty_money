@@ -8,8 +8,8 @@ pub enum MoneyError {
     InvalidRatio,
     /// Returned when arithmetic or comparison is attempted between different currencies.
     CurrencyMismatch {
-        expected: String,
-        actual: String,
+        expected: &'static str,
+        actual: &'static str,
     },
     /// Returned when division by zero is attempted.
     DivisionByZero,

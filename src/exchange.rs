@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// Stores `ExchangeRate`s for easier access.
 #[derive(Debug, Default)]
 pub struct Exchange<'a, T: FormattableCurrency> {
-    map: HashMap<String, ExchangeRate<'a, T>>,
+    map: HashMap<(&'static str, &'static str), ExchangeRate<'a, T>>,
 }
 
 impl<'a, T: FormattableCurrency> Exchange<'a, T> {
@@ -28,8 +28,9 @@ impl<'a, T: FormattableCurrency> Exchange<'a, T> {
         self.map.get(&key).copied()
     }
 
-    fn generate_key(from: &T, to: &T) -> String {
-        from.to_string() + "-" + &to.to_string()
+    #[inline]
+    fn generate_key(from: &T, to: &T) -> (&'static str, &'static str) {
+        (from.code(), to.code())
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -100,8 +101,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     pub fn add(&self, other: Self) -> Result<Self, MoneyError> {
         if self.currency != other.currency {
             return Err(MoneyError::CurrencyMismatch {
-                expected: self.currency.code().to_string(),
-                actual: other.currency.code().to_string(),
+                expected: self.currency.code(),
+                actual: other.currency.code(),
             });
         }
         let minor_units = self
@@ -121,8 +122,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     pub fn sub(&self, other: Self) -> Result<Self, MoneyError> {
         if self.currency != other.currency {
             return Err(MoneyError::CurrencyMismatch {
-                expected: self.currency.code().to_string(),
-                actual: other.currency.code().to_string(),
+                expected: self.currency.code(),
+                actual: other.currency.code(),
             });
         }
         let minor_units = self
@@ -208,8 +209,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     pub fn compare(&self, other: &Self) -> Result<Ordering, MoneyError> {
         if self.currency != other.currency {
             return Err(MoneyError::CurrencyMismatch {
-                expected: self.currency.code().to_string(),
-                actual: other.currency.code().to_string(),
+                expected: self.currency.code(),
+                actual: other.currency.code(),
             });
         }
         Ok(self.minor_units.cmp(&other.minor_units))
@@ -241,11 +242,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
         }
 
         // Convert to i64, checking for overflow
-        let minor_units: i64 = scaled
-            .trunc()
-            .to_string()
-            .parse()
-            .map_err(|_| MoneyError::Overflow)?;
+        let minor_units = scaled.trunc().to_i64().ok_or(MoneyError::Overflow)?;
 
         Ok(FastMoney {
             minor_units,
@@ -274,10 +271,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
         let scaled = (money.amount() * scale).trunc();
 
         // Convert to i64, checking for overflow
-        let minor_units: i64 = scaled
-            .to_string()
-            .parse()
-            .map_err(|_| MoneyError::Overflow)?;
+        let minor_units = scaled.to_i64().ok_or(MoneyError::Overflow)?;
 
         Ok(FastMoney {
             minor_units,
