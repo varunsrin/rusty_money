@@ -200,6 +200,14 @@ mod tests {
             ..Default::default()
         };
         assert_eq!("1,000", Formatter::money(&money, params));
+
+        // Sign between symbol and amount
+        let params = Params {
+            symbol: Some("$"),
+            positions: vec![Position::Symbol, Position::Sign, Position::Amount],
+            ..Default::default()
+        };
+        assert_eq!("$-1,000", Formatter::money(&money, params));
     }
 
     #[test]
@@ -220,6 +228,16 @@ mod tests {
         // For 0 Chars
         let money = Money::from_major(0, test::USD);
         assert_eq!("0", Formatter::money(&money, params));
+
+        // European style: swap digit and exponent separators
+        let params = Params {
+            rounding: Some(2),
+            exponent_separator: ',',
+            digit_separator: '.',
+            ..Default::default()
+        };
+        let money = Money::from_minor(123456, test::USD);
+        assert_eq!("1.234,56", Formatter::money(&money, params));
     }
 
     #[test]
@@ -251,7 +269,18 @@ mod tests {
         assert_eq!("0,", Formatter::money(&money, params));
     }
 
-    // What if pattern includes a zero or negative number?
+    #[test]
+    fn format_zero_amount() {
+        let params = Params {
+            symbol: Some("$"),
+            positions: vec![Position::Sign, Position::Symbol, Position::Amount],
+            ..Default::default()
+        };
+
+        let money = Money::from_major(0, test::USD);
+        // Zero should not have a sign
+        assert_eq!("$0", Formatter::money(&money, params));
+    }
 
     #[test]
     fn format_rounding() {
