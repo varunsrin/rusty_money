@@ -50,4 +50,6 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Execute cargo tests
+        env:
+          PROPTEST_CASES: 10000
         run: cargo +${{ matrix.toolchain }} test --verbose --all-features

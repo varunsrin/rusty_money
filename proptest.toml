@@ -1,0 +1,19 @@
+# Proptest configuration for rusty_money
+# See: https://proptest-rs.github.io/proptest/proptest-config/index.html
+
+[default]
+# Number of test cases to run (default: 256)
+# Override with PROPTEST_CASES environment variable
+# Dev: 100, Pre-commit: 1000, CI: 10000
+cases = 100
+
+# Maximum number of shrink iterations (default: ~4 billion)
+# Lower values speed up failure reporting
+max_shrink_iters = 1000
+
+# Timeout for individual test cases in milliseconds (default: none)
+# timeout = 5000
+
+# Directory for regression files (failed test cases)
+# Proptest saves failing cases here to prevent regressions
+# failure_persistence = "proptest-regressions"

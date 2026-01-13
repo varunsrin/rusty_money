@@ -201,3 +201,142 @@ mod tests {
         assert_eq!(converted, Money::from_minor(100, test::EUR));
     }
 }
+
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use crate::define_currency_set;
+    use proptest::prelude::*;
+    use rust_decimal::Decimal;
+
+    define_currency_set!(
+        test {
+            USD: {
+                code: "USD",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 100,
+                name: "USD",
+                symbol: "$",
+                symbol_first: true,
+            },
+            EUR: {
+                code: "EUR",
+                exponent: 2,
+                locale: EnEu,
+                minor_units: 1,
+                name: "Euro",
+                symbol: "€",
+                symbol_first: true,
+            },
+            GBP: {
+                code: "GBP",
+                exponent: 2,
+                locale: EnUs,
+                minor_units: 1,
+                name: "British Pound",
+                symbol: "£",
+                symbol_first: true,
+            }
+        }
+    );
+
+    // Strategy for generating positive exchange rates
+    fn positive_rate() -> impl Strategy<Value = Decimal> {
+        (1i64..1_000_000i64, 0u32..6u32).prop_map(|(mantissa, scale)| Decimal::new(mantissa, scale))
+    }
+
+    // Strategy for generating Money amounts
+    fn minor_amount() -> impl Strategy<Value = i64> {
+        -1_000_000_000i64..1_000_000_000i64
+    }
+
+    proptest! {
+        #[test]
+        fn conversion_preserves_sign(amount in minor_amount(), rate in positive_rate()) {
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
+            let money = Money::from_minor(amount, test::USD);
+            let converted = exchange_rate.convert(&money).unwrap();
+
+            if money.is_positive() {
+                prop_assert!(converted.is_positive(), "positive should stay positive");
+            } else if money.is_negative() {
+                prop_assert!(converted.is_negative(), "negative should stay negative");
+            } else {
+                prop_assert!(converted.is_zero(), "zero should stay zero");
+            }
+        }
+
+        #[test]
+        fn conversion_of_zero_is_zero(rate in positive_rate()) {
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
+            let zero = Money::from_minor(0, test::USD);
+            let converted = exchange_rate.convert(&zero).unwrap();
+
+            prop_assert!(converted.is_zero());
+        }
+
+        #[test]
+        fn converted_currency_is_target(amount in minor_amount(), rate in positive_rate()) {
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
+            let money = Money::from_minor(amount, test::USD);
+            let converted = exchange_rate.convert(&money).unwrap();
+
+            prop_assert_eq!(converted.currency(), test::EUR);
+        }
+
+        #[test]
+        fn rate_of_one_preserves_amount(amount in minor_amount()) {
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, Decimal::ONE).unwrap();
+            let money = Money::from_minor(amount, test::USD);
+            let converted = exchange_rate.convert(&money).unwrap();
+
+            // Amount should be the same, just different currency
+            prop_assert_eq!(money.amount(), converted.amount());
+        }
+
+        #[test]
+        fn exchange_set_get_roundtrip(rate in positive_rate()) {
+            let mut exchange = Exchange::new();
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
+
+            exchange.set_rate(&exchange_rate);
+            let retrieved = exchange.get_rate(test::USD, test::EUR);
+
+            prop_assert!(retrieved.is_some());
+            prop_assert_eq!(retrieved.unwrap(), exchange_rate);
+        }
+
+        #[test]
+        fn exchange_missing_rate_returns_none(rate in positive_rate()) {
+            let mut exchange = Exchange::new();
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
+
+            exchange.set_rate(&exchange_rate);
+
+            // Different currency pair should return None
+            let retrieved = exchange.get_rate(test::USD, test::GBP);
+            prop_assert!(retrieved.is_none());
+
+            // Reversed direction should also return None
+            let reversed = exchange.get_rate(test::EUR, test::USD);
+            prop_assert!(reversed.is_none());
+        }
+
+        #[test]
+        fn conversion_scales_linearly(amount in 1i64..1_000_000, factor in 1i64..100) {
+            let rate = Decimal::new(15, 1); // 1.5
+            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
+
+            let money1 = Money::from_minor(amount, test::USD);
+            let money2 = Money::from_minor(amount * factor, test::USD);
+
+            let converted1 = exchange_rate.convert(&money1).unwrap();
+            let converted2 = exchange_rate.convert(&money2).unwrap();
+
+            // converted2 should be factor times converted1
+            let scaled = *converted1.amount() * Decimal::from(factor);
+            prop_assert_eq!(scaled, *converted2.amount());
+        }
+    }
+}
