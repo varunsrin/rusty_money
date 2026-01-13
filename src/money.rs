@@ -120,6 +120,19 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         self.amount.is_sign_negative() && self.amount != Decimal::ZERO
     }
 
+    /// Returns a new Money with the absolute value of the amount.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, iso};
+    /// let negative = Money::from_minor(-500, iso::USD);
+    /// let positive = negative.abs();
+    /// assert_eq!(positive, Money::from_minor(500, iso::USD));
+    /// ```
+    pub fn abs(&self) -> Money<'a, T> {
+        Money::from_decimal(self.amount.abs(), self.currency)
+    }
+
     /// Adds two Money values, returning an error if currencies don't match.
     ///
     /// # Example
@@ -282,8 +295,18 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
     /// to some of the shares.
-    pub fn allocate_to(&self, number: u32) -> Result<Vec<Money<'a, T>>, MoneyError> {
-        let shares: Vec<u32> = (0..number).map(|_| 1).collect();
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, iso};
+    /// let money = Money::from_minor(1000, iso::USD); // $10.00
+    /// let parts = money.split(3).unwrap();
+    /// assert_eq!(parts[0], Money::from_minor(334, iso::USD)); // $3.34
+    /// assert_eq!(parts[1], Money::from_minor(333, iso::USD)); // $3.33
+    /// assert_eq!(parts[2], Money::from_minor(333, iso::USD)); // $3.33
+    /// ```
+    pub fn split(&self, n: u32) -> Result<Vec<Money<'a, T>>, MoneyError> {
+        let shares: Vec<u32> = (0..n).map(|_| 1).collect();
         self.allocate(shares)
     }
 
@@ -902,6 +925,21 @@ mod tests {
             assert!(!neg_zero.is_negative());
             assert!(!neg_zero.is_positive());
         }
+
+        #[test]
+        fn abs_returns_absolute_value() {
+            // Negative becomes positive
+            let negative = Money::from_minor(-500, test::USD);
+            assert_eq!(negative.abs(), Money::from_minor(500, test::USD));
+
+            // Positive stays positive
+            let positive = Money::from_minor(500, test::USD);
+            assert_eq!(positive.abs(), Money::from_minor(500, test::USD));
+
+            // Zero stays zero
+            let zero = Money::from_minor(0, test::USD);
+            assert_eq!(zero.abs(), Money::from_minor(0, test::USD));
+        }
     }
 
     mod compare_tests {
@@ -1024,8 +1062,8 @@ mod tests {
             // Using allocate with equal shares
             assert_eq!(expected, money.allocate(vec![1, 1, 1]).unwrap());
 
-            // Using allocate_to (convenience wrapper)
-            assert_eq!(expected, money.allocate_to(3).unwrap());
+            // Using split (convenience wrapper)
+            assert_eq!(expected, money.split(3).unwrap());
         }
 
         #[test]
@@ -1114,8 +1152,8 @@ mod tests {
             let monies = Money::from_minor(100, test::USD).allocate(vec![0, 0, 0]);
             assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
 
-            // Error if allocate_to is called with zero
-            let monies = Money::from_minor(100, test::USD).allocate_to(0);
+            // Error if split is called with zero
+            let monies = Money::from_minor(100, test::USD).split(0);
             assert_eq!(monies.unwrap_err(), MoneyError::InvalidRatio);
         }
     }
@@ -1540,14 +1578,14 @@ mod proptest_tests {
             }
 
             #[test]
-            fn allocate_to_is_consistent_with_allocate(amount in minor_amount(), n in 1u32..20) {
+            fn split_is_consistent_with_allocate(amount in minor_amount(), n in 1u32..20) {
                 let money = Money::from_minor(amount, test::USD);
                 let shares: Vec<u32> = vec![1; n as usize];
 
                 let via_allocate = money.allocate(shares).unwrap();
-                let via_allocate_to = money.allocate_to(n).unwrap();
+                let via_split = money.split(n).unwrap();
 
-                prop_assert_eq!(via_allocate, via_allocate_to);
+                prop_assert_eq!(via_allocate, via_split);
             }
 
             #[test]
