@@ -142,4 +142,62 @@ mod tests {
         let rate = ExchangeRate::new(test::GBP, test::GBP, dec!(1.5));
         assert_eq!(rate.unwrap_err(), MoneyError::InvalidCurrency,);
     }
+
+    #[test]
+    fn rate_with_zero_converts_to_zero() {
+        // A zero exchange rate is mathematically valid (though unusual)
+        let rate = ExchangeRate::new(test::USD, test::EUR, dec!(0)).unwrap();
+        let amount = Money::from_minor(1000, test::USD);
+        let converted = rate.convert(&amount).unwrap();
+        assert_eq!(converted, Money::from_minor(0, test::EUR));
+    }
+
+    #[test]
+    fn rate_with_negative_converts_correctly() {
+        // Negative rates are unusual but mathematically valid
+        let rate = ExchangeRate::new(test::USD, test::EUR, dec!(-1.5)).unwrap();
+        let amount = Money::from_minor(1000, test::USD);
+        let converted = rate.convert(&amount).unwrap();
+        assert_eq!(converted, Money::from_minor(-1500, test::EUR));
+    }
+
+    #[test]
+    fn rate_update_overwrites_existing() {
+        let mut exchange = Exchange::new();
+
+        let rate1 = ExchangeRate::new(test::USD, test::EUR, dec!(1.5)).unwrap();
+        exchange.set_rate(&rate1);
+
+        let rate2 = ExchangeRate::new(test::USD, test::EUR, dec!(2.0)).unwrap();
+        exchange.set_rate(&rate2);
+
+        let fetched = exchange.get_rate(test::USD, test::EUR).unwrap();
+        assert_eq!(fetched.rate, dec!(2.0));
+    }
+
+    #[test]
+    fn get_rate_returns_none_for_missing() {
+        let exchange = Exchange::<test::Currency>::new();
+        let result = exchange.get_rate(test::USD, test::EUR);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn convert_zero_amount() {
+        let rate = ExchangeRate::new(test::USD, test::EUR, dec!(1.5)).unwrap();
+        let amount = Money::from_minor(0, test::USD);
+        let converted = rate.convert(&amount).unwrap();
+        assert!(converted.is_zero());
+        assert_eq!(converted.currency(), test::EUR);
+    }
+
+    #[test]
+    fn convert_preserves_precision() {
+        // Test that small rates don't lose precision
+        let rate = ExchangeRate::new(test::USD, test::EUR, dec!(0.000001)).unwrap();
+        let amount = Money::from_minor(100_000_000, test::USD); // $1,000,000
+        let converted = rate.convert(&amount).unwrap();
+        // 1,000,000 * 0.000001 = 1.00
+        assert_eq!(converted, Money::from_minor(100, test::EUR));
+    }
 }
