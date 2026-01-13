@@ -58,7 +58,11 @@ impl<'a> Formatter {
             Ordering::Less => {
                 // No exponent, do nothing.
             }
-            Ordering::Greater => panic!("More than 1 exponent separators when parsing Decimal"),
+            Ordering::Greater => {
+                unreachable!(
+                    "Decimal formatted string should never contain more than 1 exponent separator"
+                )
+            }
         }
 
         result
@@ -284,7 +288,7 @@ mod tests {
 
     #[test]
     fn format_rounding() {
-        let money = Money::from_minor(1000, test::USD) / 3;
+        let money = Money::from_minor(1000, test::USD).div(3).unwrap();
 
         // Rounding = Some (0)
         let params = Params {

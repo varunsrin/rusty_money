@@ -1,29 +1,50 @@
 use std::{error, fmt};
 
 /// Standard Error type for this crate.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MoneyError {
     InvalidCurrency,
     InvalidAmount,
     InvalidRatio,
+    /// Returned when arithmetic or comparison is attempted between different currencies.
+    CurrencyMismatch {
+        expected: String,
+        actual: String,
+    },
+    /// Returned when division by zero is attempted.
+    DivisionByZero,
+    /// Returned when an arithmetic operation overflows.
+    Overflow,
 }
 
 impl fmt::Display for MoneyError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match self {
             MoneyError::InvalidCurrency => write!(f, "Currency was not valid"),
             MoneyError::InvalidAmount => write!(f, "Amount not parsable"),
             MoneyError::InvalidRatio => write!(f, "Ratio was not valid"),
+            MoneyError::CurrencyMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "Currency mismatch: expected {}, got {}",
+                    expected, actual
+                )
+            }
+            MoneyError::DivisionByZero => write!(f, "Division by zero"),
+            MoneyError::Overflow => write!(f, "Arithmetic overflow"),
         }
     }
 }
 
 impl error::Error for MoneyError {
     fn description(&self) -> &str {
-        match *self {
+        match self {
             MoneyError::InvalidCurrency => "Currency was not valid",
             MoneyError::InvalidAmount => "Amount not parsable",
             MoneyError::InvalidRatio => "Ratio was not valid",
+            MoneyError::CurrencyMismatch { .. } => "Currency mismatch",
+            MoneyError::DivisionByZero => "Division by zero",
+            MoneyError::Overflow => "Arithmetic overflow",
         }
     }
 }
