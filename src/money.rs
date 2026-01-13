@@ -1,5 +1,6 @@
 use crate::MoneyError;
 use crate::currency::FormattableCurrency;
+use crate::exchange::Exchange;
 use crate::format::{Formatter, Params, Position};
 use crate::locale::LocalFormat;
 
@@ -133,6 +134,59 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         Money::from_decimal(self.amount.abs(), self.currency)
     }
 
+    /// Returns the amount in minor units (e.g., cents for USD, pence for GBP).
+    ///
+    /// The conversion multiplies by 10^exponent where exponent is the currency's
+    /// decimal places (2 for USD, 0 for JPY, 3 for BHD).
+    ///
+    /// Values exceeding i64 range or with precision beyond the currency's exponent
+    /// are truncated toward zero. Returns 0 if conversion fails.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, iso};
+    /// let money = Money::from_major(123, iso::USD); // $123.00
+    /// assert_eq!(money.to_minor_units(), 12300);    // 12300 cents
+    ///
+    /// let jpy = Money::from_major(500, iso::JPY);   // ¥500 (exponent 0)
+    /// assert_eq!(jpy.to_minor_units(), 500);
+    /// ```
+    pub fn to_minor_units(&self) -> i64 {
+        let scale = Decimal::from(10u64.pow(self.currency.exponent()));
+        (self.amount * scale)
+            .trunc()
+            .to_string()
+            .parse()
+            .unwrap_or(0)
+    }
+
+    /// Returns the amount as a 64-bit float.
+    ///
+    /// # Precision Loss
+    /// IEEE 754 `f64` has 53 bits of mantissa, providing ~15-17 significant decimal digits.
+    /// Precision loss occurs when:
+    ///
+    /// - **Large amounts**: Values above ~9,007,199,254,740,992 (2^53) lose integer precision.
+    ///   For USD, this is ~$90 trillion - unlikely in practice.
+    /// - **Many decimal places**: Values like `0.1` cannot be exactly represented in binary
+    ///   floating-point. The error is typically < 1e-15 relative to the value.
+    /// - **Repeated arithmetic**: Errors accumulate with successive float operations.
+    ///
+    /// For precise calculations, use [`amount()`](Self::amount) which returns a `Decimal`.
+    ///
+    /// Returns `f64::NAN` if conversion fails (e.g., value exceeds f64 range).
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, iso};
+    /// let money = Money::from_minor(12345, iso::USD);
+    /// assert_eq!(money.to_f64_lossy(), 123.45);
+    /// ```
+    pub fn to_f64_lossy(&self) -> f64 {
+        use rust_decimal::prelude::ToPrimitive;
+        self.amount.to_f64().unwrap_or(f64::NAN)
+    }
+
     /// Adds two Money values, returning an error if currencies don't match.
     ///
     /// # Example
@@ -224,6 +278,38 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             return Err(MoneyError::DivisionByZero);
         }
         Ok(Money::from_decimal(self.amount / n.into(), self.currency))
+    }
+
+    /// Converts this Money to another currency using the provided exchange rates.
+    ///
+    /// This is a convenience method that looks up the exchange rate and performs
+    /// the conversion in one step.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, Exchange, ExchangeRate, iso};
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let mut exchange = Exchange::new();
+    /// let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.85)).unwrap();
+    /// exchange.set_rate(&rate);
+    ///
+    /// let usd = Money::from_minor(1000, iso::USD); // $10.00
+    /// let eur = usd.exchange_to(iso::EUR, &exchange).unwrap();
+    /// assert_eq!(eur, Money::from_minor(850, iso::EUR)); // €8.50
+    /// ```
+    ///
+    /// # Errors
+    /// Returns `MoneyError::InvalidCurrency` if no exchange rate exists for the currency pair.
+    pub fn exchange_to(
+        &self,
+        target: &'a T,
+        exchange: &Exchange<'a, T>,
+    ) -> Result<Money<'a, T>, MoneyError> {
+        let rate = exchange
+            .get_rate(self.currency, target)
+            .ok_or(MoneyError::InvalidCurrency)?;
+        rate.convert(self)
     }
 
     /// Compares two Money values, returning the ordering or an error if currencies don't match.
@@ -874,6 +960,61 @@ mod tests {
         }
     }
 
+    mod exchange {
+        use super::*;
+        use crate::ExchangeRate;
+        use rust_decimal_macros::dec;
+
+        #[test]
+        fn exchange_to_converts_currency() {
+            let mut exchange = Exchange::new();
+            let rate = ExchangeRate::new(test::USD, test::EUR, dec!(0.85)).unwrap();
+            exchange.set_rate(&rate);
+
+            let usd = Money::from_minor(1000, test::USD); // $10.00
+            let eur = usd.exchange_to(test::EUR, &exchange).unwrap();
+
+            assert_eq!(eur, Money::from_minor(850, test::EUR)); // €8.50
+            assert_eq!(eur.currency(), test::EUR);
+        }
+
+        #[test]
+        fn exchange_to_returns_error_when_rate_missing() {
+            let exchange = Exchange::<test::Currency>::new();
+            let usd = Money::from_minor(1000, test::USD);
+
+            let result = usd.exchange_to(test::EUR, &exchange);
+            assert!(result.is_err());
+            assert_eq!(result.unwrap_err(), MoneyError::InvalidCurrency);
+        }
+
+        #[test]
+        fn exchange_to_with_zero_amount() {
+            let mut exchange = Exchange::new();
+            let rate = ExchangeRate::new(test::USD, test::EUR, dec!(0.85)).unwrap();
+            exchange.set_rate(&rate);
+
+            let zero_usd = Money::from_minor(0, test::USD);
+            let zero_eur = zero_usd.exchange_to(test::EUR, &exchange).unwrap();
+
+            assert!(zero_eur.is_zero());
+            assert_eq!(zero_eur.currency(), test::EUR);
+        }
+
+        #[test]
+        fn exchange_to_preserves_sign() {
+            let mut exchange = Exchange::new();
+            let rate = ExchangeRate::new(test::USD, test::EUR, dec!(0.85)).unwrap();
+            exchange.set_rate(&rate);
+
+            let negative_usd = Money::from_minor(-1000, test::USD);
+            let negative_eur = negative_usd.exchange_to(test::EUR, &exchange).unwrap();
+
+            assert!(negative_eur.is_negative());
+            assert_eq!(negative_eur, Money::from_minor(-850, test::EUR));
+        }
+    }
+
     mod comparison {
         use super::*;
 
@@ -939,6 +1080,56 @@ mod tests {
             // Zero stays zero
             let zero = Money::from_minor(0, test::USD);
             assert_eq!(zero.abs(), Money::from_minor(0, test::USD));
+        }
+
+        #[test]
+        fn to_minor_units_converts_correctly() {
+            // USD (exponent 2): $123.45 = 12345 cents
+            let usd = Money::from_minor(12345, test::USD);
+            assert_eq!(usd.to_minor_units(), 12345);
+
+            // From major units
+            let usd_major = Money::from_major(100, test::USD);
+            assert_eq!(usd_major.to_minor_units(), 10000);
+
+            // JPY (exponent 0): ¥500 = 500 (no minor units)
+            let jpy = Money::from_major(500, test::JPY);
+            assert_eq!(jpy.to_minor_units(), 500);
+
+            // BHD (exponent 3): 1.234 BHD = 1234 fils
+            let bhd = Money::from_minor(1234, test::BHD);
+            assert_eq!(bhd.to_minor_units(), 1234);
+
+            // Negative amounts
+            let negative = Money::from_minor(-500, test::USD);
+            assert_eq!(negative.to_minor_units(), -500);
+
+            // Zero
+            let zero = Money::from_minor(0, test::USD);
+            assert_eq!(zero.to_minor_units(), 0);
+        }
+
+        #[test]
+        fn to_f64_lossy_converts_correctly() {
+            // Basic conversion
+            let money = Money::from_minor(12345, test::USD);
+            assert!((money.to_f64_lossy() - 123.45).abs() < 0.0001);
+
+            // Whole numbers
+            let whole = Money::from_major(100, test::USD);
+            assert!((whole.to_f64_lossy() - 100.0).abs() < 0.0001);
+
+            // Negative amounts
+            let negative = Money::from_minor(-5000, test::USD);
+            assert!((negative.to_f64_lossy() - (-50.0)).abs() < 0.0001);
+
+            // Zero
+            let zero = Money::from_minor(0, test::USD);
+            assert_eq!(zero.to_f64_lossy(), 0.0);
+
+            // JPY (no decimals)
+            let jpy = Money::from_major(1000, test::JPY);
+            assert!((jpy.to_f64_lossy() - 1000.0).abs() < 0.0001);
         }
     }
 
