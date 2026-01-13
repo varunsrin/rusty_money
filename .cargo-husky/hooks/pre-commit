@@ -1,0 +1,22 @@
+#!/bin/sh
+# Pre-commit hook for rusty_money
+# Runs format check, clippy, and tests with increased proptest cases
+# Installed by cargo-husky
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Format check
+echo "Checking formatting..."
+cargo fmt --check
+
+# Clippy
+echo "Running clippy..."
+cargo clippy --all-features --all-targets -- -D warnings
+
+# Tests with 1000 proptest cases (more than dev, less than CI)
+echo "Running tests with PROPTEST_CASES=1000..."
+PROPTEST_CASES=1000 cargo test --all-features
+
+echo "All pre-commit checks passed!"
