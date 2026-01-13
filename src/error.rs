@@ -15,6 +15,8 @@ pub enum MoneyError {
     DivisionByZero,
     /// Returned when an arithmetic operation overflows.
     Overflow,
+    /// Returned when converting to FastMoney would lose precision.
+    PrecisionLoss,
 }
 
 impl fmt::Display for MoneyError {
@@ -32,6 +34,7 @@ impl fmt::Display for MoneyError {
             }
             MoneyError::DivisionByZero => write!(f, "Division by zero"),
             MoneyError::Overflow => write!(f, "Arithmetic overflow"),
+            MoneyError::PrecisionLoss => write!(f, "Conversion would lose precision"),
         }
     }
 }
@@ -45,6 +48,7 @@ impl error::Error for MoneyError {
             MoneyError::CurrencyMismatch { .. } => "Currency mismatch",
             MoneyError::DivisionByZero => "Division by zero",
             MoneyError::Overflow => "Arithmetic overflow",
+            MoneyError::PrecisionLoss => "Conversion would lose precision",
         }
     }
 }

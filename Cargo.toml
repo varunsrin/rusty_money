@@ -17,6 +17,7 @@ categories = ["data-structures", "rust-patterns", "cryptography::cryptocurrencie
 default = ["iso"]
 iso = []
 crypto = []
+fast = []
 serde = ["dep:serde", "rust_decimal/serde-str"]
 
 [dependencies]
