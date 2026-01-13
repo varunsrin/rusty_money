@@ -83,6 +83,10 @@ pub mod iso {
         }
       }
 
+      // Allow unreachable patterns because deprecated currencies may share numeric codes
+      // with their replacements (e.g., ANG and XCG both use numeric code 532 per ISO 4217
+      // Amendment 176). The active currency will be matched first.
+      #[allow(unreachable_patterns)]
       pub fn find_by_num_code(code: &str) -> Option<&'static Currency> {
         match code {
           $($num_code => (Some($currency)),)+
@@ -131,16 +135,6 @@ pub mod iso {
             minor_units: 10,
             name: "Armenian Dram",
             symbol: "դր.",
-            symbol_first: false,
-        },
-        ANG : {
-            exponent: 2,
-            iso_alpha_code: "ANG",
-            iso_numeric_code: "532",
-            locale: EnUs,
-            minor_units: 1,
-            name: "Netherlands Antillean Gulden",
-            symbol: "ƒ",
             symbol_first: false,
         },
         AOA : {
@@ -335,16 +329,6 @@ pub mod iso {
             symbol: "Br",
             symbol_first: false,
         },
-        BYR : {
-            exponent: 0,
-            iso_alpha_code: "BYR",
-            iso_numeric_code: "974",
-            locale: EnBy,
-            minor_units: 100,
-            name: "Belarusian Ruble",
-            symbol: "Br",
-            symbol_first: false,
-        },
         BZD : {
             exponent: 2,
             iso_alpha_code: "BZD",
@@ -434,16 +418,6 @@ pub mod iso {
             name: "Costa Rican Colón",
             symbol: "₡",
             symbol_first: true,
-        },
-        CUC : {
-            exponent: 2,
-            iso_alpha_code: "CUC",
-            iso_numeric_code: "931",
-            locale: EnUs,
-            minor_units: 1,
-            name: "Cuban Convertible Peso",
-            symbol: "$",
-            symbol_first: false,
         },
         CUP : {
             exponent: 2,
@@ -674,16 +648,6 @@ pub mod iso {
             name: "Honduran Lempira",
             symbol: "L",
             symbol_first: true,
-        },
-        HRK : {
-            exponent: 2,
-            iso_alpha_code: "HRK",
-            iso_numeric_code: "191",
-            locale: EnEu,
-            minor_units: 1,
-            name: "Croatian Kuna",
-            symbol: "kn",
-            symbol_first: false,
         },
         HTG : {
             exponent: 2,
@@ -1108,7 +1072,7 @@ pub mod iso {
         NIO : {
             exponent: 2,
             iso_alpha_code: "NIO",
-            iso_numeric_code: "588",
+            iso_numeric_code: "558",
             locale: EnUs,
             minor_units: 5,
             name: "Nicaraguan Córdoba",
@@ -1245,17 +1209,6 @@ pub mod iso {
             symbol: "RON",
             symbol_first: false,
         },
-        // Deprecated: ROL was replaced by RON on July 1, 2005 at a rate of 10,000 ROL = 1 RON.
-        ROL : {
-            exponent: 0,
-            iso_alpha_code: "ROL",
-            iso_numeric_code: "642",
-            locale: EnEu,
-            minor_units: 1,
-            name: "Romanian Leu",
-            symbol: "ROL",
-            symbol_first: false,
-        },
         RSD : {
             exponent: 2,
             iso_alpha_code: "RSD",
@@ -1356,31 +1309,10 @@ pub mod iso {
             symbol: "£",
             symbol_first: false,
         },
-        SKK : {
-            exponent: 2,
-            iso_alpha_code: "SKK",
-            iso_numeric_code: "703",
-            locale: EnUs,
-            minor_units: 50,
-            name: "Slovak Koruna",
-            symbol: "Sk",
-            symbol_first: true,
-        },
         SLE : {
             exponent: 2,
             iso_alpha_code: "SLE",
             iso_numeric_code: "925",
-            locale: EnUs,
-            minor_units: 1000,
-            name: "Sierra Leonean Leone",
-            symbol: "Le",
-            symbol_first: false,
-        },
-        // Deprecated: SLL was replaced by SLE on April 1, 2022 at a rate of 1,000 SLL = 1 SLE.
-        SLL : {
-            exponent: 2,
-            iso_alpha_code: "SLL",
-            iso_numeric_code: "694",
             locale: EnUs,
             minor_units: 1000,
             name: "Sierra Leonean Leone",
@@ -1415,16 +1347,6 @@ pub mod iso {
             minor_units: 5,
             name: "South Sudanese Pound",
             symbol: "£",
-            symbol_first: false,
-        },
-        STD : {
-            exponent: 2,
-            iso_alpha_code: "STD",
-            iso_numeric_code: "678",
-            locale: EnUs,
-            minor_units: 10000,
-            name: "São Tomé and Príncipe Dobra",
-            symbol: "Db",
             symbol_first: false,
         },
         STN : {
@@ -1627,6 +1549,16 @@ pub mod iso {
             symbol: "Bs",
             symbol_first: true,
         },
+        VED : {
+            exponent: 2,
+            iso_alpha_code: "VED",
+            iso_numeric_code: "926",
+            locale: EnEu,
+            minor_units: 1,
+            name: "Venezuelan Bolívar Digital",
+            symbol: "Bs.D",
+            symbol_first: true,
+        },
         VND : {
             exponent: 0,
             iso_alpha_code: "VND",
@@ -1737,6 +1669,16 @@ pub mod iso {
             symbol: "$",
             symbol_first: true,
         },
+        XCG : {
+            exponent: 2,
+            iso_alpha_code: "XCG",
+            iso_numeric_code: "532",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Caribbean Guilder",
+            symbol: "ƒ",
+            symbol_first: false,
+        },
         XDR : {
             exponent: 0,
             iso_alpha_code: "XDR",
@@ -1817,16 +1759,6 @@ pub mod iso {
             symbol: "R",
             symbol_first: true,
         },
-        ZMK : {
-            exponent: 2,
-            iso_alpha_code: "ZMK",
-            iso_numeric_code: "894",
-            locale: EnUs,
-            minor_units: 5,
-            name: "Zambian Kwacha",
-            symbol: "ZK",
-            symbol_first: false,
-        },
         ZMW : {
             exponent: 2,
             iso_alpha_code: "ZMW",
@@ -1837,6 +1769,127 @@ pub mod iso {
             symbol: "K",
             symbol_first: true,
         },
+        ZWG : {
+            exponent: 2,
+            iso_alpha_code: "ZWG",
+            iso_numeric_code: "924",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Zimbabwe Gold",
+            symbol: "ZiG",
+            symbol_first: true,
+        },
+
+        // ===========================================================================
+        // DEPRECATED CURRENCIES
+        // The following currencies are historic and no longer in active circulation.
+        // They are retained for backwards compatibility with historical data.
+        // ===========================================================================
+
+        // Deprecated: ANG was replaced by XCG on March 31, 2025. XCG is the Caribbean Guilder
+        // used by Curaçao and Sint Maarten at a 1:1 exchange rate.
+        ANG : {
+            exponent: 2,
+            iso_alpha_code: "ANG",
+            iso_numeric_code: "532",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Netherlands Antillean Gulden",
+            symbol: "ƒ",
+            symbol_first: false,
+        },
+        // Deprecated: BYR was replaced by BYN on July 1, 2016 at a rate of 10,000 BYR = 1 BYN.
+        BYR : {
+            exponent: 0,
+            iso_alpha_code: "BYR",
+            iso_numeric_code: "974",
+            locale: EnBy,
+            minor_units: 100,
+            name: "Belarusian Ruble",
+            symbol: "Br",
+            symbol_first: false,
+        },
+        // Deprecated: CUC was withdrawn on December 30, 2021. Cuba unified its currency to CUP only.
+        CUC : {
+            exponent: 2,
+            iso_alpha_code: "CUC",
+            iso_numeric_code: "931",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Cuban Convertible Peso",
+            symbol: "$",
+            symbol_first: false,
+        },
+        // Deprecated: HRK was replaced by EUR on January 1, 2023 when Croatia adopted the Euro.
+        // The conversion rate was 7.53450 HRK = 1 EUR.
+        HRK : {
+            exponent: 2,
+            iso_alpha_code: "HRK",
+            iso_numeric_code: "191",
+            locale: EnEu,
+            minor_units: 1,
+            name: "Croatian Kuna",
+            symbol: "kn",
+            symbol_first: false,
+        },
+        // Deprecated: ROL was replaced by RON on July 1, 2005 at a rate of 10,000 ROL = 1 RON.
+        ROL : {
+            exponent: 0,
+            iso_alpha_code: "ROL",
+            iso_numeric_code: "642",
+            locale: EnEu,
+            minor_units: 1,
+            name: "Romanian Leu",
+            symbol: "ROL",
+            symbol_first: false,
+        },
+        // Deprecated: SKK was replaced by EUR on January 1, 2009 when Slovakia adopted the Euro.
+        // The conversion rate was 30.1260 SKK = 1 EUR.
+        SKK : {
+            exponent: 2,
+            iso_alpha_code: "SKK",
+            iso_numeric_code: "703",
+            locale: EnUs,
+            minor_units: 50,
+            name: "Slovak Koruna",
+            symbol: "Sk",
+            symbol_first: true,
+        },
+        // Deprecated: SLL was replaced by SLE on April 1, 2022 at a rate of 1,000 SLL = 1 SLE.
+        SLL : {
+            exponent: 2,
+            iso_alpha_code: "SLL",
+            iso_numeric_code: "694",
+            locale: EnUs,
+            minor_units: 1000,
+            name: "Sierra Leonean Leone",
+            symbol: "Le",
+            symbol_first: false,
+        },
+        // Deprecated: STD was replaced by STN on January 1, 2018 at a rate of 1,000 STD = 1 STN.
+        STD : {
+            exponent: 2,
+            iso_alpha_code: "STD",
+            iso_numeric_code: "678",
+            locale: EnUs,
+            minor_units: 10000,
+            name: "São Tomé and Príncipe Dobra",
+            symbol: "Db",
+            symbol_first: false,
+        },
+        // Deprecated: ZMK was replaced by ZMW on January 1, 2013 at a rate of 1,000 ZMK = 1 ZMW.
+        ZMK : {
+            exponent: 2,
+            iso_alpha_code: "ZMK",
+            iso_numeric_code: "894",
+            locale: EnUs,
+            minor_units: 5,
+            name: "Zambian Kwacha",
+            symbol: "ZK",
+            symbol_first: false,
+        },
+        // Deprecated: ZWL was replaced by ZWG on June 25, 2024. ZWG (Zimbabwe Gold) uses
+        // numeric code 924.
         ZWL : {
             exponent: 2,
             iso_alpha_code: "ZWL",
