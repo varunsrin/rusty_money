@@ -182,6 +182,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// Supports fuzzy amount strings like "100", "100.00" and "-100.00"
     pub fn from_str(amount: &str, currency: &'a T) -> Result<Money<'a, T>, MoneyError> {
+        if amount.is_empty() {
+            return Err(MoneyError::InvalidAmount);
+        }
+
         let format = LocalFormat::from_locale(currency.locale());
         let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
 
@@ -655,9 +659,11 @@ mod tests {
                 MoneyError::InvalidAmount
             );
 
-            // Empty string parses to zero (arguably a bug, but documenting current behavior)
-            let empty = Money::from_str("", test::USD).unwrap();
-            assert_eq!(empty, Money::from_minor(0, test::USD));
+            // Empty string returns an error
+            assert_eq!(
+                Money::from_str("", test::USD).unwrap_err(),
+                MoneyError::InvalidAmount
+            );
 
             // Invalid decimal/separator combinations per locale
             assert_eq!(
