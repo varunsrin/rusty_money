@@ -17,24 +17,24 @@ It handles the complex parts of dealing with money: rounding, precision, parsing
 
 The design principles behind rusty-money are: 
 
-- **Safety by default**. Operations return `Result` types if they can fail, and are labelled if they can cause precision loss. 
-- **Blazing fast performance**. Each operation is designed to be as fast as possible without violating safety requirements. 
+- **Safety by default**. Methods return `Result` if fallible, and are labelled if they can cause precision loss. 
+- **Blazing fast performance**. Operations are designed to be as fast as possible without compromising safety. 
 - **Ergonomic interfaces**. Simple methods with runtime currency checks over generic constraints. 
 
 The library supports many features necessary for building high performance financial apps: 
 
 - **Currencies** – Supports 150+ ISO-4217 currencies and cryptocurrencies, lets you define new ones. 
 - **Internationalization** – Locale-aware formatting and parsing for displaying currencies internationally. 
-- **Flexible Representations** – Choose between 128-bit decimals or 64-bit ints for maximum precision or performance.  
+- **Flexible Representations** – Choose 128-bit decimals or 64-bit ints for precision or performance.  
 - **Exchange** – Built-in support for currency conversion and exchange rate management.
 - **Utilities** – Helpers for common operations like splitting money safely and fairly.
 - **Serialization** – Fast serialization and deserialization
 
 There are three main interfaces: 
 
-- **`Money`** — Uses 128-bit decimals for high precision and supports allocating, formatting and exchanging. The default option.
+- **`Money`** — Uses 128-bit decimals for high precision and supports allocating, formatting and exchanging.
 
-- **`FastMoney`** — Uses 64-bit integers and truncates to minor units. Up to 5x faster for arithmetic but less precise and feature-rich. 
+- **`FastMoney`** — Uses 64-bit integers and truncates to minor units. Up to 5x faster for arithmetic. 
 
 - **`Exchange`** — Manages currency exchange rates and converts between different currences. 
 
