@@ -1,8 +1,6 @@
 # rusty-money
 
-[![Build Status]][Github Action]
-[![Latest Version]][crates.io]
-[![Docs]][docs.rs]
+[![Build Status]][Github Action] [![Latest Version]][crates.io] [![Docs]][docs.rs]
 
 [Build Status]: https://github.com/varunsrin/rusty_money/actions/workflows/rust.yml/badge.svg
 [Github Action]: https://github.com/varunsrin/rusty_money/actions/workflows/rust.yml
@@ -11,149 +9,305 @@
 [Docs]: https://docs.rs/rusty-money/badge.svg
 [docs.rs]: https://docs.rs/rusty-money
 
-`rusty-money` handles the messy parts of dealing with money like rounding, precision, parsing and internationalization.
-It supports [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) currencies, common crypto currencies and lets you
-define your own. The main items exported by the library are `Money` and the `iso` and `crypto` currency sets.
+## Introduction
 
-## Usage
+rusty-money is a library for handling monetary values in Rust. 
 
-A `Money` object is created by supplying an amount and a currency. Amounts can be specified in numeric or string types
-but will be stored as precise decimals internally. You can select a bundled currency or make your own. Here's a
-quick example of how you would make your own `Currency` and then create some `Money` with it:
+It handles the complex parts of dealing with money: rounding, precision, parsing, i18n, exchange rates, and serialization. It follows [ISO-4217](https://en.wikipedia.org/wiki/ISO_4217) currency definitions and is inspired by Fowler's [money pattern](https://martinfowler.com/eaaCatalog/money.html), Golang's [go-money](https://github.com/Rhymond/go-money) and Ruby's [money](https://github.com/RubyMoney/money). 
+
+The design principles behind rusty-money are: 
+
+- **Safety by default**. Operations return `Result` types if they can fail, and are labelled if they can cause precision loss. 
+- **Blazing fast performance**. Each operation is designed to be as fast as possible without violating safety requirements. 
+- **Ergonomic interfaces**. Simple methods with runtime currency checks over generic constraints. 
+
+The library supports many features necessary for building high performance financial apps: 
+
+- **Currencies** – Supports 150+ ISO-4217 currencies and cryptocurrencies, lets you define new ones. 
+- **Internationalization** – Locale-aware formatting and parsing for displaying currencies internationally. 
+- **Flexible Representations** – Choose between 128-bit decimals or 64-bit ints for maximum precision or performance.  
+- **Exchange** – Built-in support for currency conversion and exchange rate management.
+- **Utilities** – Helpers for common operations like splitting money safely and fairly.
+- **Serialization** – Fast serialization and deserialization
+
+There are three main interfaces: 
+
+- **`Money`** — Uses 128-bit decimals for high precision and supports allocating, formatting and exchanging. The default option.
+
+- **`FastMoney`** — Uses 64-bit integers and truncates to minor units. Up to 5x faster for arithmetic but less precise and feature-rich. 
+
+- **`Exchange`** — Manages currency exchange rates and converts between different currences. 
+
+
+## Quickstart
+
+Add rusty-money to your `Cargo.toml`:
+
+```toml
+[dependencies]
+rusty-money = "0.5"
+```
+
+Create some money, do math, and split the bill:
+
+```rust
+use rusty_money::{Money, iso};
+
+// Create money from major or minor units
+let total = Money::from_major(100, iso::USD);      // => $100.00
+let tip = Money::from_minor(1875, iso::USD);        // => $18.75
+
+// Arithmetic returns Result for safety
+let total = total.add(tip).unwrap();               // => $118.75
+
+// Split fairly among 3 people (remainder goes to first shares)
+let shares = total.split(3).unwrap();
+// => [$39.59, $39.58, $39.58]
+
+println!("{}", total);                             // => $118.75
+```
+
+## Money
+
+`Money` is the core type for monetary calculations. It stores amounts as 128-bit decimals, providing precision up to 28 decimal places.
+
+### Creating Money
+
+```rust
+use rusty_money::{Money, iso};
+
+// From minor units (cents, pence, etc.)
+Money::from_minor(1000, iso::USD);                 // => $10.00
+
+// From major units (dollars, pounds, etc.)
+Money::from_major(10, iso::USD);                   // => $10.00
+
+// From a decimal
+use rust_decimal_macros::dec;
+Money::from_decimal(dec!(10.50), iso::USD);        // => $10.50
+
+// Parse from string (locale-aware)
+Money::from_str("1,000.99", iso::USD).unwrap();    // => $1,000.99
+Money::from_str("1.000,99", iso::EUR).unwrap();    // => €1.000,99
+Money::from_str("1,00,00,000.99", iso::INR).unwrap(); // => ₹1,00,00,000.99
+```
+
+### Arithmetic
+
+All arithmetic operations return `Result` to handle currency mismatches and overflow:
+
+```rust
+use rusty_money::{Money, iso};
+
+let a = Money::from_major(100, iso::USD);
+let b = Money::from_major(50, iso::USD);
+
+a.add(b).unwrap();                                 // => $150.00
+a.sub(b).unwrap();                                 // => $50.00
+a.mul(3).unwrap();                                 // => $300.00
+a.div(4).unwrap();                                 // => $25.00
+
+// Currency mismatch returns an error
+let eur = Money::from_major(50, iso::EUR);
+assert!(a.add(eur).is_err());
+```
+
+### Comparison
+
+```rust
+use rusty_money::{Money, iso};
+
+let hundred = Money::from_major(100, iso::USD);
+let fifty = Money::from_major(50, iso::USD);
+
+hundred.gt(&fifty).unwrap();                       // => true
+fifty.lt(&hundred).unwrap();                       // => true
+hundred.eq(&hundred).unwrap();                     // => true
+
+// Predicates
+hundred.is_positive();                             // => true
+hundred.is_negative();                             // => false
+hundred.is_zero();                                 // => false
+```
+
+### Rounding
+
+Money preserves maximum precision until you explicitly round:
+
+```rust
+use rusty_money::{Money, Round, iso};
+
+let amount = Money::from_str("10.005", iso::USD).unwrap();
+
+amount.round(2, Round::HalfUp);                    // => $10.01
+amount.round(2, Round::HalfDown);                  // => $10.00
+amount.round(2, Round::HalfEven);                  // => $10.00 (banker's rounding)
+```
+
+### Allocation
+
+Splitting money fairly is tricky—`$100.00` split 3 ways can't be done evenly. rusty-money handles remainder distribution automatically:
+
+```rust
+use rusty_money::{Money, iso};
+
+let total = Money::from_major(100, iso::USD);
+
+// Equal split (remainder distributed to first shares)
+let shares = total.split(3).unwrap();
+// => [$33.34, $33.33, $33.33]
+
+// Weighted allocation
+let parts = total.allocate(vec![70, 20, 10]).unwrap();
+// => [$70.00, $20.00, $10.00]
+```
+
+### Formatting
+
+`Money` formats according to its currency's locale:
+
+```rust
+use rusty_money::{Money, iso};
+
+let usd = Money::from_major(-2000, iso::USD);
+let eur = Money::from_major(-2000, iso::EUR);
+let inr = Money::from_major(-100000, iso::INR);
+
+println!("{}", usd);                               // => -$2,000.00
+println!("{}", eur);                               // => -€2.000,00
+println!("{}", inr);                               // => -₹1,00,000.00
+```
+
+### Custom Currencies
+
+Define your own currencies using the `define_currency_set!` macro:
 
 ```rust
 use rusty_money::{Money, define_currency_set};
 
 define_currency_set!(
-  video_game {
-    GIL: {
-      code: "GIL",
-      exponent: 2,
-      locale: Locale::EnUs,
-      minor_units: 100,
-      name: "GIL",
-      symbol: "G",
-      symbol_first: true,
+    game {
+        GIL: {
+            code: "GIL",
+            exponent: 0,
+            locale: Locale::EnUs,
+            minor_units: 1,
+            name: "Gil",
+            symbol: "G",
+            symbol_first: false,
+        }
     }
-  }
 );
 
-Money::from_major(2_000, video_game::GIL);              // 2000 GIL
-Money::from_minor(200_000, video_game::GIL);            // 2000 GIL
-Money::from_str("2,000.00", video_game::GIL).unwrap();  // 2000 GIL
-
-// Currencies can be looked up by code.
-let gil = video_game::find("GIL").unwrap();
-Money::from_major(2_000, gil);                          // 2000 GIL
+let gold = Money::from_major(500, game::GIL);
+println!("{}", gold);                              // => 500G
 ```
 
-## Features: Currency Sets
+## Exchange Rates
 
-rusty_money provides two currency sets for convenience : `iso`, which implements ISO-4217 currencies and `crypto` which
-implements popular cryptocurrencies. `iso` is enabled by default, and you can add `crypto` by enabling the feature:
-
-```toml
-[dependencies]
-rusty-money = { version = "0.4.1", features = ["iso", "crypto"] }
-```
-
-The currency sets can then be used like this:
-
-```rust
-use rusty_money::{Money, iso, crypto};
-
-Money::from_major(2_000, iso::USD);        // 2000 U.S Dollars
-Money::from_major(2_000, iso::GBP);        // 2000 British Pounds
-Money::from_major(2, crypto::BTC);         // 2 Bitcoin
-```
-
-Money objects of the same currency can be compared using helper methods:
-
- ```rust
-use rusty_money::{Money, iso};
-
-let hundred = Money::from_minor(10_000, iso::USD);
-let thousand = Money::from_minor(100_000, iso::USD);
-
-// Comparison helpers return Result<bool, MoneyError>
-println!("{}", thousand.gt(&hundred).unwrap());   // true
-println!("{}", hundred.lte(&thousand).unwrap());  // true
-println!("{}", hundred.eq(&hundred).unwrap());    // true
-
-// Sign predicates
-println!("{}", thousand.is_positive());           // true
-println!("{}", hundred.is_zero());                // false
-```
-
-## Precision, Rounding and Math
-
-Money objects are immutable, and operations that change amounts create a new instance of Money. Amounts are stored
-as 128 bit fixed-precision [Decimals](https://github.com/paupino/rust-decimal), and handle values as large as
-$2^{96}$ / $10^{28}$. Operations on Money retain the maximum possible precision. When you want less
-precision, you call the `round` function, which  supports three modes:
-
-* [Half Up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
-* [Half Down](https://en.wikipedia.org/wiki/Rounding#Round_half_down)
-* [Half Even](https://en.wikipedia.org/wiki/Rounding#Round_half_even) (default)
-
-All Money arithmetic uses methods that return `Result`, enabling safe error handling for:
-- Currency mismatches (e.g., adding USD to EUR)
-- Division by zero
-- Arithmetic overflow
-
-This design prevents silent failures in financial calculations.
-
-```rust
-use rusty_money::{Money, Round, iso, MoneyError};
-
-let a = Money::from_minor(100, iso::USD);
-let b = Money::from_minor(100, iso::USD);
-
-// All arithmetic operations return Result for safe error handling
-let sum = a.add(b).unwrap();                                          // 2 USD
-let diff = a.sub(b).unwrap();                                         // 0 USD
-let tripled = a.mul(3).unwrap();                                      // 3 USD
-let half = a.div(2).unwrap();                                         // 0.50 USD
-
-// Currency mismatch returns an error instead of panicking
-let eur = Money::from_minor(100, iso::EUR);
-assert!(a.add(eur).is_err());
-
-let usd = Money::from_str("-2000.005", iso::USD).unwrap();
-usd.round(2, Round::HalfEven);                                        // 2000.00 USD
-usd.round(2, Round::HalfUp);                                          // 2000.01 USD
-```
-
-## Formatting
-
-Calling `format!` or `println!` on Money returns a string with a rounded amount, using separators and symbols
-according to the locale of the currency. If you need to customize this output, the `Formatter` module
-accepts a more detailed set of parameters.
-
-```rust
-use rusty_money::{Money, iso};
-let usd = Money::from_str("-2000.009", iso::USD).unwrap();
-let eur = Money::from_str("-2000.009", iso::EUR).unwrap();
-
-println!("{}", usd);                                        // -$2,000.01
-println!("{}", eur);                                        // -€2.000,01;
-```
-
-## Exchange
-
-The library also provides two additional types - `Exchange` and `ExchangeRates` to convert Money from one currency
-to another.
+Convert money between currencies using `ExchangeRate` and `Exchange`:
 
 ```rust
 use rusty_money::{Money, Exchange, ExchangeRate, iso};
-use rust_decimal_macros::*;
+use rust_decimal_macros::dec;
 
-// Convert 1000 USD to EUR at a 2:1 exchange rate.
-let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.5)).unwrap();
-rate.convert(&Money::from_minor(100_000, iso::USD));                    // 500 EUR
+// Create a rate: 1 USD = 0.85 EUR
+let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.85)).unwrap();
 
-// An Exchange can be used to store ExchangeRates for later use
+// Convert directly
+let usd = Money::from_major(100, iso::USD);
+let eur = rate.convert(&usd).unwrap();             // => €85.00
+
+// Or store rates in an Exchange for reuse
 let mut exchange = Exchange::new();
 exchange.set_rate(&rate);
-exchange.get_rate(iso::USD, iso::EUR);
+
+// Look up and convert
+if let Some(r) = exchange.get_rate(iso::USD, iso::EUR) {
+    let result = r.convert(&usd).unwrap();
+    println!("{}", result);                        // => €85.00
+}
+
+// Convenience method on Money
+let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 ```
+
+## Fast Money
+
+`FastMoney` uses `i64` minor units (cents) instead of 128-bit decimals, providing significantly faster arithmetic for performance-critical code paths. It comes with a narrower feature set and has lower precision due to the use of integers.
+
+
+Only choose `FastMoney` over `Money`: 
+
+- You're doing arithmetic operations with high-frequency and performance is critical.
+- Amounts fit within currency precision (no fractional cents).
+
+
+### Usage
+
+```rust
+use rusty_money::{FastMoney, Money, iso};
+
+// Create from minor units (no conversion needed)
+let fast = FastMoney::from_minor(10000, iso::USD);  // => $100.00
+
+// Create from major units
+let fast = FastMoney::from_major(100, iso::USD).unwrap();
+
+// Fast arithmetic
+let a = FastMoney::from_minor(1000, iso::USD);
+let b = FastMoney::from_minor(500, iso::USD);
+let sum = a.add(b).unwrap();                       // => $15.00
+
+// Convert to Money for advanced features
+let money = sum.to_money();
+let shares = money.split(3).unwrap();
+
+// Convert back (strict mode errors on precision loss)
+let fast_again = FastMoney::from_money(money).unwrap();
+
+// Or use lossy conversion if you accept truncation
+let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
+```
+
+### Precision Differences
+
+FastMoney truncates intermediate results to minor units, which can accumulate into different final values:
+
+```rust
+use rusty_money::{FastMoney, Money, iso};
+
+// With Money (high precision): $10.00 / 3 keeps full decimal precision
+let money = Money::from_major(10, iso::USD);
+let divided = money.div(3).unwrap();               // => $3.3333333...
+let restored = divided.mul(3).unwrap();            // => $10.00 (no loss)
+
+// With FastMoney (low precision): truncates to minor units
+let fast = FastMoney::from_major(10, iso::USD).unwrap();
+let divided = fast.div(3).unwrap();                // => $3.33 (truncated)
+let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
+```
+
+## Feature Flags
+
+```toml
+[dependencies]
+# Default: ISO-4217 currencies only
+rusty-money = "0.5"
+
+# Add cryptocurrency support
+rusty-money = { version = "0.4", features = ["crypto"] }
+
+# Add FastMoney
+rusty-money = { version = "0.4", features = ["fast"] }
+
+# Add serde serialization
+rusty-money = { version = "0.4", features = ["serde"] }
+
+# Everything
+rusty-money = { version = "0.4", features = ["iso", "crypto", "fast", "serde"] }
+```
+
+## License
+
+MIT
