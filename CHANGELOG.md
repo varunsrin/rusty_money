@@ -1,20 +1,46 @@
 # Change Log
 
+## [0.5.0] - 2026-01-14
+
+Breaking Changes:
+
+* `allocate_to()` renamed to `split()`.
+* `allocate()` now supports minor unit splitting and no longer allows negative ratios.
+* Parsing an empty string now returns `MoneyError::InvalidAmount` instead of succeeding with zero.
+* Many methods now return `Result<T, MoneyError>` instead of panicking, making interfaces safe by default.
+
+Minor Changes:
+
+* Money: Added `FastMoney` type for high-performance calculations with fixed precision.
+* Money: Added serde serialization/deserialization support (behind `serde` feature flag).
+* Money: Added `abs()` method for absolute value.
+* Money: Implemented Hash trait, making Money hashable.
+* Money: Added helper methods for exchange and unit conversion.
+* Perf: Improved performance across formatting and arithmetic operations.
+* Fix: Improved error messages with more context.
+* Fix: Decimal scaling ensures identical formatting output for equivalent values.
+* Fix: Simpler type conversions when dealing with Money types.
+* ISO: Added VED (Venezuelan Digital Bolivar), XCG (Caribbean Guilder), ZMW (Zambian Kwacha), ZWG (Zimbabwe Gold).
+* ISO: Fixed BRL (Brazilian Real) separators.
+* ISO: Fixed NIO (Nicaraguan Córdoba) metadata.
+* Crypto: Added LTC (Litecoin), TRX (TRON).
+
+
 ## [0.4.2] - 2026-01-12
 
-ISO: Added SLE (Sierra Leonean Leone) @takenoko-gohan.
-ISO: Fixed RON symbol (was incorrectly set to Qatari Riyal symbol) and added ROL @Paul-Sebastian Manole.
-Crypto: Added BCH (Bitcoin Cash), BSV (Bitcoin SV) @Rai.
-Money: Implemented Copy trait @Paul-Sebastian Manole.
-Money: Implemented Neg trait (enables -money syntax) @Dominik Otkiński.
-Money: Derived Hash for Currency types @FirelightFlagboy.
-Fix: Removed i32 parse check in Money::from_str that prevented parsing 64-bit numbers @Dominik Otkiński.
-Fix: Removed unnecessary move from Exchange::convert method @affanshahid.
-Fix: Added type annotation on ExchangeRate in set_rate @Affan Shahid.
-Deps: Updated rust_decimal to 1.39.0, Rust edition to 2024. 
-Deps: Moved rust_decimal_macros to dev-dependencies.
-CI: Replaced Travis CI with GitHub Actions @FirelightFlagboy.
-CI: Added rustfmt and clippy checks @FirelightFlagboy.
+* ISO: Added SLE (Sierra Leonean Leone) @takenoko-gohan.
+* ISO: Fixed RON symbol (was incorrectly set to Qatari Riyal symbol) and added ROL @Paul-Sebastian Manole.
+* Crypto: Added BCH (Bitcoin Cash), BSV (Bitcoin SV) @Rai.
+* Money: Implemented Copy trait @Paul-Sebastian Manole.
+* Money: Implemented Neg trait (enables -money syntax) @Dominik Otkiński.
+* Money: Derived Hash for Currency types @FirelightFlagboy.
+* Fix: Removed i32 parse check in Money::from_str that prevented parsing 64-bit numbers @Dominik Otkiński.
+* Fix: Removed unnecessary move from Exchange::convert method @affanshahid.
+* Fix: Added type annotation on ExchangeRate in set_rate @Affan Shahid.
+* Deps: Updated rust_decimal to 1.39.0, Rust edition to 2024.
+* Deps: Moved rust_decimal_macros to dev-dependencies.
+* CI: Replaced Travis CI with GitHub Actions @FirelightFlagboy.
+* CI: Added rustfmt and clippy checks @FirelightFlagboy.
 
 ## [0.4.1] - 2021-01-16
 
