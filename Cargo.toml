@@ -1,6 +1,6 @@
 [package]
 name = "rusty-money"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Varun Srinivasan <varunsrin@gmail.com>"]
 edition = "2024"
 license = "MIT"
