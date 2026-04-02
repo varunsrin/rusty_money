@@ -7,7 +7,7 @@ pub struct Formatter;
 
 impl Formatter {
     /// Returns a formatted Money String given parameters and a Money object.
-    pub fn money<'a, T: FormattableCurrency>(money: &Money<'a, T>, params: Params<'_>) -> String {
+    pub fn money<'a, T: FormattableCurrency>(money: &Money<T>, params: Params<'_>) -> String {
         let mut decimal = *money.amount();
 
         // Round the decimal and ensure it has the correct scale
@@ -155,7 +155,7 @@ mod tests {
     fn format_position() {
         let _usd = test::find("USD"); // Prevents unused code warnings from the defined module.
 
-        let money = Money::from_major(-1000, test::USD);
+        let money = Money::from_major(-1000, *test::USD);
 
         // Test that you can position eSpace, Amount, Code, Symbol and Sign in different places
         let params = Params {
@@ -226,15 +226,15 @@ mod tests {
         };
 
         // For 1_000_000
-        let money = Money::from_major(1_000_000, test::USD);
+        let money = Money::from_major(1_000_000, *test::USD);
         assert_eq!("1/000/000", Formatter::money(&money, params.clone()));
 
         // For 1_000
-        let money = Money::from_major(1_000, test::USD);
+        let money = Money::from_major(1_000, *test::USD);
         assert_eq!("1/000", Formatter::money(&money, params.clone()));
 
         // For 0 Chars
-        let money = Money::from_major(0, test::USD);
+        let money = Money::from_major(0, *test::USD);
         assert_eq!("0", Formatter::money(&money, params));
 
         // European style: swap digit and exponent separators
@@ -244,7 +244,7 @@ mod tests {
             digit_separator: '.',
             ..Default::default()
         };
-        let money = Money::from_minor(123456, test::USD);
+        let money = Money::from_minor(123456, *test::USD);
         assert_eq!("1.234,56", Formatter::money(&money, params));
     }
 
@@ -256,13 +256,13 @@ mod tests {
             ..Default::default()
         };
 
-        let money = Money::from_major(10_000_000, test::USD);
+        let money = Money::from_major(10_000_000, *test::USD);
         assert_eq!("1,00,00,000", Formatter::money(&money, params.clone()));
 
-        let money = Money::from_major(100_000, test::USD);
+        let money = Money::from_major(100_000, *test::USD);
         assert_eq!("1,00,000", Formatter::money(&money, params.clone()));
 
-        let money = Money::from_major(1_000, test::USD);
+        let money = Money::from_major(1_000, *test::USD);
         assert_eq!("1,000", Formatter::money(&money, params));
     }
 
@@ -274,14 +274,14 @@ mod tests {
             ..Default::default()
         };
 
-        let money = Money::from_major(0, test::USD);
+        let money = Money::from_major(0, *test::USD);
         // Zero should not have a sign
         assert_eq!("$0", Formatter::money(&money, params));
     }
 
     #[test]
     fn format_rounding() {
-        let money = Money::from_minor(1000, test::USD).div(3).unwrap();
+        let money = Money::from_minor(1000, *test::USD).div(3).unwrap();
 
         // Rounding = Some (0)
         let params = Params {
@@ -319,21 +319,21 @@ mod golden_tests {
     #[test]
     fn usd_format_golden() {
         // US Dollar: symbol first, comma digit separator, period decimal
-        assert_eq!(format!("{}", Money::from_minor(0, iso::USD)), "$0.00");
-        assert_eq!(format!("{}", Money::from_minor(1, iso::USD)), "$0.01");
-        assert_eq!(format!("{}", Money::from_minor(100, iso::USD)), "$1.00");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::USD)), "$0.00");
+        assert_eq!(format!("{}", Money::from_minor(1, *iso::USD)), "$0.01");
+        assert_eq!(format!("{}", Money::from_minor(100, *iso::USD)), "$1.00");
         assert_eq!(
-            format!("{}", Money::from_minor(123456, iso::USD)),
+            format!("{}", Money::from_minor(123456, *iso::USD)),
             "$1,234.56"
         );
         assert_eq!(
-            format!("{}", Money::from_minor(123456789, iso::USD)),
+            format!("{}", Money::from_minor(123456789, *iso::USD)),
             "$1,234,567.89"
         );
         // Negative amounts
-        assert_eq!(format!("{}", Money::from_minor(-100, iso::USD)), "-$1.00");
+        assert_eq!(format!("{}", Money::from_minor(-100, *iso::USD)), "-$1.00");
         assert_eq!(
-            format!("{}", Money::from_minor(-123456, iso::USD)),
+            format!("{}", Money::from_minor(-123456, *iso::USD)),
             "-$1,234.56"
         );
     }
@@ -341,13 +341,13 @@ mod golden_tests {
     #[test]
     fn eur_format_golden() {
         // Euro: European locale - period digit separator, comma decimal
-        assert_eq!(format!("{}", Money::from_minor(0, iso::EUR)), "€0,00");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::EUR)), "€0,00");
         assert_eq!(
-            format!("{}", Money::from_minor(123456, iso::EUR)),
+            format!("{}", Money::from_minor(123456, *iso::EUR)),
             "€1.234,56"
         );
         assert_eq!(
-            format!("{}", Money::from_minor(-123456, iso::EUR)),
+            format!("{}", Money::from_minor(-123456, *iso::EUR)),
             "-€1.234,56"
         );
     }
@@ -355,9 +355,9 @@ mod golden_tests {
     #[test]
     fn gbp_format_golden() {
         // British Pound: US-style formatting
-        assert_eq!(format!("{}", Money::from_minor(0, iso::GBP)), "£0.00");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::GBP)), "£0.00");
         assert_eq!(
-            format!("{}", Money::from_minor(123456, iso::GBP)),
+            format!("{}", Money::from_minor(123456, *iso::GBP)),
             "£1,234.56"
         );
     }
@@ -365,11 +365,11 @@ mod golden_tests {
     #[test]
     fn jpy_format_golden() {
         // Japanese Yen: no decimal places (exponent 0)
-        assert_eq!(format!("{}", Money::from_minor(0, iso::JPY)), "¥0");
-        assert_eq!(format!("{}", Money::from_minor(1, iso::JPY)), "¥1");
-        assert_eq!(format!("{}", Money::from_minor(1234, iso::JPY)), "¥1,234");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::JPY)), "¥0");
+        assert_eq!(format!("{}", Money::from_minor(1, *iso::JPY)), "¥1");
+        assert_eq!(format!("{}", Money::from_minor(1234, *iso::JPY)), "¥1,234");
         assert_eq!(
-            format!("{}", Money::from_minor(1234567, iso::JPY)),
+            format!("{}", Money::from_minor(1234567, *iso::JPY)),
             "¥1,234,567"
         );
     }
@@ -377,16 +377,16 @@ mod golden_tests {
     #[test]
     fn inr_format_golden() {
         // Indian Rupee: Indian numbering (lakhs, crores) - 2,2,3 pattern
-        assert_eq!(format!("{}", Money::from_minor(0, iso::INR)), "₹0.00");
-        assert_eq!(format!("{}", Money::from_minor(100, iso::INR)), "₹1.00");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::INR)), "₹0.00");
+        assert_eq!(format!("{}", Money::from_minor(100, *iso::INR)), "₹1.00");
         // 1,00,000 (1 lakh)
         assert_eq!(
-            format!("{}", Money::from_minor(10000000, iso::INR)),
+            format!("{}", Money::from_minor(10000000, *iso::INR)),
             "₹1,00,000.00"
         );
         // 1,00,00,000 (1 crore)
         assert_eq!(
-            format!("{}", Money::from_minor(1000000000, iso::INR)),
+            format!("{}", Money::from_minor(1000000000, *iso::INR)),
             "₹1,00,00,000.00"
         );
     }
@@ -394,11 +394,14 @@ mod golden_tests {
     #[test]
     fn bhd_format_golden() {
         // Bahraini Dinar: 3 decimal places (exponent 3), Arabic symbol
-        assert_eq!(format!("{}", Money::from_minor(0, iso::BHD)), "د.ب0.000");
-        assert_eq!(format!("{}", Money::from_minor(1, iso::BHD)), "د.ب0.001");
-        assert_eq!(format!("{}", Money::from_minor(1000, iso::BHD)), "د.ب1.000");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::BHD)), "د.ب0.000");
+        assert_eq!(format!("{}", Money::from_minor(1, *iso::BHD)), "د.ب0.001");
         assert_eq!(
-            format!("{}", Money::from_minor(1234567, iso::BHD)),
+            format!("{}", Money::from_minor(1000, *iso::BHD)),
+            "د.ب1.000"
+        );
+        assert_eq!(
+            format!("{}", Money::from_minor(1234567, *iso::BHD)),
             "د.ب1,234.567"
         );
     }
@@ -406,13 +409,13 @@ mod golden_tests {
     #[test]
     fn byn_format_golden() {
         // Belarusian Ruble: symbol after amount, space digit separator, comma decimal (EnBy locale)
-        assert_eq!(format!("{}", Money::from_minor(0, iso::BYN)), "0,00Br");
+        assert_eq!(format!("{}", Money::from_minor(0, *iso::BYN)), "0,00Br");
         assert_eq!(
-            format!("{}", Money::from_minor(123456, iso::BYN)),
+            format!("{}", Money::from_minor(123456, *iso::BYN)),
             "1 234,56Br"
         );
         assert_eq!(
-            format!("{}", Money::from_minor(123456789, iso::BYN)),
+            format!("{}", Money::from_minor(123456789, *iso::BYN)),
             "1 234 567,89Br"
         );
     }
