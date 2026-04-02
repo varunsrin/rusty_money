@@ -11,8 +11,8 @@ use rusty_money::FastMoney;
 fn bench_money_arithmetic(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let a = Money::from_minor(100_000, iso::USD);
-        let b = Money::from_minor(50_000, iso::USD);
+        let a = Money::from_minor(100_000, *iso::USD);
+        let b = Money::from_minor(50_000, *iso::USD);
 
         c.bench_function("money_add", |bencher| {
             bencher.iter(|| black_box(a).add(black_box(b)))
@@ -36,8 +36,8 @@ fn bench_money_arithmetic(c: &mut Criterion) {
 fn bench_fastmoney_arithmetic(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let a = FastMoney::from_minor(100_000, iso::USD);
-        let b = FastMoney::from_minor(50_000, iso::USD);
+        let a = FastMoney::from_minor(100_000, *iso::USD);
+        let b = FastMoney::from_minor(50_000, *iso::USD);
 
         c.bench_function("fastmoney_add", |bencher| {
             bencher.iter(|| black_box(a).add(black_box(b)))
@@ -61,8 +61,8 @@ fn bench_fastmoney_arithmetic(c: &mut Criterion) {
 fn bench_fastmoney_conversion(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let fast = FastMoney::from_minor(123_456, iso::USD);
-        let money = Money::from_minor(123_456, iso::USD);
+        let fast = FastMoney::from_minor(123_456, *iso::USD);
+        let money = Money::from_minor(123_456, *iso::USD);
 
         c.bench_function("fastmoney_to_money", |bencher| {
             bencher.iter(|| black_box(fast).to_money())
@@ -94,7 +94,7 @@ fn bench_exchange_lookup(c: &mut Criterion) {
         ];
 
         for (from, to, rate) in pairs {
-            exchange.set_rate(&ExchangeRate::new(from, to, rate).unwrap());
+            exchange.set_rate(&ExchangeRate::new(*from, *to, rate).unwrap());
         }
 
         c.bench_function("exchange_get_rate", |bencher| {
@@ -102,7 +102,7 @@ fn bench_exchange_lookup(c: &mut Criterion) {
         });
 
         c.bench_function("exchange_set_rate", |bencher| {
-            let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.85)).unwrap();
+            let rate = ExchangeRate::new(*iso::USD, *iso::EUR, dec!(0.85)).unwrap();
             bencher.iter(|| {
                 let mut ex = Exchange::new();
                 ex.set_rate(black_box(&rate))
@@ -114,8 +114,8 @@ fn bench_exchange_lookup(c: &mut Criterion) {
 fn bench_exchange_convert(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let rate = ExchangeRate::new(iso::USD, iso::EUR, dec!(0.85)).unwrap();
-        let amount = Money::from_minor(100_000, iso::USD);
+        let rate = ExchangeRate::new(*iso::USD, *iso::EUR, dec!(0.85)).unwrap();
+        let amount = Money::from_minor(100_000, *iso::USD);
 
         c.bench_function("exchange_convert", |bencher| {
             bencher.iter(|| black_box(rate).convert(black_box(&amount)))
@@ -127,13 +127,13 @@ fn bench_formatting(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
         // Small amount
-        let small = Money::from_minor(1_234, iso::USD);
+        let small = Money::from_minor(1_234, *iso::USD);
         c.bench_function("money_display_small", |bencher| {
             bencher.iter(|| format!("{}", black_box(&small)))
         });
 
         // Large amount with many digit separators
-        let large = Money::from_minor(123_456_789_012, iso::USD);
+        let large = Money::from_minor(123_456_789_012, *iso::USD);
         c.bench_function("money_display_large", |bencher| {
             bencher.iter(|| format!("{}", black_box(&large)))
         });
@@ -144,11 +144,11 @@ fn bench_parsing(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
         c.bench_function("money_from_str_simple", |bencher| {
-            bencher.iter(|| Money::from_str(black_box("12.34"), iso::USD))
+            bencher.iter(|| Money::from_str(black_box("12.34"), *iso::USD))
         });
 
         c.bench_function("money_from_str_large", |bencher| {
-            bencher.iter(|| Money::from_str(black_box("1,234,567.89"), iso::USD))
+            bencher.iter(|| Money::from_str(black_box("1,234,567.89"), *iso::USD))
         });
     }
 }
@@ -156,8 +156,8 @@ fn bench_parsing(c: &mut Criterion) {
 fn bench_comparison(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let a = Money::from_minor(100_000, iso::USD);
-        let b = Money::from_minor(50_000, iso::USD);
+        let a = Money::from_minor(100_000, *iso::USD);
+        let b = Money::from_minor(50_000, *iso::USD);
 
         c.bench_function("money_compare", |bencher| {
             bencher.iter(|| black_box(a).compare(black_box(&b)))
@@ -194,7 +194,7 @@ fn bench_comparison(c: &mut Criterion) {
 fn bench_to_minor_units(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let money = Money::from_minor(123_456_789, iso::USD);
+        let money = Money::from_minor(123_456_789, *iso::USD);
 
         c.bench_function("money_to_minor_units", |bencher| {
             bencher.iter(|| black_box(money).to_minor_units())
@@ -203,7 +203,7 @@ fn bench_to_minor_units(c: &mut Criterion) {
 
     #[cfg(all(feature = "iso", feature = "fast"))]
     {
-        let fast = FastMoney::from_minor(123_456_789, iso::USD);
+        let fast = FastMoney::from_minor(123_456_789, *iso::USD);
 
         c.bench_function("fastmoney_minor_units", |bencher| {
             bencher.iter(|| black_box(fast).minor_units())
@@ -214,7 +214,7 @@ fn bench_to_minor_units(c: &mut Criterion) {
 fn bench_allocate(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let money = Money::from_minor(100_000, iso::USD);
+        let money = Money::from_minor(100_000, *iso::USD);
 
         c.bench_function("money_allocate_3", |bencher| {
             bencher.iter(|| black_box(money).allocate(vec![1, 1, 1]))
@@ -237,7 +237,7 @@ fn bench_allocate(c: &mut Criterion) {
 fn bench_accessors(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
-        let money = Money::from_minor(100_000, iso::USD);
+        let money = Money::from_minor(100_000, *iso::USD);
 
         c.bench_function("money_amount", |bencher| {
             bencher.iter(|| black_box(money.amount()))
@@ -250,7 +250,7 @@ fn bench_accessors(c: &mut Criterion) {
 
     #[cfg(all(feature = "iso", feature = "fast"))]
     {
-        let fast = FastMoney::from_minor(100_000, iso::USD);
+        let fast = FastMoney::from_minor(100_000, *iso::USD);
 
         c.bench_function("fastmoney_minor_units_accessor", |bencher| {
             bencher.iter(|| black_box(fast.minor_units()))
@@ -264,7 +264,7 @@ fn bench_accessors(c: &mut Criterion) {
 
 #[cfg(all(feature = "iso", feature = "serde"))]
 fn bench_serde(c: &mut Criterion) {
-    let money = Money::from_minor(123_456_789, iso::USD);
+    let money = Money::from_minor(123_456_789, *iso::USD);
     let json = serde_json::to_string(&money).unwrap();
 
     c.bench_function("money_serde_serialize", |bencher| {
