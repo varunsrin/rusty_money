@@ -82,6 +82,9 @@ pub mod iso {
         };
       )+
 
+      // Api for all currency names
+      pub const CURRENCIES: &[&Currency] = &[$($currency),+];
+
       pub fn find(code: &str) -> Option<&'static Currency> {
         match code {
           $($alpha_code => (Some($currency)),)+
