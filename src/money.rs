@@ -449,7 +449,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Divides money into n shares according to the given weights.
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
-    /// to some of the shares.
+    /// to shares with non-zero weights in input order. Zero-weight shares receive zero.
     pub fn allocate(&self, shares: Vec<u32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if shares.is_empty() {
             return Err(MoneyError::InvalidRatio);
@@ -480,8 +480,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         let mut remainder = total_minor - allocated;
         let mut i: usize = 0;
         while remainder > Decimal::ZERO {
-            allocations_minor[i] += Decimal::ONE;
-            remainder -= Decimal::ONE;
+            if shares[i] != 0 {
+                allocations_minor[i] += Decimal::ONE;
+                remainder -= Decimal::ONE;
+            }
             i += 1;
         }
 
@@ -1348,6 +1350,30 @@ mod tests {
         }
 
         #[test]
+        fn allocate_remainder_skips_zero_weight_recipients() {
+            let cases = [
+                (1, vec![0, 1, 1], vec![0, 1, 0]),
+                (2, vec![1, 0, 1, 0, 1, 0], vec![1, 0, 1, 0, 0, 0]),
+                (-1, vec![0, 1, 1], vec![0, 0, -1]),
+                (-2, vec![0, 1, 0, 1, 0, 1, 0], vec![0, 0, 0, -1, 0, -1, 0]),
+            ];
+
+            for (amount, shares, expected) in cases {
+                let money = Money::from_minor(amount, test::USD);
+                let allocated = money.allocate(shares).unwrap();
+                let expected: Vec<_> = expected
+                    .into_iter()
+                    .map(|minor| Money::from_minor(minor, test::USD))
+                    .collect();
+                assert_eq!(allocated, expected);
+                assert_eq!(
+                    allocated.iter().map(|m| *m.amount()).sum::<Decimal>(),
+                    *money.amount()
+                );
+            }
+        }
+
+        #[test]
         fn allocate_negative_amount() {
             let money = Money::from_minor(-1100, test::USD);
             let allocated = money.allocate(vec![1, 1, 1]).unwrap();
@@ -1922,6 +1948,22 @@ mod proptest_tests {
         use super::*;
 
         proptest! {
+            #[test]
+            fn inserting_zero_weight_preserves_allocations(
+                amount in minor_amount(),
+                shares in valid_shares(),
+                index in 0usize..10,
+            ) {
+                let money = Money::from_minor(amount, test::USD);
+                let index = index % (shares.len() + 1);
+                let mut expected = money.allocate(shares.clone()).unwrap();
+                expected.insert(index, Money::from_minor(0, test::USD));
+
+                let mut with_zero = shares;
+                with_zero.insert(index, 0);
+                prop_assert_eq!(money.allocate(with_zero).unwrap(), expected);
+            }
+
             #[test]
             fn allocation_sum_equals_original(amount in minor_amount(), shares in valid_shares()) {
                 let money = Money::from_minor(amount, test::USD);
