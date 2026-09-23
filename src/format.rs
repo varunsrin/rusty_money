@@ -1,6 +1,6 @@
 use crate::currency::FormattableCurrency;
 use crate::{Money, Round};
-use std::cmp::Ordering;
+use std::fmt::{self, Write};
 
 /// Converts Money objects into human readable strings.
 pub struct Formatter;
@@ -8,6 +8,16 @@ pub struct Formatter;
 impl Formatter {
     /// Returns a formatted Money String given parameters and a Money object.
     pub fn money<'a, T: FormattableCurrency>(money: &Money<'a, T>, params: Params<'_>) -> String {
+        let mut result = String::with_capacity(32);
+        Self::write_money(money, params, &mut result).expect("writing to a String cannot fail");
+        result
+    }
+
+    pub(crate) fn write_money<T: FormattableCurrency, W: Write + ?Sized>(
+        money: &Money<'_, T>,
+        params: Params<'_>,
+        output: &mut W,
+    ) -> fmt::Result {
         let mut decimal = *money.amount();
 
         // Round the decimal and ensure it has the correct scale
@@ -16,56 +26,64 @@ impl Formatter {
             decimal.rescale(x);
         }
 
-        // Format the Amount String
-        let amount = Formatter::amount(&format!("{}", decimal), &params);
+        let raw_amount = decimal.to_string();
+        let unsigned = raw_amount.strip_prefix('-').unwrap_or(&raw_amount);
+        let (digits, fraction) = unsigned
+            .split_once('.')
+            .map_or((unsigned, None), |(digits, fraction)| {
+                (digits, Some(fraction))
+            });
+
+        // Preserve the existing byte-based insertion behavior for multibyte separators.
+        let legacy_digits = (!params.digit_separator.is_ascii())
+            .then(|| Self::digits(digits, params.digit_separator, params.separator_pattern));
 
         // Position values in the Output String
-        let mut result = String::new();
         for position in params.positions.iter() {
             match position {
-                Position::Space => result.push(' '),
-                Position::Amount => result.push_str(&amount),
-                Position::Code => result.push_str(params.code.unwrap_or("")),
-                Position::Symbol => result.push_str(params.symbol.unwrap_or("")),
-                Position::Sign => result.push_str(if money.is_negative() { "-" } else { "" }),
+                Position::Space => output.write_char(' ')?,
+                Position::Amount => {
+                    if let Some(grouped) = &legacy_digits {
+                        output.write_str(grouped)?;
+                    } else {
+                        Self::write_digits(digits, &params, output)?;
+                    }
+                    if let Some(fraction) = fraction {
+                        output.write_char(params.exponent_separator)?;
+                        output.write_str(fraction)?;
+                    }
+                }
+                Position::Code => output.write_str(params.code.unwrap_or(""))?,
+                Position::Symbol => output.write_str(params.symbol.unwrap_or(""))?,
+                Position::Sign => output.write_str(if money.is_negative() { "-" } else { "" })?,
             }
         }
-        result
+        Ok(())
     }
 
-    /// Returns a formatted amount String, given the raw amount and formatting parameters.
-    fn amount(raw_amount: &str, params: &Params<'_>) -> String {
-        // Split amount into digits and exponent.
-        let amount_split: Vec<&str> = raw_amount.split('.').collect();
-        let mut amount_digits = amount_split[0].to_string();
-
-        // Format the digits
-        amount_digits.retain(|c| c != '-');
-        amount_digits = Formatter::digits(
-            &amount_digits,
-            params.digit_separator,
-            params.separator_pattern,
-        );
-        let mut result = amount_digits;
-
-        // Format the exponent, and add to digits
-        match amount_split.len().cmp(&2) {
-            Ordering::Equal => {
-                // Exponent found, concatenate to digits.
-                result.push(params.exponent_separator);
-                result += amount_split[1];
+    fn write_digits<W: Write + ?Sized>(
+        digits: &str,
+        params: &Params<'_>,
+        output: &mut W,
+    ) -> fmt::Result {
+        let mut grouped = 0;
+        let mut count = 0;
+        for &width in params.separator_pattern {
+            if width >= digits.len() - grouped {
+                break;
             }
-            Ordering::Less => {
-                // No exponent, do nothing.
-            }
-            Ordering::Greater => {
-                unreachable!(
-                    "Decimal formatted string should never contain more than 1 exponent separator"
-                )
-            }
+            grouped += width;
+            count += 1;
         }
 
-        result
+        let mut start = digits.len() - grouped;
+        output.write_str(&digits[..start])?;
+        for &width in params.separator_pattern[..count].iter().rev() {
+            output.write_char(params.digit_separator)?;
+            output.write_str(&digits[start..start + width])?;
+            start += width;
+        }
+        Ok(())
     }
 
     /// Returns a formatted digit component, given the digit string, separator and pattern of separation.
@@ -305,6 +323,78 @@ mod tests {
             "3.3333333333333333333333333333",
             Formatter::money(&money, params)
         );
+    }
+
+    #[test]
+    fn format_preserves_rounding_carry_sign_and_scale() {
+        for (amount, expected) in [
+            ("999.995", "1,000.00"),
+            ("-999.995", "-1,000.00"),
+            ("-0.001", "-0.00"),
+            ("0", "0.00"),
+            ("1.5", "1.50"),
+        ] {
+            let decimal = amount.parse().unwrap();
+            let money = Money::from_decimal(decimal, test::USD);
+            let params = Params {
+                rounding: Some(2),
+                ..Default::default()
+            };
+            assert_eq!(Formatter::money(&money, params), expected);
+            assert_eq!(money.amount().serialize(), decimal.serialize());
+        }
+    }
+
+    #[test]
+    fn format_preserves_custom_grouping() {
+        for (amount, pattern, separator, expected) in [
+            (1_234_567_890, &[3, 2, 2][..], ',', "123,45,67,890"),
+            (1_234, &[][..], ',', "1234"),
+            (1_234, &[0, 3][..], ',', "1,234,"),
+            (1_234, &[4, 3][..], ',', "1234"),
+            (1_234_567, &[3, 3, 3][..], '\u{a0}', "12\u{a0}34\u{a0}567"),
+        ] {
+            let money = Money::from_major(amount, test::USD);
+            let params = Params {
+                separator_pattern: pattern,
+                digit_separator: separator,
+                ..Default::default()
+            };
+            // Keep the existing finite grouping patterns, including multibyte behavior.
+            assert_eq!(Formatter::money(&money, params), expected);
+        }
+    }
+
+    #[test]
+    fn format_preserves_repeated_amount_positions() {
+        let money = Money::from_minor(-123_450, test::USD);
+        let params = Params {
+            positions: &[
+                Position::Amount,
+                Position::Space,
+                Position::Sign,
+                Position::Amount,
+                Position::Symbol,
+            ],
+            symbol: Some("€"),
+            exponent_separator: ',',
+            digit_separator: '.',
+            rounding: Some(2),
+            ..Default::default()
+        };
+        assert_eq!(Formatter::money(&money, params), "1.234,50 -1.234,50€");
+    }
+
+    #[test]
+    fn writing_propagates_output_errors() {
+        struct FailingWriter;
+        impl std::fmt::Write for FailingWriter {
+            fn write_str(&mut self, _: &str) -> std::fmt::Result {
+                Err(std::fmt::Error)
+            }
+        }
+        let money = Money::from_major(1234, test::USD);
+        assert!(Formatter::write_money(&money, Params::default(), &mut FailingWriter).is_err());
     }
 }
 
