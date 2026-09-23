@@ -147,6 +147,9 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns the amount in minor units (e.g., cents for USD, pence for GBP).
     ///
+    /// Prefer [`try_to_minor_units`](Self::try_to_minor_units) for an exact,
+    /// checked conversion.
+    ///
     /// The conversion multiplies by 10^exponent where exponent is the currency's
     /// decimal places (2 for USD, 0 for JPY, 3 for BHD).
     ///
@@ -167,6 +170,61 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         use rust_decimal::prelude::ToPrimitive;
         let scale = Decimal::from(10u64.pow(self.currency.exponent()));
         (self.amount * scale).trunc().to_i64().unwrap_or(0)
+    }
+
+    /// Returns the exact amount in minor units, without rounding or truncation.
+    ///
+    /// Trailing fractional zeros do not count as excess precision. To choose a
+    /// rounding policy, call [`round`](Self::round) with the currency's exponent
+    /// before converting. This method does not change the stored amount.
+    ///
+    /// # Errors
+    /// Returns [`MoneyError::PrecisionLoss`] if the amount includes a fractional
+    /// minor unit, or [`MoneyError::Overflow`] if the integral minor-unit amount
+    /// is outside the `i64` range. Fractional minor units are checked first.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, MoneyError, Round, iso};
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let exact = Money::from_decimal(dec!(12.3400), iso::USD);
+    /// assert_eq!(exact.try_to_minor_units(), Ok(1234));
+    ///
+    /// let fractional = Money::from_decimal(dec!(-1.005), iso::USD);
+    /// assert_eq!(fractional.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+    /// assert_eq!(fractional.round(2, Round::HalfUp).try_to_minor_units(), Ok(-101));
+    ///
+    /// let large = Money::from_major(100_000_000_000_000_000, iso::USD);
+    /// assert_eq!(large.try_to_minor_units(), Err(MoneyError::Overflow));
+    /// ```
+    pub fn try_to_minor_units(&self) -> Result<i64, MoneyError> {
+        let coefficient = self.amount.mantissa();
+        if coefficient == 0 {
+            return Ok(0);
+        }
+
+        let scale = self.amount.scale();
+        let exponent = self.currency.exponent();
+        // Rescale the integer coefficient directly to avoid Decimal rounding
+        // and overflowing intermediate powers for high-exponent currencies.
+        let minor_units = if scale > exponent {
+            // Decimal's scale is at most 28, so this power fits in i128.
+            let divisor = 10i128.pow(scale - exponent);
+            if coefficient % divisor != 0 {
+                return Err(MoneyError::PrecisionLoss);
+            }
+            coefficient / divisor
+        } else {
+            let multiplier = 10i128
+                .checked_pow(exponent - scale)
+                .ok_or(MoneyError::Overflow)?;
+            coefficient
+                .checked_mul(multiplier)
+                .ok_or(MoneyError::Overflow)?
+        };
+
+        i64::try_from(minor_units).map_err(|_| MoneyError::Overflow)
     }
 
     /// Returns the amount as a 64-bit float.
@@ -1233,6 +1291,130 @@ mod tests {
 
             assert!(negative_eur.is_negative());
             assert_eq!(negative_eur, Money::from_minor(-850, test::EUR));
+        }
+    }
+
+    mod checked_minor_units {
+        use super::*;
+        use proptest::prelude::*;
+        use rust_decimal_macros::dec;
+
+        #[test]
+        fn converts_major_units_and_trailing_zeros() {
+            for (amount, currency, expected) in [
+                (dec!(123.4500), test::USD, 12345),
+                (dec!(-123.4500), test::USD, -12345),
+                (dec!(500.00), test::JPY, 500),
+                (dec!(1.2340), test::BHD, 1234),
+            ] {
+                let money = Money::from_decimal(amount, currency);
+                assert_eq!(money.try_to_minor_units(), Ok(expected));
+                assert_eq!(money.amount().serialize(), amount.serialize());
+            }
+        }
+
+        #[test]
+        fn roundtrips_i64_limits_across_currency_exponents() {
+            for exponent in [0, 2, 3, 18, 19, 20, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for minor in [i64::MIN, -1, 0, 1, i64::MAX] {
+                    let money = Money::from_minor(minor, &currency);
+                    assert_eq!(money.try_to_minor_units(), Ok(minor));
+                }
+            }
+        }
+
+        #[test]
+        fn rejects_fractional_minor_units() {
+            for amount in [dec!(1.001), dec!(-1.001), dec!(0.001), dec!(-0.001)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+            }
+            let yen = Money::from_decimal(dec!(1.1), test::JPY);
+            assert_eq!(yen.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+        }
+
+        #[test]
+        fn rejects_out_of_range_integral_minor_units() {
+            for exponent in [0, 2, 18, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for coefficient in [i64::MAX as i128 + 1, i64::MIN as i128 - 1] {
+                    let amount = Decimal::from_i128_with_scale(coefficient, exponent);
+                    let money = Money::from_decimal(amount, &currency);
+                    assert_eq!(money.try_to_minor_units(), Err(MoneyError::Overflow));
+                }
+            }
+            for amount in [Decimal::MAX, Decimal::MIN, dec!(100000000000000000)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.try_to_minor_units(), Err(MoneyError::Overflow));
+            }
+        }
+
+        #[test]
+        fn precision_loss_takes_precedence_over_range_errors() {
+            let amount = dec!(92233720368547758.081);
+            for amount in [amount, -amount] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+            }
+        }
+
+        #[test]
+        fn accepts_explicit_rounding_before_conversion() {
+            for (amount, expected) in [(dec!(1.005), 101), (dec!(-1.005), -101)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.round(2, Round::HalfUp).try_to_minor_units(),
+                    Ok(expected)
+                );
+            }
+        }
+
+        #[test]
+        fn handles_extreme_custom_exponents_without_panicking() {
+            for exponent in [29, 38, 39, u32::MAX] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for amount in [Decimal::ONE, -Decimal::ONE, Decimal::MAX, Decimal::MIN] {
+                    let money = Money::from_decimal(amount, &currency);
+                    assert_eq!(money.try_to_minor_units(), Err(MoneyError::Overflow));
+                }
+                for amount in [Decimal::ZERO, dec!(0.0000)] {
+                    let money = Money::from_decimal(amount, &currency);
+                    assert_eq!(money.try_to_minor_units(), Ok(0));
+                }
+            }
+            let currency = test::Currency {
+                exponent: 29,
+                ..*test::USD
+            };
+            let tiny = Money::from_decimal(Decimal::new(1, 28), &currency);
+            assert_eq!(tiny.try_to_minor_units(), Ok(10));
+        }
+
+        proptest! {
+            #[test]
+            fn minor_unit_roundtrip(minor in any::<i64>(), exponent in 0u32..=28) {
+                let currency = test::Currency { exponent, ..*test::USD };
+                let money = Money::from_minor(minor, &currency);
+                prop_assert_eq!(money.try_to_minor_units(), Ok(minor));
+            }
+
+            #[test]
+            fn trailing_zeros_preserve_minor_units(minor in any::<i64>(), exponent in 0u32..=24) {
+                let currency = test::Currency { exponent, ..*test::USD };
+                let amount = Decimal::from_i128_with_scale(i128::from(minor) * 10_000, exponent + 4);
+                let money = Money::from_decimal(amount, &currency);
+                prop_assert_eq!(money.try_to_minor_units(), Ok(minor));
+            }
         }
     }
 

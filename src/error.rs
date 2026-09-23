@@ -15,7 +15,7 @@ pub enum MoneyError {
     DivisionByZero,
     /// Returned when an arithmetic operation overflows.
     Overflow,
-    /// Returned when converting to FastMoney would lose precision.
+    /// Returned when converting to integral minor units would lose precision.
     PrecisionLoss,
 }
 
