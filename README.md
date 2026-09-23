@@ -194,7 +194,7 @@ let parts = negative.allocate(vec![0, 1, 1]).unwrap();
 assert_eq!(parts.iter().map(|m| m.try_to_minor_units().unwrap()).collect::<Vec<_>>(), vec![0, -50, -51]);
 ```
 
-Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Near Decimal's limits, intermediate division can round before flooring and produce shares whose total differs from the input. Intermediate arithmetic can also panic on overflow. A `Result` return type does not yet cover these allocation failures.
+Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Shares are calculated with exact integer quotient/remainder arithmetic and successful results preserve the floored total. `MoneyError::Overflow` is returned if the currency exponent exceeds 28, minor-unit arithmetic exceeds `i128`, the weight sum exceeds `u64`, or an individual share cannot be represented exactly as a Decimal.
 
 ### Formatting
 
