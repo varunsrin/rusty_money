@@ -66,7 +66,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            i32::from_str(amount_parts[1])?;
+            // Validate fractional digits without imposing an integer range limit.
+            if amount_parts[1].is_empty()
+                || !amount_parts[1].bytes().all(|digit| digit.is_ascii_digit())
+            {
+                return Err(MoneyError::InvalidAmount);
+            }
             parsed_decimal = parsed_decimal + "." + amount_parts[1];
         } else {
             return Err(MoneyError::InvalidAmount);
@@ -765,6 +770,50 @@ mod tests {
             let expected_money = Money::from_major(i64::MAX, test::GBP);
             let money = Money::from_str(&i64::MAX.to_string(), test::GBP).unwrap();
             assert_eq!(money, expected_money);
+        }
+
+        #[test]
+        fn from_str_preserves_long_fractional_amounts() {
+            for amount in [
+                "1.2147483648",
+                "1.11111111111",
+                "0.123456789012345678",
+                "-1.123456789012345678",
+                "0.1234567890123456789012345678",
+            ] {
+                let expected = Decimal::from_str(amount).unwrap();
+                for currency in [test::USD, test::EUR, test::INR] {
+                    let separator = LocalFormat::from_locale(currency.locale()).exponent_separator;
+                    let localized = amount.replace('.', &separator.to_string());
+                    let money = Money::from_str(&localized, currency).unwrap();
+                    assert_eq!(*money.amount(), expected, "{localized} {}", currency.code());
+                }
+            }
+        }
+
+        #[cfg(feature = "crypto")]
+        #[test]
+        fn from_str_preserves_ethereum_fractional_amounts() {
+            for amount in ["1.11111111111", "0.123456789012345678"] {
+                let expected =
+                    Money::from_decimal(Decimal::from_str(amount).unwrap(), crate::crypto::ETH);
+                assert_eq!(
+                    Money::from_str(amount, crate::crypto::ETH).unwrap(),
+                    expected
+                );
+            }
+        }
+
+        #[test]
+        fn from_str_rejects_invalid_fractional_parts() {
+            for fraction in ["", "+1", "-1", "1_0", "1a", "1 0", "1,000", "１２", "1.2"] {
+                let amount = format!("1.{fraction}");
+                assert_eq!(
+                    Money::from_str(&amount, test::USD).unwrap_err(),
+                    MoneyError::InvalidAmount,
+                    "{amount}"
+                );
+            }
         }
 
         #[test]
