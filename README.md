@@ -274,7 +274,7 @@ let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 
 `from_money` checks for excess precision; `from_money_lossy` explicitly truncates toward zero. Integer division also truncates toward zero, so `-100` minor units divided by `3` becomes `-33`. Addition, subtraction, and multiplication retain exact integer results when they fit.
 
-Both existing conversion methods can still panic on intermediate scaling overflow before checking the final `i64` range. For checked exact conversion, use `money.try_to_minor_units()` followed by `FastMoney::from_minor`. With the `serde` feature, `FastMoney` deserialization currently uses the lossy conversion and therefore truncates fractional minor units.
+Both conversion methods return `MoneyError::Overflow` when the resulting minor-unit amount does not fit in `i64`. With the `serde` feature, `FastMoney` deserialization uses the lossy conversion: it truncates fractional minor units and returns a deserialization error for out-of-range amounts.
 
 
 Only choose `FastMoney` over `Money`: 
