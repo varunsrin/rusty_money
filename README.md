@@ -34,7 +34,7 @@ There are three main interfaces:
 
 - **`Money`** — Uses 128-bit decimals for high precision and supports allocating, formatting and exchanging.
 
-- **`FastMoney`** — Uses 64-bit integers and truncates to minor units. Up to 5x faster for arithmetic. 
+- **`FastMoney`** — Stores integral minor units in an `i64`. Integer division and explicitly lossy conversion truncate toward zero.
 
 - **`Exchange`** — Manages currency exchange rates and converts between different currences. 
 
@@ -69,7 +69,9 @@ println!("{}", total);                             // => $118.75
 
 ## Money
 
-`Money` is the core type for monetary calculations. It stores amounts as 128-bit decimals, providing precision up to 28 decimal places.
+`Money` stores a `rust_decimal::Decimal`: a 96-bit integer coefficient, a sign, and a scale from 0 to 28, in a 128-bit representation. The currency's exponent does not restrict the stored amount: USD can hold `1.005` even though a cent is `0.01`.
+
+Arithmetic retains the precision available in `Decimal` without automatically rounding to the currency's minor unit. This is finite decimal arithmetic, not arbitrary precision: repeating fractions and results requiring too many significant digits can be rounded by `Decimal`.
 
 ### Creating Money
 
@@ -94,7 +96,7 @@ Money::from_str("1,00,00,000.99", iso::INR).unwrap(); // => ₹1,00,00,000.99
 
 ### Arithmetic
 
-All arithmetic operations return `Result` to handle currency mismatches and overflow:
+The `add`, `sub`, `mul`, and `div` methods return `Result` to handle currency mismatches, overflow, or division by zero:
 
 ```rust
 use rusty_money::{Money, iso};
@@ -132,21 +134,47 @@ hundred.is_zero();                                 // => false
 
 ### Rounding
 
-Money preserves maximum precision until you explicitly round:
+`round(digits, strategy)` returns a new value rounded to `digits` decimal places; it does not change the original. Pass the currency's exponent to round to minor units. All three strategies round to the nearest value and differ only at exact midpoints:
+
+| Strategy | Midpoint rule | `1.005` to two places | `-1.005` to two places |
+| --- | --- | --- | --- |
+| `HalfUp` | Away from zero | `1.01` | `-1.01` |
+| `HalfDown` | Toward zero | `1.00` | `-1.00` |
+| `HalfEven` | To the nearest even retained digit | `1.00` | `-1.00` |
 
 ```rust
 use rusty_money::{Money, Round, iso};
 
 let amount = Money::from_str("10.005", iso::USD).unwrap();
 
-amount.round(2, Round::HalfUp);                    // => $10.01
-amount.round(2, Round::HalfDown);                  // => $10.00
-amount.round(2, Round::HalfEven);                  // => $10.00 (banker's rounding)
+let rounded = amount.round(iso::USD.exponent, Round::HalfUp);
+assert_eq!(rounded.try_to_minor_units(), Ok(1001));
+assert_eq!(amount.amount().to_string(), "10.005"); // Original is unchanged
 ```
+
+### Converting to minor units
+
+Use `try_to_minor_units()` for exact `i64` output. It rejects fractional minor units with `MoneyError::PrecisionLoss` and integral amounts outside `i64` with `MoneyError::Overflow`. Trailing zeros are accepted. Round first if your application wants to accept excess precision:
+
+```rust
+use rusty_money::{Money, MoneyError, Round, iso};
+
+let amount = Money::from_str("-1.005", iso::USD).unwrap();
+assert_eq!(amount.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+assert_eq!(amount.round(2, Round::HalfUp).try_to_minor_units(), Ok(-101));
+assert_eq!(amount.round(2, Round::HalfDown).try_to_minor_units(), Ok(-100));
+
+let padded = Money::from_str("1.2300", iso::USD).unwrap();
+assert_eq!(padded.try_to_minor_units(), Ok(123));
+```
+
+The older `to_minor_units()` method truncates toward zero: USD `-1.005` becomes `-100` cents. It returns zero if conversion to `i64` fails and can panic if its intermediate scaling overflows. Use the checked method when zero must be distinguishable from failure.
 
 ### Allocation
 
-Splitting money fairly is tricky—`$100.00` split 3 ways can't be done evenly. rusty-money handles remainder distribution automatically:
+`split` and `allocate` work in integral minor units. Both first **floor** the amount to the currency's minor-unit scale, including for negative amounts. This differs from truncation toward zero: USD `1.005` becomes `1.00`, while USD `-1.005` becomes `-1.01`.
+
+Each share is also floored, then remaining minor units are added to recipients in input order. For `allocate`, zero-weight recipients always receive zero and are skipped when distributing the remainder. The intended total is the floored amount; fractions smaller than a minor unit are not preserved. Round explicitly before splitting if you need another policy.
 
 ```rust
 use rusty_money::{Money, iso};
@@ -160,11 +188,19 @@ let shares = total.split(3).unwrap();
 // Weighted allocation
 let parts = total.allocate(vec![70, 20, 10]).unwrap();
 // => [$70.00, $20.00, $10.00]
+
+let negative = Money::from_str("-1.005", iso::USD).unwrap();
+let parts = negative.allocate(vec![0, 1, 1]).unwrap();
+assert_eq!(parts.iter().map(|m| m.try_to_minor_units().unwrap()).collect::<Vec<_>>(), vec![0, -50, -51]);
 ```
+
+Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Near Decimal's limits, intermediate division can round before flooring and produce shares whose total differs from the input. Intermediate arithmetic can also panic on overflow. A `Result` return type does not yet cover these allocation failures.
 
 ### Formatting
 
-`Money` formats according to its currency's locale:
+`Display` formats according to the currency's locale and rounds the displayed amount to its exponent using `HalfEven`. It does not change the stored amount, so displaying an amount is not a substitute for rounding before settlement. For example, USD `1.005` displays as `$1.00` while `amount()` still returns `1.005`.
+
+`Formatter::money` with `Params` allows explicit presentation settings; `rounding: Some(n)` uses `HalfEven` at `n` decimal places, while `None` retains the stored scale. Appending trailing zeros is limited by Decimal's representable scale and coefficient.
 
 ```rust
 use rusty_money::{Money, iso};
@@ -234,7 +270,11 @@ let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 
 ## Fast Money
 
-`FastMoney` uses `i64` minor units (cents) instead of 128-bit decimals, providing significantly faster arithmetic for performance-critical code paths. It comes with a narrower feature set and has lower precision due to the use of integers.
+`FastMoney` (the `fast` feature) stores an `i64` count of minor units. It cannot represent fractional minor units, and its range in major units depends on the currency's exponent. For USD, its maximum is `92,233,720,368,547,758.07`; for an exponent-18 currency, it is `9.223372036854775807`.
+
+`from_money` checks for excess precision; `from_money_lossy` explicitly truncates toward zero. Integer division also truncates toward zero, so `-100` minor units divided by `3` becomes `-33`. Addition, subtraction, and multiplication retain exact integer results when they fit.
+
+Both existing conversion methods can still panic on intermediate scaling overflow before checking the final `i64` range. For checked exact conversion, use `money.try_to_minor_units()` followed by `FastMoney::from_minor`. With the `serde` feature, `FastMoney` deserialization currently uses the lossy conversion and therefore truncates fractional minor units.
 
 
 Only choose `FastMoney` over `Money`: 
@@ -272,20 +312,21 @@ let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
 
 ### Precision Differences
 
-FastMoney truncates intermediate results to minor units, which can accumulate into different final values:
+`Money` retains sub-minor-unit precision, whereas `FastMoney` integer division discards it. Neither representation makes every division reversible:
 
 ```rust
 use rusty_money::{FastMoney, Money, iso};
 
-// With Money (high precision): $10.00 / 3 keeps full decimal precision
-let money = Money::from_major(10, iso::USD);
-let divided = money.div(3).unwrap();               // => $3.3333333...
-let restored = divided.mul(3).unwrap();            // => $10.00 (no loss)
+// Money retains Decimal's available precision, not an exact rational 1/3.
+let money = Money::from_major(1, iso::USD);
+let divided = money.div(3).unwrap();
+let restored = divided.mul(3).unwrap();
+assert!(restored.amount() < money.amount());
+assert_eq!(restored.to_string(), "$1.00");         // Display rounding hides the difference
 
-// With FastMoney (low precision): truncates to minor units
-let fast = FastMoney::from_major(10, iso::USD).unwrap();
-let divided = fast.div(3).unwrap();                // => $3.33 (truncated)
-let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
+let fast = FastMoney::from_minor(100, iso::USD);
+let restored = fast.div(3).unwrap().mul(3).unwrap();
+assert_eq!(restored.minor_units(), 99);
 ```
 
 ## Feature Flags
@@ -296,16 +337,16 @@ let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
 rusty-money = "0.5"
 
 # Add cryptocurrency support
-rusty-money = { version = "0.4", features = ["crypto"] }
+rusty-money = { version = "0.5", features = ["crypto"] }
 
 # Add FastMoney
-rusty-money = { version = "0.4", features = ["fast"] }
+rusty-money = { version = "0.5", features = ["fast"] }
 
 # Add serde serialization
-rusty-money = { version = "0.4", features = ["serde"] }
+rusty-money = { version = "0.5", features = ["serde"] }
 
 # Everything
-rusty-money = { version = "0.4", features = ["iso", "crypto", "fast", "serde"] }
+rusty-money = { version = "0.5", features = ["iso", "crypto", "fast", "serde"] }
 ```
 
 ## License
