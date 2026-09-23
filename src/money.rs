@@ -192,7 +192,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         self.amount.to_f64().unwrap_or(f64::NAN)
     }
 
-    /// Adds two Money values, returning an error if currencies don't match.
+    /// Adds two Money values, returning an error on currency mismatch or overflow.
     ///
     /// # Example
     /// ```
@@ -205,6 +205,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    /// Returns `MoneyError::Overflow` if the addition overflows.
     #[inline]
     pub fn add(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if self.currency != other.currency {
@@ -213,13 +214,13 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 actual: other.currency.code(),
             });
         }
-        Ok(Money::from_decimal(
-            self.amount + other.amount,
-            self.currency,
-        ))
+        self.amount
+            .checked_add(other.amount)
+            .map(|result| Money::from_decimal(result, self.currency))
+            .ok_or(MoneyError::Overflow)
     }
 
-    /// Subtracts two Money values, returning an error if currencies don't match.
+    /// Subtracts two Money values, returning an error on currency mismatch or overflow.
     ///
     /// # Example
     /// ```
@@ -232,6 +233,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    /// Returns `MoneyError::Overflow` if the subtraction overflows.
     #[inline]
     pub fn sub(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if self.currency != other.currency {
@@ -240,10 +242,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 actual: other.currency.code(),
             });
         }
-        Ok(Money::from_decimal(
-            self.amount - other.amount,
-            self.currency,
-        ))
+        self.amount
+            .checked_sub(other.amount)
+            .map(|result| Money::from_decimal(result, self.currency))
+            .ok_or(MoneyError::Overflow)
     }
 
     /// Multiplies a Money value by a scalar, returning an error on overflow.
@@ -266,7 +268,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             .ok_or(MoneyError::Overflow)
     }
 
-    /// Divides a Money value by a scalar, returning an error on division by zero.
+    /// Divides a Money value by a scalar, returning an error on division by zero or overflow.
     ///
     /// # Example
     /// ```
@@ -278,15 +280,20 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::DivisionByZero` if `n` is zero.
+    /// Returns `MoneyError::Overflow` if the division overflows.
     #[inline]
     pub fn div<N: Into<Decimal> + Copy + PartialEq + Default>(
         &self,
         n: N,
     ) -> Result<Money<'a, T>, MoneyError> {
-        if n == N::default() {
+        let divisor = n.into();
+        if divisor.is_zero() {
             return Err(MoneyError::DivisionByZero);
         }
-        Ok(Money::from_decimal(self.amount / n.into(), self.currency))
+        self.amount
+            .checked_div(divisor)
+            .map(|result| Money::from_decimal(result, self.currency))
+            .ok_or(MoneyError::Overflow)
     }
 
     /// Converts this Money to another currency using the provided exchange rates.
@@ -310,6 +317,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::InvalidCurrency` if no exchange rate exists for the currency pair.
+    /// Returns `MoneyError::Overflow` if the conversion overflows.
     pub fn exchange_to(
         &self,
         target: &'a T,
@@ -1008,12 +1016,125 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(result.unwrap_err(), MoneyError::Overflow);
         }
+
+        #[test]
+        fn addition_overflow_returns_error() {
+            for (amount, increment) in [(Decimal::MAX, 1), (Decimal::MIN, -1)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.add(Money::from_major(increment, test::USD)),
+                    Err(MoneyError::Overflow)
+                );
+            }
+        }
+
+        #[test]
+        fn subtraction_overflow_returns_error() {
+            for (amount, decrement) in [(Decimal::MIN, 1), (Decimal::MAX, -1)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.sub(Money::from_major(decrement, test::USD)),
+                    Err(MoneyError::Overflow)
+                );
+            }
+        }
+
+        #[test]
+        fn division_overflow_returns_error() {
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                for divisor in [Decimal::new(1, 1), Decimal::new(-1, 1)] {
+                    assert_eq!(money.div(divisor), Err(MoneyError::Overflow));
+                }
+            }
+        }
+
+        #[test]
+        fn arithmetic_at_decimal_limits_succeeds() {
+            let zero = Money::from_major(0, test::USD);
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.add(zero), Ok(money));
+                assert_eq!(money.sub(zero), Ok(money));
+                assert_eq!(money.div(1), Ok(money));
+                assert_eq!(money.div(-1), Ok(Money::from_decimal(-amount, test::USD)));
+            }
+
+            let one = Money::from_major(1, test::USD);
+            let near_max = Money::from_decimal(Decimal::MAX - Decimal::ONE, test::USD);
+            let near_min = Money::from_decimal(Decimal::MIN + Decimal::ONE, test::USD);
+            assert_eq!(near_max.add(one).unwrap().amount(), &Decimal::MAX);
+            assert_eq!(near_min.sub(one).unwrap().amount(), &Decimal::MIN);
+        }
+
+        #[test]
+        fn currency_mismatch_takes_precedence_over_overflow() {
+            let money = Money::from_decimal(Decimal::MAX, test::USD);
+            let expected = Err(MoneyError::CurrencyMismatch {
+                expected: "USD",
+                actual: "GBP",
+            });
+            assert_eq!(money.add(Money::from_major(1, test::GBP)), expected);
+            assert_eq!(money.sub(Money::from_major(-1, test::GBP)), expected);
+        }
+
+        #[test]
+        fn division_by_zero_at_decimal_limits_returns_division_by_zero() {
+            for amount in [Decimal::MAX, Decimal::MIN, Decimal::ZERO] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.div(0), Err(MoneyError::DivisionByZero));
+                assert_eq!(
+                    money.div(Decimal::new(0, 2)),
+                    Err(MoneyError::DivisionByZero)
+                );
+            }
+        }
+
+        #[test]
+        fn division_checks_the_converted_divisor_for_zero() {
+            #[derive(Clone, Copy, PartialEq)]
+            struct Divisor(Decimal);
+
+            impl Default for Divisor {
+                fn default() -> Self {
+                    Self(Decimal::ONE)
+                }
+            }
+
+            impl From<Divisor> for Decimal {
+                fn from(value: Divisor) -> Self {
+                    value.0
+                }
+            }
+
+            let money = Money::from_major(1, test::USD);
+            assert_eq!(
+                money.div(Divisor(Decimal::ZERO)),
+                Err(MoneyError::DivisionByZero)
+            );
+            assert_eq!(money.div(Divisor::default()), Ok(money));
+        }
     }
 
     mod exchange {
         use super::*;
         use crate::ExchangeRate;
         use rust_decimal_macros::dec;
+
+        #[test]
+        fn exchange_to_overflow_returns_error() {
+            let mut exchange = Exchange::new();
+            let rate = ExchangeRate::new(test::USD, test::EUR, dec!(2)).unwrap();
+            exchange.set_rate(&rate);
+
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.exchange_to(test::EUR, &exchange),
+                    Err(MoneyError::Overflow)
+                );
+            }
+        }
 
         #[test]
         fn exchange_to_converts_currency() {

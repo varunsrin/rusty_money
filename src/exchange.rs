@@ -51,11 +51,18 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
     }
 
     /// Converts a Money from one Currency to another using the exchange rate.
+    ///
+    /// # Errors
+    /// Returns `MoneyError::InvalidCurrency` if the amount's currency does not match the source.
+    /// Returns `MoneyError::Overflow` if the conversion overflows.
     pub fn convert(&self, amount: &Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if amount.currency() != self.from {
             return Err(MoneyError::InvalidCurrency);
         }
-        let converted_amount = amount.amount() * self.rate;
+        let converted_amount = amount
+            .amount()
+            .checked_mul(self.rate)
+            .ok_or(MoneyError::Overflow)?;
         Ok(Money::from_decimal(converted_amount, self.to))
     }
 }
@@ -125,6 +132,38 @@ mod tests {
         let expected_amount = Money::from_minor(1_500, test::EUR);
         let converted_rate = rate.convert(&amount).unwrap();
         assert_eq!(converted_rate, expected_amount);
+    }
+
+    #[test]
+    fn rate_convert_overflow_returns_error() {
+        for multiplier in [dec!(2), dec!(-2)] {
+            let rate = ExchangeRate::new(test::USD, test::EUR, multiplier).unwrap();
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(rate.convert(&money), Err(MoneyError::Overflow));
+            }
+        }
+    }
+
+    #[test]
+    fn rate_convert_at_decimal_limits_succeeds() {
+        for multiplier in [Decimal::ONE, Decimal::ZERO, dec!(-1)] {
+            let rate = ExchangeRate::new(test::USD, test::EUR, multiplier).unwrap();
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    rate.convert(&money),
+                    Ok(Money::from_decimal(amount * multiplier, test::EUR))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rate_convert_currency_error_takes_precedence_over_overflow() {
+        let rate = ExchangeRate::new(test::GBP, test::EUR, dec!(2)).unwrap();
+        let money = Money::from_decimal(Decimal::MAX, test::USD);
+        assert_eq!(rate.convert(&money), Err(MoneyError::InvalidCurrency));
     }
 
     #[test]
