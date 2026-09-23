@@ -66,13 +66,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
+            let fraction = amount_parts[1];
             // Validate fractional digits without imposing an integer range limit.
-            if amount_parts[1].is_empty()
-                || !amount_parts[1].bytes().all(|digit| digit.is_ascii_digit())
-            {
+            if fraction.is_empty() || !fraction.bytes().all(|b| b.is_ascii_digit()) {
                 return Err(MoneyError::InvalidAmount);
             }
-            parsed_decimal = parsed_decimal + "." + amount_parts[1];
+            parsed_decimal = parsed_decimal + "." + fraction;
         } else {
             return Err(MoneyError::InvalidAmount);
         }
