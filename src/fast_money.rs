@@ -67,9 +67,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Creates a FastMoney from major units (e.g., dollars for USD).
     ///
     /// Returns an error if the conversion would overflow.
-    /// The current scaling implementation requires a currency exponent of at most
-    /// 18. Larger custom exponents can panic with overflow checks enabled or
-    /// produce incorrect results without them.
+    /// Zero is representable at any exponent. For nonzero amounts, both the scale
+    /// factor and the final minor-unit amount must fit in `i64`.
     ///
     /// # Example
     ///
@@ -81,7 +80,12 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// ```
     #[inline]
     pub fn from_major(amount: i64, currency: &'a T) -> Result<Self, MoneyError> {
-        let multiplier = 10i64.pow(currency.exponent());
+        if amount == 0 {
+            return Ok(Self::from_minor(0, currency));
+        }
+        let multiplier = 10i64
+            .checked_pow(currency.exponent())
+            .ok_or(MoneyError::Overflow)?;
         let minor_units = amount.checked_mul(multiplier).ok_or(MoneyError::Overflow)?;
         Ok(FastMoney {
             minor_units,
@@ -580,6 +584,60 @@ mod tests {
     fn from_major_overflow() {
         let result = FastMoney::from_major(i64::MAX, test::USD);
         assert_eq!(result, Err(MoneyError::Overflow));
+    }
+
+    #[test]
+    fn from_major_checks_extreme_exponents() {
+        for exponent in [19, 20, 28, u32::MAX] {
+            let currency = test::Currency {
+                exponent,
+                ..*test::USD
+            };
+            for amount in [i64::MIN, -1, 1, i64::MAX] {
+                assert_eq!(
+                    FastMoney::from_major(amount, &currency),
+                    Err(MoneyError::Overflow)
+                );
+            }
+            assert_eq!(
+                FastMoney::from_major(0, &currency).unwrap().minor_units(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn from_major_at_scaling_boundaries() {
+        let currency = test::Currency {
+            exponent: 18,
+            ..*test::USD
+        };
+        for amount in [-9, -1, 0, 1, 9] {
+            assert_eq!(
+                FastMoney::from_major(amount, &currency)
+                    .unwrap()
+                    .minor_units(),
+                amount * 1_000_000_000_000_000_000
+            );
+        }
+        for amount in [-10, 10] {
+            assert_eq!(
+                FastMoney::from_major(amount, &currency),
+                Err(MoneyError::Overflow)
+            );
+        }
+        let currency = test::Currency {
+            exponent: 0,
+            ..*test::USD
+        };
+        for amount in [i64::MIN, i64::MAX] {
+            assert_eq!(
+                FastMoney::from_major(amount, &currency)
+                    .unwrap()
+                    .minor_units(),
+                amount
+            );
+        }
     }
 
     // ============ Arithmetic Tests ============
