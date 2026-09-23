@@ -66,8 +66,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 parsed_decimal += "0";
             }
         } else if amount_parts.len() == 2 {
-            i32::from_str(amount_parts[1])?;
-            parsed_decimal = parsed_decimal + "." + amount_parts[1];
+            let fraction = amount_parts[1];
+            // Validate fractional digits without imposing an integer range limit.
+            if fraction.is_empty() || !fraction.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(MoneyError::InvalidAmount);
+            }
+            parsed_decimal = parsed_decimal + "." + fraction;
         } else {
             return Err(MoneyError::InvalidAmount);
         }
@@ -444,7 +448,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Divides money into n shares according to the given weights.
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
-    /// to some of the shares.
+    /// to shares with non-zero weights in input order. Zero-weight shares receive zero.
     pub fn allocate(&self, shares: Vec<u32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if shares.is_empty() {
             return Err(MoneyError::InvalidRatio);
@@ -475,8 +479,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         let mut remainder = total_minor - allocated;
         let mut i: usize = 0;
         while remainder > Decimal::ZERO {
-            allocations_minor[i] += Decimal::ONE;
-            remainder -= Decimal::ONE;
+            if shares[i] != 0 {
+                allocations_minor[i] += Decimal::ONE;
+                remainder -= Decimal::ONE;
+            }
             i += 1;
         }
 
@@ -765,6 +771,50 @@ mod tests {
             let expected_money = Money::from_major(i64::MAX, test::GBP);
             let money = Money::from_str(&i64::MAX.to_string(), test::GBP).unwrap();
             assert_eq!(money, expected_money);
+        }
+
+        #[test]
+        fn from_str_preserves_long_fractional_amounts() {
+            for amount in [
+                "1.2147483648",
+                "1.11111111111",
+                "0.123456789012345678",
+                "-1.123456789012345678",
+                "0.1234567890123456789012345678",
+            ] {
+                let expected = Decimal::from_str(amount).unwrap();
+                for currency in [test::USD, test::EUR, test::INR] {
+                    let separator = LocalFormat::from_locale(currency.locale()).exponent_separator;
+                    let localized = amount.replace('.', &separator.to_string());
+                    let money = Money::from_str(&localized, currency).unwrap();
+                    assert_eq!(*money.amount(), expected, "{localized} {}", currency.code());
+                }
+            }
+        }
+
+        #[cfg(feature = "crypto")]
+        #[test]
+        fn from_str_preserves_ethereum_fractional_amounts() {
+            for amount in ["1.11111111111", "0.123456789012345678"] {
+                let expected =
+                    Money::from_decimal(Decimal::from_str(amount).unwrap(), crate::crypto::ETH);
+                assert_eq!(
+                    Money::from_str(amount, crate::crypto::ETH).unwrap(),
+                    expected
+                );
+            }
+        }
+
+        #[test]
+        fn from_str_rejects_invalid_fractional_parts() {
+            for fraction in ["", "+1", "-1", "1_0", "1a", "1 0", "1,000", "１２", "1.2"] {
+                let amount = format!("1.{fraction}");
+                assert_eq!(
+                    Money::from_str(&amount, test::USD).unwrap_err(),
+                    MoneyError::InvalidAmount,
+                    "{amount}"
+                );
+            }
         }
 
         #[test]
@@ -1296,6 +1346,30 @@ mod tests {
             assert_eq!(allocated[0], Money::from_minor(1_000, test::USD));
             assert_eq!(allocated[1], Money::from_minor(0, test::USD));
             assert_eq!(allocated[2], Money::from_minor(0, test::USD));
+        }
+
+        #[test]
+        fn allocate_remainder_skips_zero_weight_recipients() {
+            let cases = [
+                (1, vec![0, 1, 1], vec![0, 1, 0]),
+                (2, vec![1, 0, 1, 0, 1, 0], vec![1, 0, 1, 0, 0, 0]),
+                (-1, vec![0, 1, 1], vec![0, 0, -1]),
+                (-2, vec![0, 1, 0, 1, 0, 1, 0], vec![0, 0, 0, -1, 0, -1, 0]),
+            ];
+
+            for (amount, shares, expected) in cases {
+                let money = Money::from_minor(amount, test::USD);
+                let allocated = money.allocate(shares).unwrap();
+                let expected: Vec<_> = expected
+                    .into_iter()
+                    .map(|minor| Money::from_minor(minor, test::USD))
+                    .collect();
+                assert_eq!(allocated, expected);
+                assert_eq!(
+                    allocated.iter().map(|m| *m.amount()).sum::<Decimal>(),
+                    *money.amount()
+                );
+            }
         }
 
         #[test]
@@ -1873,6 +1947,22 @@ mod proptest_tests {
         use super::*;
 
         proptest! {
+            #[test]
+            fn inserting_zero_weight_preserves_allocations(
+                amount in minor_amount(),
+                shares in valid_shares(),
+                index in 0usize..10,
+            ) {
+                let money = Money::from_minor(amount, test::USD);
+                let index = index % (shares.len() + 1);
+                let mut expected = money.allocate(shares.clone()).unwrap();
+                expected.insert(index, Money::from_minor(0, test::USD));
+
+                let mut with_zero = shares;
+                with_zero.insert(index, 0);
+                prop_assert_eq!(money.allocate(with_zero).unwrap(), expected);
+            }
+
             #[test]
             fn allocation_sum_equals_original(amount in minor_amount(), shares in valid_shares()) {
                 let money = Money::from_minor(amount, test::USD);
