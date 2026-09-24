@@ -335,11 +335,11 @@ Common operations take tens of nanoseconds (local Criterion medians on an Apple 
 
 | Operation | Example call | Approximate time |
 | --- | --- | --- |
-| Find a currency | `iso::find("USD")` | 2 ns |
-| Parse an amount | `Money::from_str("12.34", iso::USD)` | 13 ns |
-| Add $1,000 and $500 | `amount.add(other)` | 11 ns |
-| Format $12.34 | `format!("{amount}")` | 56 ns |
-| Allocate $1,000 equally | `amount.allocate(vec![1, 1, 1])` | 75 ns |
+| Find currency | `iso::find("USD")` | 2 ns |
+| Add amounts | `amount.add(other)` | 11 ns |
+| Parse amount | `Money::from_str("12.34", iso::USD)` | 13 ns |
+| Format amounts | `format!("{amount}")` | 56 ns |
+| Allocate amounts | `amount.allocate(vec![1, 1, 1])` | 75 ns |
 
 ## Feature Flags
 
