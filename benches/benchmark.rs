@@ -132,6 +132,14 @@ fn bench_formatting(c: &mut Criterion) {
             bencher.iter(|| format!("{}", black_box(&small)))
         });
 
+        #[cfg(feature = "fast")]
+        {
+            let small = FastMoney::from_minor(1_234, iso::USD);
+            c.bench_function("fastmoney_display_small", |bencher| {
+                bencher.iter(|| format!("{}", black_box(&small)))
+            });
+        }
+
         // Large amount with many digit separators
         let large = Money::from_minor(123_456_789_012, iso::USD);
         c.bench_function("money_display_large", |bencher| {

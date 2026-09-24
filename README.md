@@ -333,13 +333,15 @@ assert_eq!(restored.minor_units(), 99);
 
 Common operations take tens of nanoseconds (local Criterion medians on an Apple M4 Max, release build; existing amounts are created before timing, and results vary by hardware and input).
 
-| Operation | Example call | Approximate time |
-| --- | --- | --- |
-| Find currency | `iso::find("USD")` | 2 ns |
-| Add amounts | `amount.add(other)` | 11 ns |
-| Parse amount | `Money::from_str("12.34", iso::USD)` | 13 ns |
-| Format amounts | `format!("{amount}")` | 56 ns |
-| Allocate amounts | `amount.allocate(vec![1, 1, 1])` | 75 ns |
+| Operation | Example call | `Money` | `FastMoney` |
+| --- | --- | --- | --- |
+| Find currency | `iso::find("USD")` | 2 ns | 2 ns |
+| Add amounts | `amount.add(other)` | 11 ns | 9 ns |
+| Parse amount | `Money::from_str("12.34", iso::USD)` | 13 ns | — |
+| Format amounts | `format!("{amount}")` | 56 ns | 56 ns |
+| Allocate amounts | `amount.allocate(vec![1, 1, 1])` | 75 ns | — |
+
+Currency lookup is shared; — means no direct `FastMoney` method.
 
 ## Feature Flags
 
