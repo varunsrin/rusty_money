@@ -284,6 +284,10 @@ fn bench_allocate(c: &mut Criterion) {
             bencher.iter(|| black_box(money).allocate(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
         });
 
+        c.bench_function("money_allocate_100", |bencher| {
+            bencher.iter(|| black_box(money).allocate(vec![1; 100]))
+        });
+
         c.bench_function("money_split_3", |bencher| {
             bencher.iter(|| black_box(money).split(3))
         });
