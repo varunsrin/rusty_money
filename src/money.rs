@@ -13,9 +13,11 @@ use rust_decimal::Decimal;
 
 /// Represents an amount of a given currency.
 ///
-/// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
-/// Operations on Money objects always create new instances of Money, with the exception
-/// of `round()`.
+/// Money stores an owned [`Decimal`] and a currency reference. Stored precision is
+/// independent of the currency's exponent, within Decimal's finite range and scale.
+/// Arithmetic and [`round`](Self::round) return new values without changing the original.
+/// Display rounds to the currency's exponent using [`Round::HalfEven`] without
+/// changing the stored amount.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Money<'a, T: FormattableCurrency> {
     amount: Decimal,
@@ -105,6 +107,9 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Creates a Money object given an integer and a currency reference.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
+    ///
+    /// # Panics
+    /// Panics if the currency's exponent exceeds Decimal's maximum scale of 28.
     pub fn from_minor(amount: i64, currency: &'a T) -> Money<'a, T> {
         let amount = Decimal::new(amount, currency.exponent());
         Money { amount, currency }
@@ -119,6 +124,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 
     /// Creates a Money object given a decimal amount and a currency reference.
+    /// The amount is stored unchanged, including any fractional minor units.
     pub fn from_decimal(amount: Decimal, currency: &'a T) -> Money<'a, T> {
         Money { amount, currency }
     }
@@ -169,11 +175,18 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Returns the amount in minor units (e.g., cents for USD, pence for GBP).
     ///
+    /// Prefer [`try_to_minor_units`](Self::try_to_minor_units) for an exact,
+    /// checked conversion.
+    ///
     /// The conversion multiplies by 10^exponent where exponent is the currency's
     /// decimal places (2 for USD, 0 for JPY, 3 for BHD).
     ///
-    /// Values exceeding i64 range or with precision beyond the currency's exponent
-    /// are truncated toward zero. Returns 0 if conversion fails.
+    /// Fractional minor units are truncated toward zero. If the scaled value does
+    /// not fit in `i64`, returns 0. For example, USD `-1.005` becomes `-100` cents.
+    ///
+    /// # Panics
+    /// Intermediate scaling can overflow before the `i64` conversion, including
+    /// for large Decimal amounts or custom currency exponents.
     ///
     /// # Example
     /// ```
@@ -189,6 +202,61 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         use rust_decimal::prelude::ToPrimitive;
         let scale = Decimal::from(10u64.pow(self.currency.exponent()));
         (self.amount * scale).trunc().to_i64().unwrap_or(0)
+    }
+
+    /// Returns the exact amount in minor units, without rounding or truncation.
+    ///
+    /// Trailing fractional zeros do not count as excess precision. To choose a
+    /// rounding policy, call [`round`](Self::round) with the currency's exponent
+    /// before converting. This method does not change the stored amount.
+    ///
+    /// # Errors
+    /// Returns [`MoneyError::PrecisionLoss`] if the amount includes a fractional
+    /// minor unit, or [`MoneyError::Overflow`] if the integral minor-unit amount
+    /// is outside the `i64` range. Fractional minor units are checked first.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, MoneyError, Round, iso};
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let exact = Money::from_decimal(dec!(12.3400), iso::USD);
+    /// assert_eq!(exact.try_to_minor_units(), Ok(1234));
+    ///
+    /// let fractional = Money::from_decimal(dec!(-1.005), iso::USD);
+    /// assert_eq!(fractional.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+    /// assert_eq!(fractional.round(2, Round::HalfUp).try_to_minor_units(), Ok(-101));
+    ///
+    /// let large = Money::from_major(100_000_000_000_000_000, iso::USD);
+    /// assert_eq!(large.try_to_minor_units(), Err(MoneyError::Overflow));
+    /// ```
+    pub fn try_to_minor_units(&self) -> Result<i64, MoneyError> {
+        let coefficient = self.amount.mantissa();
+        if coefficient == 0 {
+            return Ok(0);
+        }
+
+        let scale = self.amount.scale();
+        let exponent = self.currency.exponent();
+        // Rescale the integer coefficient directly to avoid Decimal rounding
+        // and overflowing intermediate powers for high-exponent currencies.
+        let minor_units = if scale > exponent {
+            // Decimal's scale is at most 28, so this power fits in i128.
+            let divisor = 10i128.pow(scale - exponent);
+            if coefficient % divisor != 0 {
+                return Err(MoneyError::PrecisionLoss);
+            }
+            coefficient / divisor
+        } else {
+            let multiplier = 10i128
+                .checked_pow(exponent - scale)
+                .ok_or(MoneyError::Overflow)?;
+            coefficient
+                .checked_mul(multiplier)
+                .ok_or(MoneyError::Overflow)?
+        };
+
+        i64::try_from(minor_units).map_err(|_| MoneyError::Overflow)
     }
 
     /// Returns the amount as a 64-bit float.
@@ -218,7 +286,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         self.amount.to_f64().unwrap_or(f64::NAN)
     }
 
-    /// Adds two Money values, returning an error if currencies don't match.
+    /// Adds two Money values, returning an error on currency mismatch or overflow.
     ///
     /// # Example
     /// ```
@@ -231,6 +299,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    /// Returns `MoneyError::Overflow` if the addition overflows.
     #[inline]
     pub fn add(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if self.currency != other.currency {
@@ -239,13 +308,13 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 actual: other.currency.code(),
             });
         }
-        Ok(Money::from_decimal(
-            self.amount + other.amount,
-            self.currency,
-        ))
+        self.amount
+            .checked_add(other.amount)
+            .map(|result| Money::from_decimal(result, self.currency))
+            .ok_or(MoneyError::Overflow)
     }
 
-    /// Subtracts two Money values, returning an error if currencies don't match.
+    /// Subtracts two Money values, returning an error on currency mismatch or overflow.
     ///
     /// # Example
     /// ```
@@ -258,6 +327,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
+    /// Returns `MoneyError::Overflow` if the subtraction overflows.
     #[inline]
     pub fn sub(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
         if self.currency != other.currency {
@@ -266,10 +336,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
                 actual: other.currency.code(),
             });
         }
-        Ok(Money::from_decimal(
-            self.amount - other.amount,
-            self.currency,
-        ))
+        self.amount
+            .checked_sub(other.amount)
+            .map(|result| Money::from_decimal(result, self.currency))
+            .ok_or(MoneyError::Overflow)
     }
 
     /// Multiplies a Money value by a scalar, returning an error on overflow.
@@ -292,7 +362,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             .ok_or(MoneyError::Overflow)
     }
 
-    /// Divides a Money value by a scalar, returning an error on division by zero.
+    /// Divides a Money value by a scalar, returning an error on division by zero or overflow.
     ///
     /// # Example
     /// ```
@@ -304,15 +374,20 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::DivisionByZero` if `n` is zero.
+    /// Returns `MoneyError::Overflow` if the division overflows.
     #[inline]
     pub fn div<N: Into<Decimal> + Copy + PartialEq + Default>(
         &self,
         n: N,
     ) -> Result<Money<'a, T>, MoneyError> {
-        if n == N::default() {
+        let divisor = n.into();
+        if divisor.is_zero() {
             return Err(MoneyError::DivisionByZero);
         }
-        Ok(Money::from_decimal(self.amount / n.into(), self.currency))
+        self.amount
+            .checked_div(divisor)
+            .map(|result| Money::from_decimal(result, self.currency))
+            .ok_or(MoneyError::Overflow)
     }
 
     /// Converts this Money to another currency using the provided exchange rates.
@@ -336,6 +411,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     ///
     /// # Errors
     /// Returns `MoneyError::InvalidCurrency` if no exchange rate exists for the currency pair.
+    /// Returns `MoneyError::Overflow` if the conversion overflows.
     pub fn exchange_to(
         &self,
         target: &'a T,
@@ -420,8 +496,19 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Divides money equally into n shares.
     ///
-    /// If the division cannot be applied perfectly, it allocates the remainder
-    /// to some of the shares.
+    /// Floors the amount to integral minor units, then floors each equal share.
+    /// Remaining minor units are added to the first shares in order. Flooring
+    /// also applies to negative values: USD `-1.005` is split as `-1.01`, not `-1.00`.
+    /// Round explicitly first if a different policy is needed.
+    /// Near Decimal's limits, intermediate division can round before flooring,
+    /// so the returned shares may not preserve the floored total.
+    ///
+    /// # Errors
+    /// Returns [`MoneyError::InvalidRatio`] if `n` is zero.
+    ///
+    /// # Panics
+    /// Intermediate scaling or share arithmetic can overflow for large amounts
+    /// or custom currency exponents.
     ///
     /// # Example
     /// ```
@@ -469,8 +556,21 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Divides money into n shares according to the given weights.
     ///
+    /// Floors the amount to integral minor units, then floors each weighted share.
+    /// This rounds toward negative infinity, not toward zero. Fractions smaller
+    /// than a minor unit are discarded; round explicitly first to choose another policy.
+    /// Near Decimal's limits, intermediate division can round before flooring,
+    /// so the returned shares may not preserve the floored total.
+    ///
     /// If the division cannot be applied perfectly, it allocates the remainder
     /// to shares with non-zero weights in input order. Zero-weight shares receive zero.
+    ///
+    /// # Errors
+    /// Returns [`MoneyError::InvalidRatio`] for empty or all-zero weights.
+    ///
+    /// # Panics
+    /// Intermediate scaling or share arithmetic can overflow for large amounts,
+    /// weights, or custom currency exponents.
     pub fn allocate(&self, shares: Vec<u32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if shares.is_empty() {
             return Err(MoneyError::InvalidRatio);
@@ -516,7 +616,19 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             .collect())
     }
 
-    /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
+    /// Returns a new `Money` rounded to `digits` decimal places using the strategy.
+    ///
+    /// The original amount is unchanged. Use the currency's exponent for rounding
+    /// to minor units. This cannot increase Decimal's available precision.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, Round, iso};
+    /// let amount = Money::from_str("-1.005", iso::USD).unwrap();
+    /// assert_eq!(amount.round(2, Round::HalfUp).amount().to_string(), "-1.01");
+    /// assert_eq!(amount.round(2, Round::HalfDown).amount().to_string(), "-1.00");
+    /// assert_eq!(amount.amount().to_string(), "-1.005");
+    /// ```
     pub fn round(&self, digits: u32, strategy: Round) -> Money<'a, T> {
         let mut money = *self;
 
@@ -542,8 +654,11 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 ///
 /// For more details, see [rust_decimal::RoundingStrategy]
 pub enum Round {
+    /// Round to nearest, with exact midpoints rounded away from zero.
     HalfUp,
+    /// Round to nearest, with exact midpoints rounded toward zero.
     HalfDown,
+    /// Round to nearest, with exact midpoints rounded to an even retained digit.
     HalfEven,
 }
 
@@ -1114,12 +1229,125 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(result.unwrap_err(), MoneyError::Overflow);
         }
+
+        #[test]
+        fn addition_overflow_returns_error() {
+            for (amount, increment) in [(Decimal::MAX, 1), (Decimal::MIN, -1)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.add(Money::from_major(increment, test::USD)),
+                    Err(MoneyError::Overflow)
+                );
+            }
+        }
+
+        #[test]
+        fn subtraction_overflow_returns_error() {
+            for (amount, decrement) in [(Decimal::MIN, 1), (Decimal::MAX, -1)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.sub(Money::from_major(decrement, test::USD)),
+                    Err(MoneyError::Overflow)
+                );
+            }
+        }
+
+        #[test]
+        fn division_overflow_returns_error() {
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                for divisor in [Decimal::new(1, 1), Decimal::new(-1, 1)] {
+                    assert_eq!(money.div(divisor), Err(MoneyError::Overflow));
+                }
+            }
+        }
+
+        #[test]
+        fn arithmetic_at_decimal_limits_succeeds() {
+            let zero = Money::from_major(0, test::USD);
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.add(zero), Ok(money));
+                assert_eq!(money.sub(zero), Ok(money));
+                assert_eq!(money.div(1), Ok(money));
+                assert_eq!(money.div(-1), Ok(Money::from_decimal(-amount, test::USD)));
+            }
+
+            let one = Money::from_major(1, test::USD);
+            let near_max = Money::from_decimal(Decimal::MAX - Decimal::ONE, test::USD);
+            let near_min = Money::from_decimal(Decimal::MIN + Decimal::ONE, test::USD);
+            assert_eq!(near_max.add(one).unwrap().amount(), &Decimal::MAX);
+            assert_eq!(near_min.sub(one).unwrap().amount(), &Decimal::MIN);
+        }
+
+        #[test]
+        fn currency_mismatch_takes_precedence_over_overflow() {
+            let money = Money::from_decimal(Decimal::MAX, test::USD);
+            let expected = Err(MoneyError::CurrencyMismatch {
+                expected: "USD",
+                actual: "GBP",
+            });
+            assert_eq!(money.add(Money::from_major(1, test::GBP)), expected);
+            assert_eq!(money.sub(Money::from_major(-1, test::GBP)), expected);
+        }
+
+        #[test]
+        fn division_by_zero_at_decimal_limits_returns_division_by_zero() {
+            for amount in [Decimal::MAX, Decimal::MIN, Decimal::ZERO] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.div(0), Err(MoneyError::DivisionByZero));
+                assert_eq!(
+                    money.div(Decimal::new(0, 2)),
+                    Err(MoneyError::DivisionByZero)
+                );
+            }
+        }
+
+        #[test]
+        fn division_checks_the_converted_divisor_for_zero() {
+            #[derive(Clone, Copy, PartialEq)]
+            struct Divisor(Decimal);
+
+            impl Default for Divisor {
+                fn default() -> Self {
+                    Self(Decimal::ONE)
+                }
+            }
+
+            impl From<Divisor> for Decimal {
+                fn from(value: Divisor) -> Self {
+                    value.0
+                }
+            }
+
+            let money = Money::from_major(1, test::USD);
+            assert_eq!(
+                money.div(Divisor(Decimal::ZERO)),
+                Err(MoneyError::DivisionByZero)
+            );
+            assert_eq!(money.div(Divisor::default()), Ok(money));
+        }
     }
 
     mod exchange {
         use super::*;
         use crate::ExchangeRate;
         use rust_decimal_macros::dec;
+
+        #[test]
+        fn exchange_to_overflow_returns_error() {
+            let mut exchange = Exchange::new();
+            let rate = ExchangeRate::new(test::USD, test::EUR, dec!(2)).unwrap();
+            exchange.set_rate(&rate);
+
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.exchange_to(test::EUR, &exchange),
+                    Err(MoneyError::Overflow)
+                );
+            }
+        }
 
         #[test]
         fn exchange_to_converts_currency() {
@@ -1168,6 +1396,135 @@ mod tests {
 
             assert!(negative_eur.is_negative());
             assert_eq!(negative_eur, Money::from_minor(-850, test::EUR));
+        }
+    }
+
+    mod checked_minor_units {
+        use super::*;
+        use proptest::prelude::*;
+        use rust_decimal_macros::dec;
+
+        #[test]
+        fn converts_major_units_and_trailing_zeros() {
+            for (amount, currency, expected) in [
+                (dec!(123.4500), test::USD, 12345),
+                (dec!(-123.4500), test::USD, -12345),
+                (dec!(500.00), test::JPY, 500),
+                (dec!(1.2340), test::BHD, 1234),
+            ] {
+                let money = Money::from_decimal(amount, currency);
+                assert_eq!(money.try_to_minor_units(), Ok(expected));
+                assert_eq!(money.amount().serialize(), amount.serialize());
+            }
+        }
+
+        #[test]
+        fn roundtrips_i64_limits_across_currency_exponents() {
+            for exponent in [0, 2, 3, 18, 19, 20, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for minor in [i64::MIN, -1, 0, 1, i64::MAX] {
+                    let money = Money::from_minor(minor, &currency);
+                    assert_eq!(money.try_to_minor_units(), Ok(minor));
+                }
+            }
+        }
+
+        #[test]
+        fn rejects_fractional_minor_units() {
+            for amount in [dec!(1.001), dec!(-1.001), dec!(0.001), dec!(-0.001)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+            }
+            let yen = Money::from_decimal(dec!(1.1), test::JPY);
+            assert_eq!(yen.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+        }
+
+        #[test]
+        fn rejects_out_of_range_integral_minor_units() {
+            for exponent in [0, 2, 18, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for coefficient in [i64::MAX as i128 + 1, i64::MIN as i128 - 1] {
+                    let amount = Decimal::from_i128_with_scale(coefficient, exponent);
+                    let money = Money::from_decimal(amount, &currency);
+                    assert_eq!(money.try_to_minor_units(), Err(MoneyError::Overflow));
+                }
+            }
+            for amount in [Decimal::MAX, Decimal::MIN, dec!(100000000000000000)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.try_to_minor_units(), Err(MoneyError::Overflow));
+            }
+        }
+
+        #[test]
+        fn precision_loss_takes_precedence_over_range_errors() {
+            let amount = dec!(92233720368547758.081);
+            for amount in [amount, -amount] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.try_to_minor_units(), Err(MoneyError::PrecisionLoss));
+            }
+        }
+
+        #[test]
+        fn accepts_explicit_rounding_before_conversion() {
+            for (amount, expected) in [(dec!(1.005), 101), (dec!(-1.005), -101)] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(
+                    money.round(2, Round::HalfUp).try_to_minor_units(),
+                    Ok(expected)
+                );
+            }
+        }
+
+        #[test]
+        fn handles_extreme_custom_exponents_without_panicking() {
+            for exponent in [29, 38, 39, u32::MAX] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for amount in [Decimal::ONE, -Decimal::ONE, Decimal::MAX, Decimal::MIN] {
+                    let money = Money::from_decimal(amount, &currency);
+                    assert_eq!(money.try_to_minor_units(), Err(MoneyError::Overflow));
+                }
+                for amount in [Decimal::ZERO, dec!(0.0000)] {
+                    let money = Money::from_decimal(amount, &currency);
+                    assert_eq!(money.try_to_minor_units(), Ok(0));
+                }
+            }
+            let currency = test::Currency {
+                exponent: 29,
+                ..*test::USD
+            };
+            let tiny = Money::from_decimal(Decimal::new(1, 28), &currency);
+            assert_eq!(tiny.try_to_minor_units(), Ok(10));
+        }
+
+        proptest! {
+            #[test]
+            fn equivalent_decimal_representations_preserve_minor_units(
+                minor in any::<i64>(),
+                exponent in 0u32..=28,
+                padding in 0u32..=9,
+            ) {
+                let currency = test::Currency { exponent, ..*test::USD };
+                // Nine extra zeros fit even for i64 bounds; keep the scale within 28.
+                let padding = padding.min(28 - exponent);
+                let padded = Decimal::from_i128_with_scale(
+                    i128::from(minor) * 10i128.pow(padding), exponent + padding,
+                );
+                // These encode the same known minor-unit count with different scales.
+                // Normalization also exercises scaling up when minor ends in zeros.
+                for amount in [padded, padded.normalize()] {
+                    let money = Money::from_decimal(amount, &currency);
+                    prop_assert_eq!(money.try_to_minor_units(), Ok(minor));
+                }
+            }
         }
     }
 

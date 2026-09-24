@@ -7,6 +7,10 @@ use std::fmt;
 
 /// High-performance money type using i64 minor units.
 ///
+/// Fractional minor units cannot be stored. Integer division and explicitly lossy
+/// conversion truncate toward zero, including for negative amounts. Strict
+/// conversion rejects fractional minor units instead.
+///
 /// Use this for performance-critical paths (matching engines, high-frequency trading).
 /// For complex operations (allocation, exchange), convert to [`Money<T>`].
 ///
@@ -25,7 +29,7 @@ use std::fmt;
 /// ```
 /// use rusty_money::{FastMoney, Money, iso};
 ///
-/// // FastMoney -> Money (always succeeds)
+/// // FastMoney -> Money (currency exponent must be at most 28)
 /// let fast = FastMoney::from_minor(1000, iso::USD);
 /// let money: Money<_> = fast.to_money();
 ///
@@ -63,6 +67,9 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Creates a FastMoney from major units (e.g., dollars for USD).
     ///
     /// Returns an error if the conversion would overflow.
+    /// The current scaling implementation requires a currency exponent of at most
+    /// 18. Larger custom exponents can panic with overflow checks enabled or
+    /// produce incorrect results without them.
     ///
     /// # Example
     ///
@@ -227,7 +234,10 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
 
     /// Converts to a [`Money<T>`] with Decimal precision.
     ///
-    /// This conversion always succeeds.
+    /// The minor-unit amount is preserved exactly for currency exponents up to 28.
+    ///
+    /// # Panics
+    /// Panics if the currency's exponent exceeds Decimal's maximum scale of 28.
     #[inline]
     pub fn to_money(&self) -> Money<'a, T> {
         Money::from_minor(self.minor_units, self.currency)
@@ -240,6 +250,11 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// - The amount has precision beyond the currency's exponent (e.g., $10.005 for USD)
     ///
     /// Use [`from_money_lossy`](Self::from_money_lossy) if you want to truncate extra precision.
+    /// Trailing fractional zeros do not cause precision loss.
+    ///
+    /// # Panics
+    /// Intermediate scaling can overflow for large Decimal amounts or custom
+    /// currency exponents, before the final `i64` range check.
     pub fn from_money(money: Money<'a, T>) -> Result<Self, MoneyError> {
         let exponent = money.currency().exponent();
         let scale = Decimal::from(10u64.pow(exponent));
@@ -262,7 +277,12 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Converts from a [`Money<T>`], truncating any extra precision.
     ///
     /// Returns an error only if the amount would overflow i64.
-    /// Extra precision beyond the currency's exponent is silently truncated.
+    /// Extra precision beyond the currency's exponent is truncated toward zero.
+    /// For example, USD `-1.005` becomes `-100` cents, not `-101`.
+    ///
+    /// # Panics
+    /// Intermediate scaling can overflow for large Decimal amounts or custom
+    /// currency exponents, before the final `i64` range check.
     ///
     /// # Example
     ///
