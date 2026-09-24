@@ -223,18 +223,30 @@ mod tests {
         assert_eq!("$-1,000", Formatter::money(&money, params));
     }
 
+    fn format_grouped_amount(amount: i64, separator: char, pattern: &[usize]) -> String {
+        let money = Money::from_major(amount, test::USD);
+        Formatter::money(
+            &money,
+            Params {
+                digit_separator: separator,
+                separator_pattern: pattern,
+                ..Params::default()
+            },
+        )
+    }
+
     #[test]
     fn grouping_handles_multibyte_separators() {
         for separator in [',', '\u{a0}', '\u{202f}', '💰'] {
             assert_eq!(
-                Formatter::digits("1234567", separator, &[3, 3, 3]),
+                format_grouped_amount(1234567, separator, &[3, 3, 3]),
                 format!("1{separator}234{separator}567")
             );
             assert_eq!(
-                Formatter::digits("123456789", separator, &[3, 2, 2]),
+                format_grouped_amount(123456789, separator, &[3, 2, 2]),
                 format!("12{separator}34{separator}56{separator}789")
             );
-            assert_eq!(Formatter::digits("123", separator, &[3, 3, 3]), "123");
+            assert_eq!(format_grouped_amount(123, separator, &[3, 3, 3]), "123");
         }
         let money = Money::from_major(-1234567, test::USD);
         let params = Params {
@@ -253,11 +265,11 @@ mod tests {
     fn grouping_zero_steps_repeat_at_the_same_boundary() {
         for separator in [',', '\u{202f}', '💰'] {
             assert_eq!(
-                Formatter::digits("1234567", separator, &[0, 0, 3]),
+                format_grouped_amount(1234567, separator, &[0, 0, 3]),
                 format!("1234{separator}567{separator}{separator}")
             );
             assert_eq!(
-                Formatter::digits("1234567", separator, &[3, 0, 3]),
+                format_grouped_amount(1234567, separator, &[3, 0, 3]),
                 format!("1{separator}234{separator}{separator}567")
             );
         }
@@ -265,12 +277,15 @@ mod tests {
 
     #[test]
     fn grouping_oversized_steps_stop_without_overflow() {
-        assert_eq!(Formatter::digits("1234567", ',', &[usize::MAX]), "1234567");
         assert_eq!(
-            Formatter::digits("1234567", ',', &[3, usize::MAX, 1]),
+            format_grouped_amount(1234567, ',', &[usize::MAX]),
+            "1234567"
+        );
+        assert_eq!(
+            format_grouped_amount(1234567, ',', &[3, usize::MAX, 1]),
             "1234,567"
         );
-        assert_eq!(Formatter::digits("1234567", '\u{202f}', &[]), "1234567");
+        assert_eq!(format_grouped_amount(1234567, '\u{202f}', &[]), "1234567");
     }
 
     #[test]
