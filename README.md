@@ -194,7 +194,7 @@ let parts = negative.allocate(vec![0, 1, 1]).unwrap();
 assert_eq!(parts.iter().map(|m| m.try_to_minor_units().unwrap()).collect::<Vec<_>>(), vec![0, -50, -51]);
 ```
 
-Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Near Decimal's limits, intermediate division can round before flooring and produce shares whose total differs from the input. Intermediate arithmetic can also panic on overflow. A `Result` return type does not yet cover these allocation failures.
+Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Shares are calculated with exact integer quotient/remainder arithmetic and successful results preserve the floored total. `MoneyError::Overflow` is returned if the currency exponent exceeds 28, minor-unit arithmetic exceeds `i128`, the weight sum exceeds `u64`, or an individual share cannot be represented exactly as a Decimal.
 
 ### Formatting
 
@@ -274,7 +274,7 @@ let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 
 `from_money` checks for excess precision; `from_money_lossy` explicitly truncates toward zero. Integer division also truncates toward zero, so `-100` minor units divided by `3` becomes `-33`. Addition, subtraction, and multiplication retain exact integer results when they fit.
 
-Both existing conversion methods can still panic on intermediate scaling overflow before checking the final `i64` range. For checked exact conversion, use `money.try_to_minor_units()` followed by `FastMoney::from_minor`. With the `serde` feature, `FastMoney` deserialization currently uses the lossy conversion and therefore truncates fractional minor units.
+Both conversion methods return `MoneyError::Overflow` when the resulting minor-unit amount does not fit in `i64`. With the `serde` feature, `FastMoney` deserialization uses the lossy conversion: it truncates fractional minor units and returns a deserialization error for out-of-range amounts.
 
 
 Only choose `FastMoney` over `Money`: 

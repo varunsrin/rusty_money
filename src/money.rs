@@ -500,15 +500,12 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Remaining minor units are added to the first shares in order. Flooring
     /// also applies to negative values: USD `-1.005` is split as `-1.01`, not `-1.00`.
     /// Round explicitly first if a different policy is needed.
-    /// Near Decimal's limits, intermediate division can round before flooring,
-    /// so the returned shares may not preserve the floored total.
     ///
     /// # Errors
     /// Returns [`MoneyError::InvalidRatio`] if `n` is zero.
-    ///
-    /// # Panics
-    /// Intermediate scaling or share arithmetic can overflow for large amounts
-    /// or custom currency exponents.
+    /// Returns [`MoneyError::Overflow`] if the currency exponent exceeds 28,
+    /// minor units do not fit in `i128`, or a share cannot be represented exactly
+    /// as a Decimal. Successful results preserve the floored total.
     ///
     /// # Example
     /// ```
@@ -520,37 +517,27 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// assert_eq!(parts[2], Money::from_minor(333, iso::USD)); // $3.33
     /// ```
     pub fn split(&self, n: u32) -> Result<Vec<Money<'a, T>>, MoneyError> {
-        use rust_decimal::prelude::ToPrimitive;
-
         if n == 0 {
             return Err(MoneyError::InvalidRatio);
         }
-
-        // Convert to minor units
-        let minor_per_major = Decimal::from(10u64.pow(self.currency.exponent()));
-        let total_minor = (self.amount * minor_per_major).floor();
-        let major_per_minor = Decimal::new(1, self.currency.exponent());
-
-        // Calculate base share and remainder
-        let n_decimal = Decimal::from(n);
-        let base_share = (total_minor / n_decimal).floor();
-        let remainder = total_minor - (base_share * n_decimal);
-        let remainder_count = remainder.to_usize().unwrap_or(0);
-
-        // Pre-compute the two possible share values
-        let high_share =
-            Money::from_decimal((base_share + Decimal::ONE) * major_per_minor, self.currency);
-        let low_share = Money::from_decimal(base_share * major_per_minor, self.currency);
-
+        let total_minor = self.allocation_minor_units()?;
+        let base_share = total_minor.div_euclid(i128::from(n));
+        let remainder_count = total_minor.rem_euclid(i128::from(n)) as usize;
+        let low_share = self.allocation_share(base_share)?;
+        // Do not compute an unused higher share at the maximum representable value.
+        let high_share = if remainder_count == 0 {
+            low_share
+        } else {
+            self.allocation_share(base_share.checked_add(1).ok_or(MoneyError::Overflow)?)?
+        };
         let mut result = Vec::with_capacity(n as usize);
         for i in 0..n as usize {
-            if i < remainder_count {
-                result.push(high_share);
+            result.push(if i < remainder_count {
+                high_share
             } else {
-                result.push(low_share);
-            }
+                low_share
+            });
         }
-
         Ok(result)
     }
 
@@ -559,61 +546,95 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Floors the amount to integral minor units, then floors each weighted share.
     /// This rounds toward negative infinity, not toward zero. Fractions smaller
     /// than a minor unit are discarded; round explicitly first to choose another policy.
-    /// Near Decimal's limits, intermediate division can round before flooring,
-    /// so the returned shares may not preserve the floored total.
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
     /// to shares with non-zero weights in input order. Zero-weight shares receive zero.
     ///
     /// # Errors
     /// Returns [`MoneyError::InvalidRatio`] for empty or all-zero weights.
-    ///
-    /// # Panics
-    /// Intermediate scaling or share arithmetic can overflow for large amounts,
-    /// weights, or custom currency exponents.
+    /// Returns [`MoneyError::Overflow`] if the currency exponent exceeds 28,
+    /// minor-unit arithmetic exceeds `i128`, the weight sum exceeds `u64`, or a
+    /// share cannot be represented exactly as a Decimal. Successful results
+    /// preserve the floored total.
     pub fn allocate(&self, shares: Vec<u32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if shares.is_empty() {
             return Err(MoneyError::InvalidRatio);
         }
-
-        let share_total: u64 = shares.iter().map(|&x| x as u64).sum();
-
+        let share_total = shares.iter().try_fold(0u64, |total, &share| {
+            total
+                .checked_add(u64::from(share))
+                .ok_or(MoneyError::Overflow)
+        })?;
         if share_total == 0 {
             return Err(MoneyError::InvalidRatio);
         }
-
-        // Convert to minor units (e.g., $11.00 -> 1100 cents)
-        let minor_per_major = Decimal::from(10u64.pow(self.currency.exponent()));
-        let total_minor = (self.amount * minor_per_major).floor();
-
-        // Allocate in minor units
-        let share_total_decimal = Decimal::from(share_total);
-        let mut allocations_minor: Vec<Decimal> = Vec::with_capacity(shares.len());
-        let mut allocated = Decimal::ZERO;
-
+        let total_minor = self.allocation_minor_units()?;
+        let denominator = i128::from(share_total);
+        let quotient = total_minor.div_euclid(denominator);
+        let residual = total_minor.rem_euclid(denominator);
+        let mut allocations_minor = Vec::with_capacity(shares.len());
+        let mut allocated = 0i128;
         for &share in &shares {
-            let share_value = (total_minor * Decimal::from(share) / share_total_decimal).floor();
+            // floor(total * weight / sum), without multiplying the full total
+            // by the weight. residual < u64::MAX and weight <= u32::MAX.
+            let weight = i128::from(share);
+            let share_value = quotient
+                .checked_mul(weight)
+                .and_then(|base| base.checked_add(residual * weight / denominator))
+                .ok_or(MoneyError::Overflow)?;
             allocations_minor.push(share_value);
-            allocated += share_value;
+            allocated = allocated
+                .checked_add(share_value)
+                .ok_or(MoneyError::Overflow)?;
         }
-
-        // Distribute remainder one minor unit at a time
-        let mut remainder = total_minor - allocated;
-        let mut i: usize = 0;
-        while remainder > Decimal::ZERO {
-            if shares[i] != 0 {
-                allocations_minor[i] += Decimal::ONE;
-                remainder -= Decimal::ONE;
+        let mut remainder = total_minor
+            .checked_sub(allocated)
+            .ok_or(MoneyError::Overflow)?;
+        for (allocation, &weight) in allocations_minor.iter_mut().zip(&shares) {
+            if remainder == 0 {
+                break;
             }
-            i += 1;
+            if weight > 0 {
+                *allocation = allocation.checked_add(1).ok_or(MoneyError::Overflow)?;
+                remainder -= 1;
+            }
         }
-
-        // Convert back to major units
-        let major_per_minor = Decimal::new(1, self.currency.exponent());
-        Ok(allocations_minor
+        debug_assert_eq!(remainder, 0);
+        allocations_minor
             .into_iter()
-            .map(|minor| Money::from_decimal(minor * major_per_minor, self.currency))
-            .collect())
+            .map(|minor| self.allocation_share(minor))
+            .collect()
+    }
+
+    // Floor to minor units without Decimal division or an overflowing u64 power.
+    fn allocation_minor_units(&self) -> Result<i128, MoneyError> {
+        let exponent = self.currency.exponent();
+        if exponent > Decimal::MAX_SCALE {
+            return Err(MoneyError::Overflow);
+        }
+        let coefficient = self.amount.mantissa();
+        let scale = self.amount.scale();
+        if scale > exponent {
+            Ok(coefficient.div_euclid(10i128.pow(scale - exponent)))
+        } else {
+            coefficient
+                .checked_mul(10i128.pow(exponent - scale))
+                .ok_or(MoneyError::Overflow)
+        }
+    }
+
+    // Remove only redundant zeros if needed to fit Decimal's 96-bit coefficient.
+    // Never round a share: that would invalidate conservation of the total.
+    fn allocation_share(&self, mut minor: i128) -> Result<Money<'a, T>, MoneyError> {
+        let mut scale = self.currency.exponent();
+        while minor.unsigned_abs() > Decimal::MAX.mantissa() as u128 && scale > 0 && minor % 10 == 0
+        {
+            minor /= 10;
+            scale -= 1;
+        }
+        let amount =
+            Decimal::try_from_i128_with_scale(minor, scale).map_err(|_| MoneyError::Overflow)?;
+        Ok(Money::from_decimal(amount, self.currency))
     }
 
     /// Returns a new `Money` rounded to `digits` decimal places using the strategy.
@@ -1710,6 +1731,155 @@ mod tests {
 
     mod allocation {
         use super::*;
+
+        fn integer_total(parts: &[Money<'_, test::Currency>]) -> i128 {
+            parts
+                .iter()
+                .map(|part| {
+                    assert_eq!(part.amount().scale(), 0);
+                    part.amount().mantissa()
+                })
+                .sum()
+        }
+
+        #[test]
+        fn preserves_totals_near_decimal_limits() {
+            for offset in 0..=10 {
+                let magnitude = Decimal::MAX.mantissa() - offset;
+                for total in [magnitude, -magnitude] {
+                    let money =
+                        Money::from_decimal(Decimal::from_i128_with_scale(total, 0), test::JPY);
+                    for count in 1..=9 {
+                        let parts = money.split(count).unwrap();
+                        assert_eq!(integer_total(&parts), total);
+                        for (i, part) in parts.iter().enumerate() {
+                            let expected = total.div_euclid(i128::from(count))
+                                + i128::from((i as i128) < total.rem_euclid(i128::from(count)));
+                            assert_eq!(part.amount().mantissa(), expected);
+                        }
+                        let allocated = money.allocate(vec![1; count as usize]).unwrap();
+                        assert_eq!(allocated, parts);
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn single_recipient_handles_large_scaled_totals() {
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.split(1), Ok(vec![money]));
+                assert_eq!(money.allocate(vec![u32::MAX]), Ok(vec![money]));
+                let parts = money.allocate(vec![0, u32::MAX, 0]).unwrap();
+                assert!(parts[0].is_zero());
+                assert_eq!(parts[1], money);
+                assert!(parts[2].is_zero());
+            }
+        }
+
+        #[test]
+        fn unrepresentable_shares_return_overflow_instead_of_rounding() {
+            for amount in [Decimal::MAX, Decimal::MIN] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.split(2), Err(MoneyError::Overflow));
+                assert_eq!(money.allocate(vec![1, 1]), Err(MoneyError::Overflow));
+            }
+        }
+
+        #[test]
+        fn excessive_scaling_returns_overflow() {
+            for exponent in [28, 29, u32::MAX] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                let money = Money::from_decimal(Decimal::MAX, &currency);
+                assert_eq!(money.split(1), Err(MoneyError::Overflow));
+                assert_eq!(money.allocate(vec![1]), Err(MoneyError::Overflow));
+                assert_eq!(money.split(0), Err(MoneyError::InvalidRatio));
+                assert_eq!(money.allocate(vec![0]), Err(MoneyError::InvalidRatio));
+            }
+        }
+
+        #[test]
+        fn flooring_and_zero_weight_policy_is_unchanged() {
+            use rust_decimal_macros::dec;
+            for (amount, expected) in [(dec!(1.005), [50, 50]), (dec!(-1.005), [-50, -51])] {
+                let money = Money::from_decimal(amount, test::USD);
+                let expected: Vec<_> = expected
+                    .into_iter()
+                    .map(|minor| Money::from_minor(minor, test::USD))
+                    .collect();
+                assert_eq!(money.split(2).unwrap(), expected);
+                let allocated = money.allocate(vec![0, 1, 1]).unwrap();
+                assert!(allocated[0].is_zero());
+                assert_eq!(&allocated[1..], expected.as_slice());
+            }
+        }
+
+        #[test]
+        fn tiny_high_exponent_amounts_allocate_exactly() {
+            for exponent in [19, 20, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for minor in [-5, 5] {
+                    let money = Money::from_minor(minor, &currency);
+                    let split = money.split(2).unwrap();
+                    assert_eq!(
+                        split
+                            .iter()
+                            .map(|m| m.try_to_minor_units().unwrap())
+                            .sum::<i64>(),
+                        minor
+                    );
+                    assert_eq!(money.allocate(vec![1, 1]).unwrap(), split);
+                }
+            }
+        }
+
+        proptest::proptest! {
+            #[test]
+            fn whole_unit_allocations_match_integer_oracle(
+                lo in proptest::prelude::any::<u32>(),
+                mid in proptest::prelude::any::<u32>(),
+                hi in proptest::prelude::any::<u32>(),
+                negative in proptest::prelude::any::<bool>(),
+                weights in proptest::collection::vec(
+                    proptest::prop_oneof![
+                        proptest::strategy::Just(0u32),
+                        proptest::strategy::Just(1u32),
+                        proptest::strategy::Just(u32::MAX),
+                        proptest::prelude::any::<u32>(),
+                    ],
+                    1..9,
+                ),
+            ) {
+                let amount = Decimal::from_parts(lo, mid, hi, negative, 0);
+                // This property covers whole units. Fixed cases above cover currency
+                // scaling, fractional inputs, and unrepresentable output shares.
+                let total = amount.mantissa();
+                let sum: u128 = weights.iter().map(|&w| u128::from(w)).sum();
+                proptest::prop_assume!(sum > 0);
+                // Independent oracle: the 96-bit magnitude times a u32 weight fits u128.
+                let mut expected: Vec<i128> = weights.iter().map(|&w| {
+                    let numerator = total.unsigned_abs() * u128::from(w);
+                    let quotient = numerator / sum;
+                    if total < 0 { -(numerator.div_ceil(sum) as i128) }
+                    else { quotient as i128 }
+                }).collect();
+                let mut remainder = total - expected.iter().sum::<i128>();
+                for (value, weight) in expected.iter_mut().zip(&weights) {
+                    if remainder > 0 && *weight > 0 { *value += 1; remainder -= 1; }
+                }
+                let money = Money::from_decimal(amount, test::JPY);
+                let actual = money.allocate(weights).unwrap();
+                proptest::prop_assert_eq!(integer_total(&actual), total);
+                let actual: Vec<_> = actual.iter().map(|m| m.amount().mantissa()).collect();
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
 
         #[test]
         fn allocate_shares() {
