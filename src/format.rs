@@ -74,10 +74,13 @@ impl Formatter {
 
         let mut current_position: usize = 0;
         for &position in pattern.iter() {
-            current_position += position;
+            let Some(next_position) = current_position.checked_add(position) else {
+                break;
+            };
+            current_position = next_position;
             if digits.len() > current_position {
                 digits.insert(digits.len() - current_position, separator);
-                current_position += 1;
+                current_position += separator.len_utf8();
             }
         }
         digits
@@ -102,6 +105,8 @@ pub struct Params<'a> {
     /// The character that separates minor units from major units (e.g. 1,000.00)
     pub exponent_separator: char,
     /// The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
+    /// Steps count digits from right to left. A zero step repeats the current
+    /// boundary; a leading zero places a separator after the final digit.
     pub separator_pattern: &'a [usize],
     /// The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
     pub positions: &'a [Position],
@@ -216,6 +221,71 @@ mod tests {
             ..Default::default()
         };
         assert_eq!("$-1,000", Formatter::money(&money, params));
+    }
+
+    fn format_grouped_amount(amount: i64, separator: char, pattern: &[usize]) -> String {
+        let money = Money::from_major(amount, test::USD);
+        Formatter::money(
+            &money,
+            Params {
+                digit_separator: separator,
+                separator_pattern: pattern,
+                ..Params::default()
+            },
+        )
+    }
+
+    #[test]
+    fn grouping_handles_multibyte_separators() {
+        for separator in [',', '\u{a0}', '\u{202f}', '💰'] {
+            assert_eq!(
+                format_grouped_amount(1234567, separator, &[3, 3, 3]),
+                format!("1{separator}234{separator}567")
+            );
+            assert_eq!(
+                format_grouped_amount(123456789, separator, &[3, 2, 2]),
+                format!("12{separator}34{separator}56{separator}789")
+            );
+            assert_eq!(format_grouped_amount(123, separator, &[3, 3, 3]), "123");
+        }
+        let money = Money::from_major(-1234567, test::USD);
+        let params = Params {
+            digit_separator: '\u{202f}',
+            symbol: Some("$"),
+            rounding: Some(2),
+            ..Params::default()
+        };
+        assert_eq!(
+            Formatter::money(&money, params),
+            "-$1\u{202f}234\u{202f}567.00"
+        );
+    }
+
+    #[test]
+    fn grouping_zero_steps_repeat_at_the_same_boundary() {
+        for separator in [',', '\u{202f}', '💰'] {
+            assert_eq!(
+                format_grouped_amount(1234567, separator, &[0, 0, 3]),
+                format!("1234{separator}567{separator}{separator}")
+            );
+            assert_eq!(
+                format_grouped_amount(1234567, separator, &[3, 0, 3]),
+                format!("1{separator}234{separator}{separator}567")
+            );
+        }
+    }
+
+    #[test]
+    fn grouping_oversized_steps_stop_without_overflow() {
+        assert_eq!(
+            format_grouped_amount(1234567, ',', &[usize::MAX]),
+            "1234567"
+        );
+        assert_eq!(
+            format_grouped_amount(1234567, ',', &[3, usize::MAX, 1]),
+            "1234,567"
+        );
+        assert_eq!(format_grouped_amount(1234567, '\u{202f}', &[]), "1234567");
     }
 
     #[test]
