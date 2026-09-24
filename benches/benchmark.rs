@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use rust_decimal_macros::dec;
 
 #[cfg(feature = "iso")]
@@ -132,6 +132,14 @@ fn bench_formatting(c: &mut Criterion) {
             bencher.iter(|| format!("{}", black_box(&small)))
         });
 
+        #[cfg(feature = "fast")]
+        {
+            let small = FastMoney::from_minor(1_234, iso::USD);
+            c.bench_function("fastmoney_display_small", |bencher| {
+                bencher.iter(|| format!("{}", black_box(&small)))
+            });
+        }
+
         // Large amount with many digit separators
         let large = Money::from_minor(123_456_789_012, iso::USD);
         c.bench_function("money_display_large", |bencher| {
@@ -153,9 +161,11 @@ fn bench_parsing(c: &mut Criterion) {
     }
 }
 
-fn bench_parse_workloads(c: &mut Criterion) {
+fn bench_parse_format_workloads(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
+        use std::fmt::Write;
+
         let mut parsing = c.benchmark_group("parse_workloads");
         for (name, amount, currency) in [
             ("ungrouped", "1234.56", iso::USD),
@@ -175,6 +185,31 @@ fn bench_parse_workloads(c: &mut Criterion) {
             b.iter(|| Money::from_str(black_box("1.123456789012345678"), rusty_money::crypto::ETH))
         });
         parsing.finish();
+
+        let mut formatting = c.benchmark_group("format_workloads");
+        for currency in [iso::USD, iso::EUR, iso::INR, iso::JPY, iso::BYN] {
+            let money = Money::from_minor(-123_456_789, currency);
+            formatting.bench_with_input(
+                BenchmarkId::new("string", currency.iso_alpha_code),
+                &money,
+                |b, m| b.iter(|| black_box(m).to_string()),
+            );
+        }
+
+        let amounts: Vec<_> = (0..1000)
+            .map(|i| Money::from_minor(i * 123_457 - 50_000_000, iso::USD))
+            .collect();
+        let mut output = String::with_capacity(32_000);
+        formatting.bench_function("batch_1000_reused_buffer", |b| {
+            b.iter(|| {
+                output.clear();
+                for money in black_box(&amounts) {
+                    writeln!(&mut output, "{money}").unwrap();
+                }
+                black_box(&output);
+            })
+        });
+        formatting.finish();
     }
 }
 
@@ -308,7 +343,7 @@ criterion_group!(
     bench_exchange_convert,
     bench_formatting,
     bench_parsing,
-    bench_parse_workloads,
+    bench_parse_format_workloads,
     bench_comparison,
     bench_to_minor_units,
     bench_allocate,
