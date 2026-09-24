@@ -162,6 +162,8 @@ let parts = total.allocate(vec![70, 20, 10]).unwrap();
 // => [$70.00, $20.00, $10.00]
 ```
 
+Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Shares are calculated with exact integer quotient/remainder arithmetic and successful results preserve the floored total. `MoneyError::Overflow` is returned if the currency exponent exceeds 28, minor-unit arithmetic exceeds `i128`, the weight sum exceeds `u64`, or an individual share cannot be represented exactly as a Decimal.
+
 ### Formatting
 
 `Money` formats according to its currency's locale:
