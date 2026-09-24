@@ -238,6 +238,8 @@ let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 
 `FastMoney` uses `i64` minor units (cents) instead of 128-bit decimals, providing significantly faster arithmetic for performance-critical code paths. It comes with a narrower feature set and has lower precision due to the use of integers.
 
+Both conversion methods return `MoneyError::Overflow` when the resulting minor-unit amount does not fit in `i64`. With the `serde` feature, `FastMoney` deserialization uses the lossy conversion: it truncates fractional minor units and returns a deserialization error for out-of-range amounts.
+
 
 Only choose `FastMoney` over `Money`: 
 
