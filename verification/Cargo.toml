@@ -1,0 +1,12 @@
+[package]
+name = "rusty-money-verification"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+rusty-money = { path = "..", default-features = false, features = ["iso", "fast"] }
+rust_decimal = { version = "=1.43.0", default-features = false }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
