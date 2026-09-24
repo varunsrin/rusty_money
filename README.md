@@ -331,17 +331,16 @@ assert_eq!(restored.minor_units(), 99);
 
 ## Performance
 
-Common operations take tens of nanoseconds (local Criterion medians on an Apple M4 Max, release build; existing amounts are created before timing, and results vary by hardware and input).
+`FastMoney` offers faster checked integer arithmetic and uses 16 bytes per value versus `Money`'s 24 bytes on the benchmark machine.
 
 | Operation | Example call | `Money` | `FastMoney` |
 | --- | --- | --- | --- |
-| Find currency | `iso::find("USD")` | 2 ns | 2 ns |
-| Add amounts | `amount.add(other)` | 11 ns | 9 ns |
-| Parse amount | `Money::from_str("12.34", iso::USD)` | 13 ns | — |
-| Format amounts | `format!("{amount}")` | 56 ns | 56 ns |
-| Allocate amounts | `amount.allocate(vec![1, 1, 1])` | 75 ns | — |
+| Multiply amounts | `amount.mul(100i64)` | 1.6 ns | 0.7 ns |
+| Divide amounts | `amount.div(4i64)` | 3.3 ns | 0.8 ns |
+| Add amounts | `amount.add(other)` | 10.3 ns | 9.2 ns |
+| Subtract amounts | `amount.sub(other)` | 10.7 ns | 9.2 ns |
 
-Currency lookup is shared; — means no direct `FastMoney` method.
+Local release-build Criterion medians on an Apple M4 Max, using preconstructed USD amounts ($1,000 and $500); timings vary by hardware and input. Division by 4 is exact here; `FastMoney` truncates fractional minor units otherwise.
 
 ## Feature Flags
 
