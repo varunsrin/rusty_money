@@ -1,0 +1,53 @@
+name: Formal contracts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Git revision to verify (historical revisions may intentionally fail)
+        required: true
+        default: HEAD
+        type: string
+
+concurrency:
+  group: formal-contracts-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  kani:
+    name: Kani contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          fetch-depth: 0
+      - name: Install pinned verifier
+        run: |
+          cargo install --locked kani-verifier --version 0.68.0
+          cargo kani setup
+          cargo fetch --manifest-path verification/Cargo.toml --locked
+      - name: Check harness formatting
+        run: cargo fmt --manifest-path verification/Cargo.toml --check
+      - name: Verify contracts
+        env:
+          VERIFY_REVISION: ${{ inputs.revision || 'HEAD' }}
+        run: |
+          python3 verification/run.py --revision "$VERIFY_REVISION" \
+            --harness fast_add_contract --harness fast_sub_contract \
+            --harness fast_neg_contract --harness fast_mismatch_contract \
+            --harness major_large_scale_contract \
+            --timeout 120 --output verification-run
+      - name: Save proof evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verification-evidence
+          path: verification-run/
