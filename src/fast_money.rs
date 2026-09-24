@@ -1,7 +1,6 @@
 use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -255,22 +254,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     ///
     /// Use [`from_money_lossy`](Self::from_money_lossy) if you want to truncate extra precision.
     /// Trailing fractional zeros do not cause precision loss.
-    ///
-    /// # Panics
-    /// Intermediate scaling can overflow for large Decimal amounts or custom
-    /// currency exponents, before the final `i64` range check.
     pub fn from_money(money: Money<'a, T>) -> Result<Self, MoneyError> {
-        let exponent = money.currency().exponent();
-        let scale = Decimal::from(10u64.pow(exponent));
-        let scaled = money.amount() * scale;
-
-        // Check for precision loss: if truncating changes the value, there's extra precision
-        if scaled != scaled.trunc() {
-            return Err(MoneyError::PrecisionLoss);
-        }
-
-        // Convert to i64, checking for overflow
-        let minor_units = scaled.trunc().to_i64().ok_or(MoneyError::Overflow)?;
+        let minor_units = money.try_to_minor_units()?;
 
         Ok(FastMoney {
             minor_units,
@@ -284,10 +269,6 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Extra precision beyond the currency's exponent is truncated toward zero.
     /// For example, USD `-1.005` becomes `-100` cents, not `-101`.
     ///
-    /// # Panics
-    /// Intermediate scaling can overflow for large Decimal amounts or custom
-    /// currency exponents, before the final `i64` range check.
-    ///
     /// # Example
     ///
     /// ```
@@ -299,17 +280,11 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// assert_eq!(fast.minor_units(), 1000);  // Truncated to 1000 cents ($10.00)
     /// ```
     pub fn from_money_lossy(money: Money<'a, T>) -> Result<Self, MoneyError> {
-        let exponent = money.currency().exponent();
-        let scale = Decimal::from(10u64.pow(exponent));
-        let scaled = (money.amount() * scale).trunc();
-
-        // Convert to i64, checking for overflow
-        let minor_units = scaled.to_i64().ok_or(MoneyError::Overflow)?;
-
-        Ok(FastMoney {
-            minor_units,
-            currency: money.currency(),
-        })
+        let truncated = money.amount().round_dp_with_strategy(
+            money.currency().exponent(),
+            rust_decimal::RoundingStrategy::ToZero,
+        );
+        Self::from_money(Money::from_decimal(truncated, money.currency()))
     }
 }
 
@@ -476,6 +451,34 @@ mod serde_tests {
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: FastMoney<test::Currency> = serde_json::from_str(&json).unwrap();
         assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn deserialize_extreme_amounts_returns_errors_without_panicking() {
+        for amount in [
+            "79228162514264337593543950335",
+            "-79228162514264337593543950335",
+            "92233720368547758.08",
+            "-92233720368547758.09",
+        ] {
+            let json = format!(r#"{{"amount":"{amount}","currency":"USD"}}"#);
+            let result = serde_json::from_str::<FastMoney<test::Currency>>(&json);
+            assert!(result.is_err(), "{amount}");
+        }
+    }
+
+    #[test]
+    fn deserialize_retains_lossy_precision_policy_at_limits() {
+        for (amount, expected) in [
+            ("1.005", 100),
+            ("-1.005", -100),
+            ("92233720368547758.079", i64::MAX),
+            ("-92233720368547758.089", i64::MIN),
+        ] {
+            let json = format!(r#"{{"amount":"{amount}","currency":"USD"}}"#);
+            let fast = serde_json::from_str::<FastMoney<test::Currency>>(&json).unwrap();
+            assert_eq!(fast.minor_units(), expected);
+        }
     }
 
     #[test]
@@ -833,6 +836,74 @@ mod tests {
         let money = original.to_money();
         let back = FastMoney::from_money(money).unwrap();
         assert_eq!(original, back);
+    }
+
+    #[test]
+    fn conversions_check_decimal_extremes() {
+        for amount in [Decimal::MAX, Decimal::MIN] {
+            let money = Money::from_decimal(amount, test::USD);
+            assert_eq!(FastMoney::from_money(money), Err(MoneyError::Overflow));
+            assert_eq!(
+                FastMoney::from_money_lossy(money),
+                Err(MoneyError::Overflow)
+            );
+        }
+    }
+
+    #[test]
+    fn conversions_roundtrip_limits_and_high_exponents() {
+        for exponent in [0, 2, 18, 19, 20, 28] {
+            let currency = test::Currency {
+                exponent,
+                ..*test::USD
+            };
+            for minor in [i64::MIN, -1, 0, 1, i64::MAX] {
+                let money = Money::from_minor(minor, &currency);
+                assert_eq!(FastMoney::from_money(money).unwrap().minor_units(), minor);
+                assert_eq!(
+                    FastMoney::from_money_lossy(money).unwrap().minor_units(),
+                    minor
+                );
+            }
+        }
+        let currency = test::Currency {
+            exponent: u32::MAX,
+            ..*test::USD
+        };
+        let zero = Money::from_major(0, &currency);
+        assert_eq!(FastMoney::from_money(zero).unwrap().minor_units(), 0);
+        assert_eq!(FastMoney::from_money_lossy(zero).unwrap().minor_units(), 0);
+        let one = Money::from_major(1, &currency);
+        assert_eq!(FastMoney::from_money(one), Err(MoneyError::Overflow));
+        assert_eq!(FastMoney::from_money_lossy(one), Err(MoneyError::Overflow));
+    }
+
+    #[test]
+    fn conversions_keep_strict_and_lossy_policies_distinct() {
+        use rust_decimal_macros::dec;
+        for (amount, expected) in [
+            (dec!(1.005), 100),
+            (dec!(-1.005), -100),
+            (dec!(0.009), 0),
+            (dec!(-0.009), 0),
+            (dec!(92233720368547758.079), i64::MAX),
+            (dec!(-92233720368547758.089), i64::MIN),
+        ] {
+            let money = Money::from_decimal(amount, test::USD);
+            assert_eq!(FastMoney::from_money(money), Err(MoneyError::PrecisionLoss));
+            assert_eq!(
+                FastMoney::from_money_lossy(money).unwrap().minor_units(),
+                expected
+            );
+        }
+        for amount in [dec!(92233720368547758.08), dec!(-92233720368547758.09)] {
+            let money = Money::from_decimal(amount, test::USD);
+            assert_eq!(FastMoney::from_money(money), Err(MoneyError::Overflow));
+            assert_eq!(
+                FastMoney::from_money_lossy(money),
+                Err(MoneyError::Overflow)
+            );
+        }
     }
 
     #[test]
