@@ -1792,14 +1792,24 @@ mod tests {
 
         proptest::proptest! {
             #[test]
-            fn full_decimal_range_matches_integer_allocation_oracle(
+            fn whole_unit_allocations_match_integer_oracle(
                 lo in proptest::prelude::any::<u32>(),
                 mid in proptest::prelude::any::<u32>(),
                 hi in proptest::prelude::any::<u32>(),
                 negative in proptest::prelude::any::<bool>(),
-                weights in proptest::collection::vec(proptest::prelude::any::<u32>(), 1..9),
+                weights in proptest::collection::vec(
+                    proptest::prop_oneof![
+                        proptest::strategy::Just(0u32),
+                        proptest::strategy::Just(1u32),
+                        proptest::strategy::Just(u32::MAX),
+                        proptest::prelude::any::<u32>(),
+                    ],
+                    1..9,
+                ),
             ) {
                 let amount = Decimal::from_parts(lo, mid, hi, negative, 0);
+                // This property covers whole units. Fixed cases above cover currency
+                // scaling, fractional inputs, and unrepresentable output shares.
                 let total = amount.mantissa();
                 let sum: u128 = weights.iter().map(|&w| u128::from(w)).sum();
                 proptest::prop_assume!(sum > 0);
