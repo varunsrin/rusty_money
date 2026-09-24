@@ -1451,18 +1451,23 @@ mod tests {
 
         proptest! {
             #[test]
-            fn minor_unit_roundtrip(minor in any::<i64>(), exponent in 0u32..=28) {
+            fn equivalent_decimal_representations_preserve_minor_units(
+                minor in any::<i64>(),
+                exponent in 0u32..=28,
+                padding in 0u32..=9,
+            ) {
                 let currency = test::Currency { exponent, ..*test::USD };
-                let money = Money::from_minor(minor, &currency);
-                prop_assert_eq!(money.try_to_minor_units(), Ok(minor));
-            }
-
-            #[test]
-            fn trailing_zeros_preserve_minor_units(minor in any::<i64>(), exponent in 0u32..=24) {
-                let currency = test::Currency { exponent, ..*test::USD };
-                let amount = Decimal::from_i128_with_scale(i128::from(minor) * 10_000, exponent + 4);
-                let money = Money::from_decimal(amount, &currency);
-                prop_assert_eq!(money.try_to_minor_units(), Ok(minor));
+                // Nine extra zeros fit even for i64 bounds; keep the scale within 28.
+                let padding = padding.min(28 - exponent);
+                let padded = Decimal::from_i128_with_scale(
+                    i128::from(minor) * 10i128.pow(padding), exponent + padding,
+                );
+                // These encode the same known minor-unit count with different scales.
+                // Normalization also exercises scaling up when minor ends in zeros.
+                for amount in [padded, padded.normalize()] {
+                    let money = Money::from_decimal(amount, &currency);
+                    prop_assert_eq!(money.try_to_minor_units(), Ok(minor));
+                }
             }
         }
     }
