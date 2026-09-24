@@ -53,3 +53,11 @@ jobs:
         env:
           PROPTEST_CASES: 10000
         run: cargo +${{ matrix.toolchain }} test --verbose --all-features
+
+      # Integer overflow can panic in debug but wrap in release. The library suite
+      # is inexpensive to run; avoid name filters that can silently miss regressions.
+      - name: Execute release-mode library tests
+        if: ${{ matrix.toolchain == 'stable' }}
+        env:
+          PROPTEST_CASES: 10000
+        run: cargo +stable test --release --all-features --lib
