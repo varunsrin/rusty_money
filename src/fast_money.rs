@@ -727,24 +727,25 @@ mod tests {
     // ============ Sign Tests ============
 
     #[test]
-    fn is_zero() {
-        assert!(FastMoney::from_minor(0, test::USD).is_zero());
-        assert!(!FastMoney::from_minor(1, test::USD).is_zero());
-        assert!(!FastMoney::from_minor(-1, test::USD).is_zero());
-    }
-
-    #[test]
-    fn is_positive() {
-        assert!(FastMoney::from_minor(1, test::USD).is_positive());
-        assert!(!FastMoney::from_minor(0, test::USD).is_positive());
-        assert!(!FastMoney::from_minor(-1, test::USD).is_positive());
-    }
-
-    #[test]
-    fn is_negative() {
-        assert!(FastMoney::from_minor(-1, test::USD).is_negative());
-        assert!(!FastMoney::from_minor(0, test::USD).is_negative());
-        assert!(!FastMoney::from_minor(1, test::USD).is_negative());
+    fn predicates_and_arithmetic_identities_at_i64_boundaries() {
+        let zero = FastMoney::from_minor(0, test::USD);
+        for (amount, is_zero, is_positive, is_negative) in [
+            (i64::MIN, false, false, true),
+            (-1, false, false, true),
+            (0, true, false, false),
+            (1, false, true, false),
+            (i64::MAX, false, true, false),
+        ] {
+            let money = FastMoney::from_minor(amount, test::USD);
+            assert_eq!(money.is_zero(), is_zero);
+            assert_eq!(money.is_positive(), is_positive);
+            assert_eq!(money.is_negative(), is_negative);
+            assert_eq!(money.add(zero), Ok(money));
+            assert_eq!(zero.add(money), Ok(money));
+            assert_eq!(money.mul(1), Ok(money));
+            assert_eq!(money.mul(0), Ok(zero));
+            assert_eq!(money.div(1), Ok(money));
+        }
     }
 
     #[test]
@@ -1157,12 +1158,9 @@ mod proptest_tests {
         fn mul_div_inverse(a in safe_amount(), n in 1i64..1000) {
             let ma = FastMoney::from_minor(a, test::USD);
 
-            if let Ok(product) = ma.mul(n) {
-                let back = product.div(n);
-                // Due to truncation, this should be close but might not be exact
-                // for values that don't divide evenly
-                prop_assert!(back.is_ok());
-            }
+            // This generator cannot overflow, and the product is divisible by n.
+            let product = ma.mul(n).unwrap();
+            prop_assert_eq!(product.div(n), Ok(ma));
         }
 
         #[test]
@@ -1202,24 +1200,6 @@ mod proptest_tests {
         }
 
         #[test]
-        fn is_zero_consistent(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.is_zero(), a == 0);
-        }
-
-        #[test]
-        fn is_positive_consistent(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.is_positive(), a > 0);
-        }
-
-        #[test]
-        fn is_negative_consistent(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.is_negative(), a < 0);
-        }
-
-        #[test]
         fn addition_is_associative(a in safe_amount(), b in safe_amount(), c in safe_amount()) {
             let ma = FastMoney::from_minor(a, test::USD);
             let mb = FastMoney::from_minor(b, test::USD);
@@ -1232,33 +1212,5 @@ mod proptest_tests {
             prop_assert_eq!(left, right);
         }
 
-        #[test]
-        fn zero_is_additive_identity(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            let zero = FastMoney::from_minor(0, test::USD);
-
-            prop_assert_eq!(ma.add(zero).unwrap(), ma);
-            prop_assert_eq!(zero.add(ma).unwrap(), ma);
-        }
-
-        #[test]
-        fn multiplication_by_one_is_identity(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.mul(1).unwrap(), ma);
-        }
-
-        #[test]
-        #[allow(clippy::erasing_op)]
-        fn multiplication_by_zero_gives_zero(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            let zero = FastMoney::from_minor(0, test::USD);
-            prop_assert_eq!(ma.mul(0).unwrap(), zero);
-        }
-
-        #[test]
-        fn division_by_one_is_identity(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.div(1).unwrap(), ma);
-        }
     }
 }
