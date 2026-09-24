@@ -44,39 +44,61 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         }
 
         let format = LocalFormat::from_locale(currency.locale());
-        let amount_parts: Vec<&str> = amount.split(format.exponent_separator).collect();
-
-        let mut split_decimal: Vec<&str> = amount_parts[0].split(format.digit_separator).collect();
-        let mut parsed_decimal = split_decimal.concat();
-
-        // Sanity check the decimal seperation
-        for &num in format.digit_separator_pattern.iter() {
-            if split_decimal.len() <= 1 {
-                break;
-            }
-            let current = split_decimal.pop().unwrap();
-            if current.len() != num {
-                return Err(MoneyError::InvalidAmount);
-            }
-        }
-
-        if amount_parts.len() == 1 {
-            parsed_decimal += ".";
-            for _ in 0..currency.exponent() {
-                parsed_decimal += "0";
-            }
-        } else if amount_parts.len() == 2 {
-            let fraction = amount_parts[1];
-            // Validate fractional digits without imposing an integer range limit.
-            if fraction.is_empty() || !fraction.bytes().all(|b| b.is_ascii_digit()) {
-                return Err(MoneyError::InvalidAmount);
-            }
-            parsed_decimal = parsed_decimal + "." + fraction;
-        } else {
+        let mut amount_parts = amount.split(format.exponent_separator);
+        let integer = amount_parts.next().unwrap();
+        let fraction = amount_parts.next();
+        if amount_parts.next().is_some() {
             return Err(MoneyError::InvalidAmount);
         }
 
-        let decimal = Decimal::from_str(&parsed_decimal).map_err(|_| MoneyError::InvalidAmount)?;
+        if let Some(fraction) = fraction {
+            // Validate fractional digits without imposing an integer range limit.
+            if fraction.is_empty() || !fraction.bytes().all(|digit| digit.is_ascii_digit()) {
+                return Err(MoneyError::InvalidAmount);
+            }
+        }
+
+        let grouped = integer.contains(format.digit_separator);
+        if grouped {
+            let mut groups = integer.rsplit(format.digit_separator).peekable();
+            for &size in format.digit_separator_pattern {
+                let group = groups.next().unwrap();
+                if groups.peek().is_none() {
+                    break;
+                }
+                if group.len() != size {
+                    return Err(MoneyError::InvalidAmount);
+                }
+            }
+        }
+
+        // A decimal point and ungrouped digits already match Decimal's input format.
+        let normalized;
+        let decimal_input = if fraction.is_some() && !grouped && format.exponent_separator == '.' {
+            amount
+        } else {
+            let mut buffer = String::with_capacity(amount.len());
+            if grouped {
+                for group in integer.split(format.digit_separator) {
+                    buffer.push_str(group);
+                }
+            } else {
+                buffer.push_str(integer);
+            }
+            buffer.push('.');
+            if let Some(fraction) = fraction {
+                buffer.push_str(fraction);
+            } else {
+                // Preserve the scale of integer input, including trailing zeroes.
+                for _ in 0..currency.exponent() {
+                    buffer.push('0');
+                }
+            }
+            normalized = buffer;
+            &normalized
+        };
+
+        let decimal = Decimal::from_str(decimal_input).map_err(|_| MoneyError::InvalidAmount)?;
         Ok(Money::from_decimal(decimal, currency))
     }
 
@@ -919,6 +941,40 @@ mod tests {
                     MoneyError::InvalidAmount,
                     "{amount}"
                 );
+            }
+        }
+
+        #[test]
+        fn from_str_preserves_normalized_values_and_scales() {
+            let space_currency = test::Currency {
+                locale: crate::Locale::EnBy,
+                ..*test::USD
+            };
+            for (input, currency, expected) in [
+                ("1234", test::USD, "1234.00"),
+                ("1234", test::JPY, "1234"),
+                ("1.50", test::JPY, "1.50"),
+                ("1,234.500", test::USD, "1234.500"),
+                ("1.234,500", test::EUR, "1234.500"),
+                ("1,23,456.7800", test::INR, "123456.7800"),
+                ("1 234,50", &space_currency, "1234.50"),
+                ("-0", test::USD, "0.00"),
+                ("0.0000", test::USD, "0.0000"),
+                (".50", test::USD, "0.50"),
+                ("+1.50", test::USD, "1.50"),
+                ("1_234.50", test::USD, "1234.50"),
+                (",123.45", test::USD, "123.45"),
+                ("12,34,567,890,123.00", test::USD, "1234567890123.00"),
+                (
+                    "79228162514264337593543950335",
+                    test::USD,
+                    "79228162514264337593543950335",
+                ),
+            ] {
+                let money = Money::from_str(input, currency).unwrap();
+                let expected = Decimal::from_str(expected).unwrap();
+                // Decimal equality ignores scale, but callers can observe it through amount().
+                assert_eq!(money.amount().serialize(), expected.serialize(), "{input}");
             }
         }
 
