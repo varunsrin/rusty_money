@@ -56,7 +56,7 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
     /// Returns `MoneyError::InvalidCurrency` if the amount's currency does not match the source.
     /// Returns `MoneyError::Overflow` if the conversion overflows.
     pub fn convert(&self, amount: &Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
-        if amount.currency() != self.from {
+        if amount.currency().is_currency_mismatch(self.from) {
             return Err(MoneyError::InvalidCurrency);
         }
         let converted_amount = amount

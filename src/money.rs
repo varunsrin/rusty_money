@@ -292,7 +292,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Returns `MoneyError::Overflow` if the addition overflows.
     #[inline]
     pub fn add(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -320,7 +320,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Returns `MoneyError::Overflow` if the subtraction overflows.
     #[inline]
     pub fn sub(&self, other: Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -430,7 +430,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Returns `MoneyError::CurrencyMismatch` if the two Money values have different currencies.
     #[inline]
     pub fn compare(&self, other: &Money<'a, T>) -> Result<Ordering, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),

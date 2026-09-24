@@ -105,7 +105,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Returns an error on currency mismatch or overflow.
     #[inline]
     pub fn add(&self, other: Self) -> Result<Self, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -126,7 +126,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Returns an error on currency mismatch or overflow.
     #[inline]
     pub fn sub(&self, other: Self) -> Result<Self, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -222,7 +222,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Returns an error if the currencies don't match.
     #[inline]
     pub fn compare(&self, other: &Self) -> Result<Ordering, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
