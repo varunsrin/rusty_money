@@ -335,10 +335,10 @@ assert_eq!(restored.minor_units(), 99);
 
 | Operation | Example call | `Money` | `FastMoney` |
 | --- | --- | --- | --- |
-| Multiply amounts | `amount.mul(100i64)` | 1.6 ns | 0.7 ns |
-| Divide amounts | `amount.div(4i64)` | 3.3 ns | 0.8 ns |
-| Add amounts | `amount.add(other)` | 10.3 ns | 9.2 ns |
-| Subtract amounts | `amount.sub(other)` | 10.7 ns | 9.2 ns |
+| Multiply amounts | `amount.mul(100i64)` | 1.7 ns | 0.7 ns |
+| Divide amounts | `amount.div(4i64)` | 3.4 ns | 0.8 ns |
+| Add amounts | `amount.add(other)` | 6.1 ns | 3.0 ns |
+| Subtract amounts | `amount.sub(other)` | 7.4 ns | 3.0 ns |
 
 Local release-build Criterion medians on an Apple M4 Max, using preconstructed USD amounts ($1,000 and $500); timings vary by hardware and input. Division by 4 is exact here; `FastMoney` truncates fractional minor units otherwise.
 
