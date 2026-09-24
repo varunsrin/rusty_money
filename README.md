@@ -329,6 +329,17 @@ let restored = fast.div(3).unwrap().mul(3).unwrap();
 assert_eq!(restored.minor_units(), 99);
 ```
 
+## Performance
+
+Common operations take tens of nanoseconds (local Criterion medians on an Apple M4 Max, release build; existing amounts are created before timing, and results vary by hardware and input).
+
+| Operation | Example call | Approximate time |
+| --- | --- | --- |
+| Find a currency | `iso::find("USD")` | 2 ns |
+| Parse an amount | `Money::from_str("12.34", iso::USD)` | 13 ns |
+| Format $12.34 | `format!("{amount}")` | 56 ns |
+| Allocate $1,000 equally | `amount.allocate(vec![1, 1, 1])` | 75 ns |
+
 ## Feature Flags
 
 ```toml
