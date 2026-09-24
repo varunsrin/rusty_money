@@ -532,11 +532,11 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         };
         let mut result = Vec::with_capacity(n as usize);
         for i in 0..n as usize {
-            result.push(if i < remainder_count {
-                high_share
+            if i < remainder_count {
+                result.push(high_share);
             } else {
-                low_share
-            });
+                result.push(low_share);
+            }
         }
         Ok(result)
     }
@@ -554,8 +554,8 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Returns [`MoneyError::InvalidRatio`] for empty or all-zero weights.
     /// Returns [`MoneyError::Overflow`] if the currency exponent exceeds 28,
     /// minor-unit arithmetic exceeds `i128`, the weight sum exceeds `u64`, or a
-    /// share cannot be represented exactly as a Decimal. Successful results
-    /// preserve the floored total.
+    /// share cannot be represented exactly as a Decimal, or result storage
+    /// cannot be reserved. Successful results preserve the floored total.
     pub fn allocate(&self, shares: Vec<u32>) -> Result<Vec<Money<'a, T>>, MoneyError> {
         if shares.is_empty() {
             return Err(MoneyError::InvalidRatio);
@@ -600,10 +600,16 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             }
         }
         debug_assert_eq!(remainder, 0);
-        allocations_minor
-            .into_iter()
-            .map(|minor| self.allocation_share(minor))
-            .collect()
+        // Result collection does not retain this iterator's exact length hint.
+        // Reserve once to avoid repeatedly reallocating the output vector.
+        let mut result = Vec::new();
+        result
+            .try_reserve_exact(allocations_minor.len())
+            .map_err(|_| MoneyError::Overflow)?;
+        for minor in allocations_minor {
+            result.push(self.allocation_share(minor)?);
+        }
+        Ok(result)
     }
 
     // Floor to minor units without Decimal division or an overflowing u64 power.

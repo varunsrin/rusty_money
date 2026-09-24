@@ -276,12 +276,35 @@ fn bench_allocate(c: &mut Criterion) {
             bencher.iter(|| black_box(money).allocate(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
         });
 
+        c.bench_function("money_allocate_100", |bencher| {
+            bencher.iter(|| black_box(money).allocate(vec![1; 100]))
+        });
+
         c.bench_function("money_split_3", |bencher| {
             bencher.iter(|| black_box(money).split(3))
         });
 
         c.bench_function("money_split_10", |bencher| {
             bencher.iter(|| black_box(money).split(10))
+        });
+    }
+}
+
+fn bench_currency_lookup(c: &mut Criterion) {
+    #[cfg(feature = "iso")]
+    {
+        c.bench_function("currency_lookup_alpha", |bencher| {
+            bencher.iter(|| iso::find(black_box("USD")))
+        });
+        c.bench_function("currency_lookup_numeric", |bencher| {
+            bencher.iter(|| iso::find_by_num_code(black_box("840")))
+        });
+        c.bench_function("currency_lookup_mixed_7", |bencher| {
+            bencher.iter(|| {
+                for code in black_box(["USD", "EUR", "GBP", "JPY", "INR", "BHD", "ZZZ"]) {
+                    black_box(iso::find(black_box(code)));
+                }
+            })
         });
     }
 }
@@ -340,6 +363,7 @@ criterion_group!(
     bench_to_minor_units,
     bench_allocate,
     bench_accessors,
+    bench_currency_lookup,
 );
 
 #[cfg(feature = "fast")]

@@ -1,3 +1,6 @@
+use arrayvec::ArrayString;
+use rust_decimal::Decimal;
+
 use crate::currency::FormattableCurrency;
 use crate::{Money, Round};
 use std::fmt::{self, Write};
@@ -26,28 +29,19 @@ impl Formatter {
             decimal.rescale(x);
         }
 
-        let raw_amount = decimal.to_string();
-        let unsigned = raw_amount.strip_prefix('-').unwrap_or(&raw_amount);
-        let (digits, fraction) = unsigned
+        let raw_amount = Self::unsigned_decimal_text(decimal)?;
+        let (digits, fraction) = raw_amount
             .split_once('.')
-            .map_or((unsigned, None), |(digits, fraction)| {
+            .map_or((raw_amount.as_str(), None), |(digits, fraction)| {
                 (digits, Some(fraction))
             });
-
-        // Use the UTF-8-safe insertion path for multibyte separators.
-        let grouped_digits = (!params.digit_separator.is_ascii())
-            .then(|| Self::digits(digits, params.digit_separator, params.separator_pattern));
 
         // Position values in the Output String
         for position in params.positions.iter() {
             match position {
                 Position::Space => output.write_char(' ')?,
                 Position::Amount => {
-                    if let Some(grouped) = &grouped_digits {
-                        output.write_str(grouped)?;
-                    } else {
-                        Self::write_digits(digits, &params, output)?;
-                    }
+                    Self::write_digits(digits, &params, output)?;
                     if let Some(fraction) = fraction {
                         output.write_char(params.exponent_separator)?;
                         output.write_str(fraction)?;
@@ -55,7 +49,13 @@ impl Formatter {
                 }
                 Position::Code => output.write_str(params.code.unwrap_or(""))?,
                 Position::Symbol => output.write_str(params.symbol.unwrap_or(""))?,
-                Position::Sign => output.write_str(if money.is_negative() { "-" } else { "" })?,
+                Position::Sign => {
+                    if money.is_negative() {
+                        output.write_str("-")?;
+                    } else {
+                        output.write_str("")?;
+                    }
+                }
             }
         }
         Ok(())
@@ -86,22 +86,32 @@ impl Formatter {
         Ok(())
     }
 
-    /// Returns a formatted digit component, given the digit string, separator and pattern of separation.
-    fn digits(raw_digits: &str, separator: char, pattern: &[usize]) -> String {
-        let mut digits = raw_digits.to_string();
-
-        let mut current_position: usize = 0;
-        for &position in pattern.iter() {
-            let Some(next_position) = current_position.checked_add(position) else {
-                break;
-            };
-            current_position = next_position;
-            if digits.len() > current_position {
-                digits.insert(digits.len() - current_position, separator);
-                current_position += separator.len_utf8();
-            }
+    // Decimal has at most 29 coefficient digits and scale <= 28. Its unsigned
+    // fixed-point representation therefore needs at most 30 bytes ("0." + 28
+    // fractional digits). Both buffers have spare capacity; all writes remain
+    // fallible. The sign is handled separately from the original Money amount.
+    fn unsigned_decimal_text(decimal: Decimal) -> Result<ArrayString<32>, fmt::Error> {
+        let mut coefficient = ArrayString::<32>::new();
+        write!(&mut coefficient, "{}", decimal.mantissa().unsigned_abs())?;
+        let scale = decimal.scale() as usize;
+        if scale == 0 {
+            return Ok(coefficient);
         }
-        digits
+
+        let mut result = ArrayString::<32>::new();
+        if coefficient.len() > scale {
+            let boundary = coefficient.len() - scale;
+            result.write_str(&coefficient[..boundary])?;
+            result.write_char('.')?;
+            result.write_str(&coefficient[boundary..])?;
+        } else {
+            result.write_str("0.")?;
+            for _ in coefficient.len()..scale {
+                result.write_char('0')?;
+            }
+            result.write_str(&coefficient)?;
+        }
+        Ok(result)
     }
 }
 
@@ -456,6 +466,96 @@ mod tests {
     }
 
     #[test]
+    fn decimal_text_preserves_coefficient_boundaries_and_every_scale() {
+        for coefficient in [
+            0,
+            1,
+            9,
+            10,
+            99,
+            100,
+            u32::MAX as u128,
+            u64::MAX as u128,
+            (1u128 << 96) - 1,
+        ] {
+            for scale in 0..=28 {
+                for negative in [false, true] {
+                    let decimal = Decimal::from_parts(
+                        coefficient as u32,
+                        (coefficient >> 32) as u32,
+                        (coefficient >> 64) as u32,
+                        negative,
+                        scale,
+                    );
+                    let expected = decimal.to_string();
+                    assert_eq!(
+                        Formatter::unsigned_decimal_text(decimal).unwrap().as_str(),
+                        expected.trim_start_matches('-'),
+                    );
+                }
+            }
+        }
+    }
+
+    // Differential reference: keep the previous Decimal Display + string
+    // insertion algorithm independent of the new integer/streaming path.
+    fn reference_amount(decimal: Decimal, separator: char, pattern: &[usize]) -> String {
+        let raw = decimal.to_string();
+        let unsigned = raw.trim_start_matches('-');
+        let (integer, fraction) = unsigned
+            .split_once('.')
+            .map_or((unsigned, None), |(i, f)| (i, Some(f)));
+        let mut digits = integer.to_string();
+        let mut position = 0usize;
+        for &width in pattern {
+            let Some(next) = position.checked_add(width) else {
+                break;
+            };
+            position = next;
+            if digits.len() > position {
+                digits.insert(digits.len() - position, separator);
+                position += separator.len_utf8();
+            }
+        }
+        if let Some(fraction) = fraction {
+            digits.push('.');
+            digits.push_str(fraction);
+        }
+        digits
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn streaming_matches_decimal_and_insertion_reference(
+            words in proptest::array::uniform3(proptest::prelude::any::<u32>()),
+            negative in proptest::prelude::any::<bool>(),
+            scale in 0u32..=28,
+            rounding in proptest::option::of(0u32..=32),
+            separator in proptest::sample::select(vec![',', '.', '\u{a0}', '\u{202f}', '💰']),
+            pattern in proptest::collection::vec(
+                proptest::prop_oneof![0usize..=32, proptest::strategy::Just(usize::MAX)], 0..12),
+        ) {
+            let decimal = Decimal::from_parts(words[0], words[1], words[2], negative, scale);
+            let money = Money::from_decimal(decimal, test::USD);
+            let mut expected_decimal = decimal;
+            if let Some(digits) = rounding {
+                expected_decimal = decimal.round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven);
+                expected_decimal.rescale(digits);
+            }
+            let amount = reference_amount(expected_decimal, separator, &pattern);
+            let sign = if money.is_negative() { "-" } else { "" };
+            let params = Params {
+                digit_separator: separator,
+                separator_pattern: &pattern,
+                rounding,
+                positions: &[Position::Amount, Position::Space, Position::Sign, Position::Amount],
+                ..Params::default()
+            };
+            proptest::prop_assert_eq!(Formatter::money(&money, params), format!("{amount} {sign}{amount}"));
+        }
+    }
+
+    #[test]
     fn writing_propagates_output_errors() {
         struct FailingWriter {
             remaining: usize,
@@ -471,9 +571,15 @@ mod tests {
         }
         let money = Money::from_major(1_234_567, test::USD);
         // Fail immediately or after part of the grouped amount has been written.
-        for remaining in [0, 1, 4, 8] {
-            let mut writer = FailingWriter { remaining };
-            assert!(Formatter::write_money(&money, Params::default(), &mut writer).is_err());
+        for separator in [',', '\u{202f}', '💰'] {
+            for remaining in [0, 1, 4, 8] {
+                let mut writer = FailingWriter { remaining };
+                let params = Params {
+                    digit_separator: separator,
+                    ..Params::default()
+                };
+                assert!(Formatter::write_money(&money, params, &mut writer).is_err());
+            }
         }
     }
 }
