@@ -153,6 +153,31 @@ fn bench_parsing(c: &mut Criterion) {
     }
 }
 
+fn bench_parse_workloads(c: &mut Criterion) {
+    #[cfg(feature = "iso")]
+    {
+        let mut parsing = c.benchmark_group("parse_workloads");
+        for (name, amount, currency) in [
+            ("ungrouped", "1234.56", iso::USD),
+            ("integer", "1234", iso::USD),
+            ("us_grouped", "1,234,567.89", iso::USD),
+            ("eu_grouped", "1.234.567,89", iso::EUR),
+            ("indian_grouped", "1,23,456.78", iso::INR),
+            ("space_grouped", "1 234 567,89", iso::BYN),
+            ("invalid", "12,34.56", iso::USD),
+        ] {
+            parsing.bench_function(name, |b| {
+                b.iter(|| Money::from_str(black_box(amount), black_box(currency)))
+            });
+        }
+        #[cfg(feature = "crypto")]
+        parsing.bench_function("crypto_fraction", |b| {
+            b.iter(|| Money::from_str(black_box("1.123456789012345678"), rusty_money::crypto::ETH))
+        });
+        parsing.finish();
+    }
+}
+
 fn bench_comparison(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
@@ -283,6 +308,7 @@ criterion_group!(
     bench_exchange_convert,
     bench_formatting,
     bench_parsing,
+    bench_parse_workloads,
     bench_comparison,
     bench_to_minor_units,
     bench_allocate,
