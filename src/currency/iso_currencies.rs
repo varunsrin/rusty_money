@@ -54,6 +54,15 @@ pub mod iso {
         }
     }
 
+    // ISO alphabetic and numeric codes are exactly three bytes. Packing them
+    // lets the compiler dispatch on integers instead of a chain of string tests.
+    const fn packed_code(code: &str) -> Option<u32> {
+        match code.as_bytes() {
+            [a, b, c] => Some(((*a as u32) << 16) | ((*b as u32) << 8) | *c as u32),
+            _ => None,
+        }
+    }
+
     macro_rules! define_iso {
     (
       $(
@@ -82,9 +91,20 @@ pub mod iso {
         };
       )+
 
+      mod alpha_keys {
+        $(pub(super) const $currency: Option<u32> = super::packed_code($alpha_code);)+
+      }
+
+      mod numeric_keys {
+        $(pub(super) const $currency: Option<u32> = super::packed_code($num_code);)+
+      }
+
+      #[cfg(test)]
+      pub(super) const TEST_CURRENCIES: &[&Currency] = &[$($currency,)+];
+
       pub fn find(code: &str) -> Option<&'static Currency> {
-        match code {
-          $($alpha_code => (Some($currency)),)+
+        match packed_code(code) {
+          $(alpha_keys::$currency => Some($currency),)+
           _ => None,
         }
       }
@@ -94,8 +114,8 @@ pub mod iso {
       // Amendment 176). The active currency will be matched first.
       #[allow(unreachable_patterns)]
       pub fn find_by_num_code(code: &str) -> Option<&'static Currency> {
-        match code {
-          $($num_code => (Some($currency)),)+
+        match packed_code(code) {
+          $(numeric_keys::$currency => Some($currency),)+
           _ => None,
         }
       }
@@ -1929,6 +1949,38 @@ mod tests {
         assert_eq!(iso::find("fake"), None,);
 
         assert_eq!(iso::find_by_num_code("123"), None,);
+    }
+
+    #[test]
+    fn packed_lookups_match_metadata_and_preserve_numeric_alias_precedence() {
+        for a in b'A'..=b'Z' {
+            for b in b'A'..=b'Z' {
+                for c in b'A'..=b'Z' {
+                    let bytes = [a, b, c];
+                    let code = std::str::from_utf8(&bytes).unwrap();
+                    let expected = iso::TEST_CURRENCIES
+                        .iter()
+                        .copied()
+                        .find(|currency| currency.iso_alpha_code == code);
+                    assert_eq!(iso::find(code), expected);
+                }
+            }
+        }
+        for number in 0..=999 {
+            let code = format!("{number:03}");
+            // Ordered metadata establishes the first match for deprecated aliases.
+            let expected = iso::TEST_CURRENCIES
+                .iter()
+                .copied()
+                .find(|currency| currency.iso_numeric_code == code);
+            assert_eq!(iso::find_by_num_code(&code), expected);
+        }
+        for code in [
+            "", "US", "USDD", "usd", "Usd", "84", "0840", "€", "💰", "USD\0",
+        ] {
+            assert_eq!(iso::find(code), None);
+            assert_eq!(iso::find_by_num_code(code), None);
+        }
     }
 
     #[test]
