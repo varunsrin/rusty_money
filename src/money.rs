@@ -708,7 +708,7 @@ impl<'a, T: FormattableCurrency> fmt::Display for Money<'a, T> {
             code: Some(currency.code()),
         };
 
-        write!(f, "{}", Formatter::money(self, format_params))
+        Formatter::write_money(self, format_params, f)
     }
 }
 
