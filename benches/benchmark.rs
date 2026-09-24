@@ -29,6 +29,10 @@ fn bench_money_arithmetic(c: &mut Criterion) {
         c.bench_function("money_div", |bencher| {
             bencher.iter(|| black_box(a).div(black_box(3i64)))
         });
+
+        c.bench_function("money_div_exact", |bencher| {
+            bencher.iter(|| black_box(a).div(black_box(4i64)))
+        });
     }
 }
 
@@ -53,6 +57,10 @@ fn bench_fastmoney_arithmetic(c: &mut Criterion) {
 
         c.bench_function("fastmoney_div", |bencher| {
             bencher.iter(|| black_box(a).div(black_box(3i64)))
+        });
+
+        c.bench_function("fastmoney_div_exact", |bencher| {
+            bencher.iter(|| black_box(a).div(black_box(4i64)))
         });
     }
 }
@@ -317,6 +325,48 @@ fn bench_currency_lookup(c: &mut Criterion) {
     }
 }
 
+fn bench_currency_identity(c: &mut Criterion) {
+    #[cfg(feature = "iso")]
+    {
+        // Compare both shared static metadata and equal user-built descriptors.
+        // All allocation and construction happen outside the timed operation.
+        let shared = black_box(iso::USD);
+        let left = black_box(*iso::USD);
+        let right = black_box(*iso::USD);
+        let mut owned = right;
+        owned.iso_alpha_code = Box::leak(owned.iso_alpha_code.to_owned().into_boxed_str());
+        owned.iso_numeric_code = Box::leak(owned.iso_numeric_code.to_owned().into_boxed_str());
+        owned.name = Box::leak(owned.name.to_owned().into_boxed_str());
+        owned.symbol = Box::leak(owned.symbol.to_owned().into_boxed_str());
+        let mut renamed = right;
+        renamed.name = "Different Dollar";
+
+        let mut group = c.benchmark_group("currency_identity");
+        for (name, a, b) in [
+            ("shared_descriptor", shared, shared),
+            ("copied_descriptor", &left, &right),
+            ("owned_strings", &left, &owned),
+            ("different_currency", shared, iso::EUR),
+            ("different_metadata", shared, &renamed),
+        ] {
+            let a_money = Money::from_minor(100_000, a);
+            let b_money = Money::from_minor(50_000, b);
+            group.bench_function(BenchmarkId::new("money_add", name), |bencher| {
+                bencher.iter(|| black_box(a_money).add(black_box(b_money)))
+            });
+            #[cfg(feature = "fast")]
+            {
+                let a_fast = FastMoney::from_minor(100_000, a);
+                let b_fast = FastMoney::from_minor(50_000, b);
+                group.bench_function(BenchmarkId::new("fastmoney_add", name), |bencher| {
+                    bencher.iter(|| black_box(a_fast).add(black_box(b_fast)))
+                });
+            }
+        }
+        group.finish();
+    }
+}
+
 fn bench_accessors(c: &mut Criterion) {
     #[cfg(feature = "iso")]
     {
@@ -372,6 +422,7 @@ criterion_group!(
     bench_allocate,
     bench_accessors,
     bench_currency_lookup,
+    bench_currency_identity,
 );
 
 #[cfg(feature = "fast")]
