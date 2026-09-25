@@ -15,8 +15,6 @@
 * ISO: Documented the zero-exponent library fallback for codes whose ISO minor unit is N/A.
 * ISO: Corrected historical notes for CUC withdrawal and the SLL/SLE transition.
 * Perf: Improved parsing, formatting, allocation, ISO lookup, and currency validation.
-* Deps: Added `arrayvec` and declared Rust 1.85 as the minimum supported version.
-* CI: Expanded feature, compiler, and release-mode test coverage.
 
 ## [0.5.0] - 2026-01-14
 
