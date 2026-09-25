@@ -55,7 +55,7 @@ use rusty_money::{Money, iso};
 
 // Create money from major or minor units
 let total = Money::from_major(100, iso::USD);      // => $100.00
-let tip = Money::from_minor(1875, iso::USD);        // => $18.75
+let tip = Money::try_from_minor(1875, iso::USD).unwrap(); // => $18.75
 
 // Arithmetic returns Result for safety
 let total = total.add(tip).unwrap();               // => $118.75
@@ -76,8 +76,8 @@ println!("{}", total);                             // => $118.75
 ```rust
 use rusty_money::{Money, iso};
 
-// From minor units (cents, pence, etc.)
-Money::from_minor(1000, iso::USD);                 // => $10.00
+// From minor units (cents, pence, etc.), checking the currency's scale
+Money::try_from_minor(1000, iso::USD).unwrap();     // => $10.00
 
 // From major units (dollars, pounds, etc.)
 Money::from_major(10, iso::USD);                   // => $10.00
@@ -265,15 +265,15 @@ let a = FastMoney::from_minor(1000, iso::USD);
 let b = FastMoney::from_minor(500, iso::USD);
 let sum = a.add(b).unwrap();                       // => $15.00
 
-// Convert to Money for advanced features
-let money = sum.to_money();
+// Convert to Money for advanced features, checking the currency's scale
+let money = sum.try_to_money().unwrap();
 let shares = money.split(3).unwrap();
 
 // Convert back (strict mode errors on precision loss)
 let fast_again = FastMoney::from_money(money).unwrap();
 
 // Or use lossy conversion if you accept truncation
-let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
+let fast_lossy = FastMoney::from_money_lossy(fast_again.try_to_money().unwrap()).unwrap();
 # }
 ```
 
