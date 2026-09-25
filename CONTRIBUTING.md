@@ -27,10 +27,10 @@ cargo test --no-default-features --lib
 cargo test --no-default-features --features crypto,fast,serde --lib
 ```
 
-Beta and nightly compatibility runs happen weekly and on manual dispatch of the
-Rust workflow. Nightly failures remain advisory. Scheduled runs start after the
-workflow reaches the default branch. Doctests for optional APIs must be feature
-gated and exercised in the all-feature run, rather than ignored.
+Beta and nightly compatibility runs happen on every PR, pushes to master, and
+manual dispatch of the Rust workflow. Nightly failures remain advisory. Doctests
+for optional APIs must be feature gated and exercised in the all-feature run,
+rather than ignored.
 
 Prefer fixed boundary tables for simple predicates and zero/one identities.
 Use properties with independent oracles for allocation, precision, formatting,
