@@ -1,16 +1,12 @@
-/// ISO-4217 currency and fund codes, including retained historical codes.
+/// Current and historical ISO 4217 currencies and funds.
 ///
-/// Alphabetic codes, numeric codes, and defined decimal exponents are maintained
-/// against the [SIX currency lists](https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html).
-/// ISO entries whose minor unit is "N.A." use exponent 0 as a library fallback,
-/// not an ISO-defined precision. This includes precious metals, XDR, XSU, XUA,
-/// XTS, and XXX. Their default display rounds to whole units; use a custom
-/// currency or explicit formatting precision when fractional units are needed.
+/// Codes and decimal places come from the [SIX currency lists](https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html).
+/// When ISO leaves decimal places unspecified ("N.A."), we use 0, so amounts
+/// display as whole units by default. Use custom precision to display fractions.
 ///
-/// Symbols, locales, and `Currency::minor_units` are library metadata, not fields
-/// supplied by these ISO lists. Newly added fund codes use the alphabetic code
-/// as their display symbol, EnUs formatting, and `minor_units: 1` as a default;
-/// these defaults do not specify a cash denomination or settlement increment.
+/// Symbols and formatting are library choices. The added fund codes use their
+/// code as the symbol, EnUs formatting, and `minor_units: 1`; these defaults
+/// do not set cash denominations or rounding rules.
 pub mod iso {
     use crate::{FormattableCurrency, Locale, Locale::*};
     use std::fmt;
@@ -19,12 +15,11 @@ pub mod iso {
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct Currency {
         pub iso_alpha_code: &'static str,
-        /// Decimal exponent; 0 is a library fallback for ISO minor unit "N.A.".
+        /// Number of decimal places. Uses 0 when ISO does not specify a value.
         pub exponent: u32,
         pub iso_numeric_code: &'static str,
         pub locale: Locale,
-        /// Legacy denomination metadata, distinct from ISO's minor-unit exponent.
-        /// Money scaling and formatting use `exponent`, not this field.
+        /// Denomination metadata. Amount conversion and formatting use `exponent`.
         pub minor_units: u64,
         pub name: &'static str,
         pub symbol: &'static str,
