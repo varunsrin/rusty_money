@@ -1,5 +1,14 @@
 # Contributing
 
+## Rust version
+
+The minimum supported Rust version is 1.85. CI tests the exact 1.85.0 release
+on every PR, alongside stable, beta, and nightly. The minimum-version job uses
+256 property cases and checks default features, all features, no default
+features, optional features without ISO, and compilation of all targets.
+Keep `rust-version` in Cargo.toml and the pinned CI toolchain in sync when
+changing the minimum.
+
 ## Testing
 
 For everyday development, run `cargo test --all-features`. Proptest uses its

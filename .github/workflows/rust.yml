@@ -67,13 +67,13 @@ jobs:
   compatibility:
     strategy:
       matrix:
-        toolchain: [beta, nightly]
+        toolchain: ['1.85.0', beta, nightly]
       fail-fast: false
     runs-on: ubuntu-22.04
     name: Rust ${{ matrix.toolchain }} tests
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     env:
-      PROPTEST_CASES: 10000
+      PROPTEST_CASES: ${{ matrix.toolchain == '1.85.0' && 256 || 10000 }}
     steps:
       - name: Checkout the project
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -88,3 +88,11 @@ jobs:
 
       - name: Test compiler compatibility
         run: cargo +${{ matrix.toolchain }} test --all-features
+
+      - name: Check minimum-version feature coverage and targets
+        if: matrix.toolchain == '1.85.0'
+        run: |
+          cargo +1.85.0 test
+          cargo +1.85.0 test --no-default-features --lib
+          cargo +1.85.0 test --no-default-features --features crypto,fast,serde --lib
+          cargo +1.85.0 check --all-features --all-targets
