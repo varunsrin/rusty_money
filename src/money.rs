@@ -105,9 +105,31 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// Creates a Money object given an integer and a currency reference.
     ///
     /// The integer represents minor units of the currency (e.g. 1000 -> 10.00 in USD )
+    ///
+    /// # Panics
+    /// Panics if the currency's exponent exceeds Decimal's maximum scale of 28.
     pub fn from_minor(amount: i64, currency: &'a T) -> Money<'a, T> {
         let amount = Decimal::new(amount, currency.exponent());
         Money { amount, currency }
+    }
+
+    /// Creates Money from integral minor units, checking the currency's scale.
+    ///
+    /// # Errors
+    /// Returns [`MoneyError::InvalidAmount`] if the currency's exponent exceeds
+    /// Decimal's maximum scale of 28, including for a zero amount.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, MoneyError, iso};
+    /// assert_eq!(Money::try_from_minor(123, iso::USD).unwrap().try_to_minor_units(), Ok(123));
+    /// let custom = iso::Currency { exponent: 29, ..*iso::USD };
+    /// assert_eq!(Money::try_from_minor(1, &custom), Err(MoneyError::InvalidAmount));
+    /// ```
+    pub fn try_from_minor(amount: i64, currency: &'a T) -> Result<Money<'a, T>, MoneyError> {
+        let amount =
+            Decimal::try_new(amount, currency.exponent()).map_err(|_| MoneyError::InvalidAmount)?;
+        Ok(Money { amount, currency })
     }
 
     /// Creates a Money object given an integer and a currency reference.
@@ -175,8 +197,11 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// The conversion multiplies by 10^exponent where exponent is the currency's
     /// decimal places (2 for USD, 0 for JPY, 3 for BHD).
     ///
-    /// Values exceeding i64 range or with precision beyond the currency's exponent
-    /// are truncated toward zero. Returns 0 if conversion fails.
+    /// Fractional minor units are truncated toward zero. If the scaled value does
+    /// not fit in `i64`, returns 0. For example, USD `-1.005` becomes `-100` cents.
+    ///
+    /// Prefer [`try_to_minor_units`](Self::try_to_minor_units) for checked exact
+    /// output, particularly with large amounts or custom currency exponents.
     ///
     /// # Example
     /// ```
@@ -189,9 +214,13 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     /// ```
     #[inline]
     pub fn to_minor_units(&self) -> i64 {
-        use rust_decimal::prelude::ToPrimitive;
-        let scale = Decimal::from(10u64.pow(self.currency.exponent()));
-        (self.amount * scale).trunc().to_i64().unwrap_or(0)
+        let truncated = self.amount.round_dp_with_strategy(
+            self.currency.exponent(),
+            rust_decimal::RoundingStrategy::ToZero,
+        );
+        Money::from_decimal(truncated, self.currency)
+            .try_to_minor_units()
+            .unwrap_or(0)
     }
 
     /// Returns the exact amount in minor units, without rounding or truncation.
@@ -1401,6 +1430,73 @@ mod tests {
         use super::*;
         use proptest::prelude::*;
         use rust_decimal_macros::dec;
+
+        #[test]
+        fn checked_construction_preserves_amount_and_scale() {
+            for exponent in [0, 2, 18, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
+                    let money = Money::try_from_minor(amount, &currency).unwrap();
+                    assert_eq!(money.amount().mantissa(), i128::from(amount));
+                    assert_eq!(money.amount().scale(), exponent);
+                    assert_eq!(money.try_to_minor_units(), Ok(amount));
+                }
+            }
+        }
+
+        #[test]
+        fn checked_construction_rejects_unsupported_scales() {
+            for exponent in [29, u32::MAX] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
+                    assert_eq!(
+                        Money::try_from_minor(amount, &currency),
+                        Err(MoneyError::InvalidAmount)
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn legacy_conversion_checks_scaling_without_changing_truncation() {
+            for (amount, expected) in [
+                (dec!(1.005), 100),
+                (dec!(-1.005), -100),
+                (dec!(92233720368547758.079), i64::MAX),
+                (dec!(-92233720368547758.089), i64::MIN),
+                (Decimal::MAX, 0),
+                (Decimal::MIN, 0),
+            ] {
+                assert_eq!(
+                    Money::from_decimal(amount, test::USD).to_minor_units(),
+                    expected
+                );
+            }
+            for exponent in [19, 20, 28] {
+                let currency = test::Currency {
+                    exponent,
+                    ..*test::USD
+                };
+                for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
+                    assert_eq!(
+                        Money::from_minor(amount, &currency).to_minor_units(),
+                        amount
+                    );
+                }
+            }
+            let currency = test::Currency {
+                exponent: u32::MAX,
+                ..*test::USD
+            };
+            assert_eq!(Money::from_major(1, &currency).to_minor_units(), 0);
+            assert_eq!(Money::from_major(0, &currency).to_minor_units(), 0);
+        }
 
         #[test]
         fn converts_major_units_and_trailing_zeros() {

@@ -184,6 +184,11 @@ println!("{}", inr);                               // => -₹1,00,000.00
 
 Define your own currencies using the `define_currency_set!` macro:
 
+For dynamic currency metadata, `Money::try_from_minor` and `FastMoney::try_to_money`
+return `MoneyError::InvalidAmount` if the exponent exceeds Decimal's maximum scale
+of 28. The original infallible methods retain their existing signatures and panic
+on unsupported scales.
+
 ```rust
 use rusty_money::{Money, define_currency_set};
 
