@@ -233,10 +233,19 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
 
     /// Converts to a [`Money<T>`] with Decimal precision.
     ///
-    /// This conversion always succeeds.
+    /// The minor-unit amount is preserved exactly for currency exponents up to 28.
+    ///
+    /// # Panics
+    /// Panics if the currency's exponent exceeds Decimal's maximum scale of 28.
     #[inline]
     pub fn to_money(&self) -> Money<'a, T> {
         Money::from_minor(self.minor_units, self.currency)
+    }
+
+    /// Converts to Money, returning [`MoneyError::InvalidAmount`] if the currency's
+    /// exponent exceeds Decimal's maximum scale of 28.
+    pub fn try_to_money(&self) -> Result<Money<'a, T>, MoneyError> {
+        Money::try_from_minor(self.minor_units, self.currency)
     }
 
     /// Converts from a [`Money<T>`] with strict precision checking.
@@ -831,6 +840,26 @@ mod tests {
     }
 
     // ============ Conversion Tests ============
+
+    #[test]
+    fn checked_to_money_validates_custom_scales() {
+        for exponent in [0, 18, 28, 29, u32::MAX] {
+            let currency = test::Currency {
+                exponent,
+                ..*test::USD
+            };
+            for amount in [i64::MIN, 0, i64::MAX] {
+                let fast = FastMoney::from_minor(amount, &currency);
+                if exponent <= 28 {
+                    let money = fast.try_to_money().unwrap();
+                    assert_eq!(money.try_to_minor_units(), Ok(amount));
+                    assert_eq!(money.currency(), &currency);
+                } else {
+                    assert_eq!(fast.try_to_money(), Err(MoneyError::InvalidAmount));
+                }
+            }
+        }
+    }
 
     #[test]
     fn to_money_always_succeeds() {
