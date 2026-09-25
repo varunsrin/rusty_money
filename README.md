@@ -132,7 +132,7 @@ hundred.is_zero();                                 // => false
 
 ### Rounding
 
-Money preserves maximum precision until you explicitly round:
+Money arithmetic is limited to Decimal precision. Use `round()` to round explicitly:
 
 ```rust
 use rusty_money::{Money, Round, iso};
@@ -279,15 +279,15 @@ let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
 
 ### Precision Differences
 
-FastMoney truncates intermediate results to minor units, which can accumulate into different final values:
+FastMoney integer division truncates to minor units, which can accumulate into different final values:
 
 ```rust
 use rusty_money::{Money, iso};
 
-// With Money (high precision): $10.00 / 3 keeps full decimal precision
+// With Money (high precision): $10.00 / 3 keeps available Decimal precision
 let money = Money::from_major(10, iso::USD);
 let divided = money.div(3).unwrap();               // => $3.3333333...
-let restored = divided.mul(3).unwrap();            // => $10.00 (no loss)
+let restored = divided.mul(3).unwrap();            // => $10.00 (after Decimal rounding)
 
 # #[cfg(feature = "fast")]
 # {
@@ -321,13 +321,13 @@ rusty-money = "0.5"
 rusty-money = { version = "0.4", features = ["crypto"] }
 
 # Add FastMoney
-rusty-money = { version = "0.4", features = ["fast"] }
+rusty-money = { version = "0.5", features = ["fast"] }
 
 # Add serde serialization
-rusty-money = { version = "0.4", features = ["serde"] }
+rusty-money = { version = "0.5", features = ["serde"] }
 
 # Everything
-rusty-money = { version = "0.4", features = ["iso", "crypto", "fast", "serde"] }
+rusty-money = { version = "0.5", features = ["iso", "crypto", "fast", "serde"] }
 ```
 
 ## License
