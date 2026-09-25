@@ -301,14 +301,14 @@ let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
 
 ## Performance
 
-`FastMoney` offers faster checked integer arithmetic and uses 16 bytes per value versus `Money`'s 24 bytes on the benchmark machine.
+`FastMoney` offers faster checked integer arithmetic and uses 16 bytes per value versus `Money`'s 24 bytes.
 
-| Operation | Example call | `Money` | `FastMoney` |
-| --- | --- | --- | --- |
-| Multiply amounts | `amount.mul(100i64)` | 1.7 ns | 0.7 ns |
-| Divide amounts | `amount.div(4i64)` | 3.4 ns | 0.8 ns |
-| Add amounts | `amount.add(other)` | 6.1 ns | 3.0 ns |
-| Subtract amounts | `amount.sub(other)` | 7.4 ns | 3.0 ns |
+| Operation | Example call | `Money` | `FastMoney` | `FastMoney` speedup |
+| --- | --- | --- | --- | --- |
+| Add amounts | `amount.add(other)` | 6.1 ns | 3.0 ns | 2.0x |
+| Subtract amounts | `amount.sub(other)` | 7.4 ns | 3.0 ns | 2.5x |
+| Multiply amounts | `amount.mul(100i64)` | 1.7 ns | 0.7 ns | 2.4x |
+| Divide amounts | `amount.div(4i64)` | 3.4 ns | 0.8 ns | 4.3x |
 
 Local release-build Criterion medians on an Apple M4 Max, using preconstructed USD amounts ($1,000 and $500); timings vary by hardware and input. Division by 4 is exact here; `FastMoney` truncates fractional minor units otherwise.
 
