@@ -32,7 +32,10 @@ manual dispatch of the Rust workflow. Nightly failures remain advisory. Doctests
 for optional APIs must be feature gated and exercised in the all-feature run,
 rather than ignored.
 
-Prefer fixed boundary tables for simple predicates and zero/one identities.
+Prefer separate, clearly named tests with direct `assert!` / `assert!(!...)`
+assertions for simple predicates. Avoid boolean tuple tables that make readers
+map positional values back to predicates. Keep arithmetic identity checks
+separate; boundary tables are useful when their cases remain easy to read.
 Use properties with independent oracles for allocation, precision, formatting,
 and identity compatibility. Preserve regressions for known bugs, error
 precedence, custom exponents, and numeric limits; fewer test functions should

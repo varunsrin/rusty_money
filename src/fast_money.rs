@@ -727,19 +727,37 @@ mod tests {
     // ============ Sign Tests ============
 
     #[test]
-    fn predicates_and_arithmetic_identities_at_i64_boundaries() {
+    fn is_zero() {
+        assert!(FastMoney::from_minor(0, test::USD).is_zero());
+        assert!(!FastMoney::from_minor(1, test::USD).is_zero());
+        assert!(!FastMoney::from_minor(-1, test::USD).is_zero());
+        assert!(!FastMoney::from_minor(i64::MIN, test::USD).is_zero());
+        assert!(!FastMoney::from_minor(i64::MAX, test::USD).is_zero());
+    }
+
+    #[test]
+    fn is_positive() {
+        assert!(FastMoney::from_minor(1, test::USD).is_positive());
+        assert!(FastMoney::from_minor(i64::MAX, test::USD).is_positive());
+        assert!(!FastMoney::from_minor(0, test::USD).is_positive());
+        assert!(!FastMoney::from_minor(-1, test::USD).is_positive());
+        assert!(!FastMoney::from_minor(i64::MIN, test::USD).is_positive());
+    }
+
+    #[test]
+    fn is_negative() {
+        assert!(FastMoney::from_minor(-1, test::USD).is_negative());
+        assert!(FastMoney::from_minor(i64::MIN, test::USD).is_negative());
+        assert!(!FastMoney::from_minor(0, test::USD).is_negative());
+        assert!(!FastMoney::from_minor(1, test::USD).is_negative());
+        assert!(!FastMoney::from_minor(i64::MAX, test::USD).is_negative());
+    }
+
+    #[test]
+    fn arithmetic_identities_at_i64_boundaries() {
         let zero = FastMoney::from_minor(0, test::USD);
-        for (amount, is_zero, is_positive, is_negative) in [
-            (i64::MIN, false, false, true),
-            (-1, false, false, true),
-            (0, true, false, false),
-            (1, false, true, false),
-            (i64::MAX, false, true, false),
-        ] {
+        for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
             let money = FastMoney::from_minor(amount, test::USD);
-            assert_eq!(money.is_zero(), is_zero);
-            assert_eq!(money.is_positive(), is_positive);
-            assert_eq!(money.is_negative(), is_negative);
             assert_eq!(money.add(zero), Ok(money));
             assert_eq!(zero.add(money), Ok(money));
             assert_eq!(money.mul(1), Ok(money));
