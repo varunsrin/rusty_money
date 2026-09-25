@@ -17,47 +17,74 @@ permissions:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        toolchain:
-          - stable
-          - beta
-          - nightly
-      fail-fast: false
     runs-on: ubuntu-22.04
-    name: "Rust ${{ matrix.toolchain }} tests"
-    # We ignore the possible error that could be present on nightly
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    name: Rust stable tests
+    env:
+      PROPTEST_CASES: 10000
     steps:
       - name: Checkout the project
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install stable toolchain
+        run: rustup toolchain add stable --component clippy --component rustfmt
+
+      - name: Setup rust cache
+        uses: Swatinem/rust-cache@2656b87321093db1cb55fbd73183d195214fdfd1 # v2.5.0
+        with:
+          key: stable
+
+      - name: Check formatting
+        run: cargo +stable fmt --check
+
+      - name: Check clippy
+        run: cargo +stable clippy --all-features --all-targets -- -D warnings
+
+      - name: Test all features and documentation
+        run: cargo +stable test --all-features
+
+      # Overflow can panic in debug but wrap in release. Keep the whole library
+      # suite so new regressions cannot be silently excluded by name filters.
+      - name: Test release-mode library
+        run: cargo +stable test --release --all-features --lib
+
+      # Feature coverage catches disabled-feature branches and README examples.
+      # The intensive property campaign already ran above; use the normal budget.
+      - name: Test default features and documentation
+        env:
+          PROPTEST_CASES: 256
+        run: cargo +stable test
+
+      - name: Test without default features
+        env:
+          PROPTEST_CASES: 256
+        run: cargo +stable test --no-default-features --lib
+
+      - name: Test optional features without ISO
+        env:
+          PROPTEST_CASES: 256
+        run: cargo +stable test --no-default-features --features crypto,fast,serde --lib
+
+  compatibility:
+    strategy:
+      matrix:
+        toolchain: [beta, nightly]
+      fail-fast: false
+    runs-on: ubuntu-22.04
+    name: Rust ${{ matrix.toolchain }} tests
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    env:
+      PROPTEST_CASES: 10000
+    steps:
+      - name: Checkout the project
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install compatibility toolchain
+        run: rustup toolchain add ${{ matrix.toolchain }}
 
       - name: Setup rust cache
         uses: Swatinem/rust-cache@2656b87321093db1cb55fbd73183d195214fdfd1 # v2.5.0
         with:
           key: ${{ matrix.toolchain }}
 
-      - name: Install rust ${{ matrix.toolchain }} toolchain
-        # We add the `clippy` component only on `stable`
-        run: rustup toolchain add ${{ matrix.toolchain }} ${{ matrix.toolchain == 'stable' && '--component=clippy' || '' }}
-
-      - name: Check rust is formatted
-        if: ${{ matrix.toolchain == 'stable' }}
-        run: cargo fmt --check
-
-      - name: Check clippy
-        if: ${{ matrix.toolchain == 'stable' }}
-        run: cargo clippy --all-features --all-targets
-
-      - name: Execute cargo tests
-        env:
-          PROPTEST_CASES: 10000
-        run: cargo +${{ matrix.toolchain }} test --verbose --all-features
-
-      # Integer overflow can panic in debug but wrap in release. The library suite
-      # is inexpensive to run; avoid name filters that can silently miss regressions.
-      - name: Execute release-mode library tests
-        if: ${{ matrix.toolchain == 'stable' }}
-        env:
-          PROPTEST_CASES: 10000
-        run: cargo +stable test --release --all-features --lib
+      - name: Test compiler compatibility
+        run: cargo +${{ matrix.toolchain }} test --all-features

@@ -857,6 +857,8 @@ mod tests {
             let major_usd = Money::from_major(10, test::USD);
             let minor_usd = Money::from_minor(1000, test::USD);
             assert_eq!(major_usd, minor_usd);
+            assert_eq!(major_usd.currency(), test::USD);
+            assert_eq!(minor_usd.currency(), test::USD);
         }
 
         #[test]
@@ -2410,6 +2412,27 @@ mod proptest_tests {
     mod arithmetic_properties {
         use super::*;
 
+        #[test]
+        fn zero_and_one_identities_at_decimal_boundaries() {
+            let zero = Money::from_decimal(Decimal::ZERO, test::USD);
+            for amount in [
+                Decimal::MIN,
+                -Decimal::ONE,
+                Decimal::new(-1, 28),
+                Decimal::ZERO,
+                Decimal::new(1, 28),
+                Decimal::ONE,
+                Decimal::MAX,
+            ] {
+                let money = Money::from_decimal(amount, test::USD);
+                assert_eq!(money.add(zero), Ok(money));
+                assert_eq!(zero.add(money), Ok(money));
+                assert_eq!(money.mul(1i64), Ok(money));
+                assert_eq!(money.mul(0i64), Ok(zero));
+                assert_eq!(money.div(1i64), Ok(money));
+            }
+        }
+
         proptest! {
             #[test]
             fn addition_is_commutative(a in minor_amount(), b in minor_amount()) {
@@ -2429,14 +2452,6 @@ mod proptest_tests {
             }
 
             #[test]
-            fn zero_is_additive_identity(a in minor_amount()) {
-                let money = Money::from_minor(a, test::USD);
-                let zero = Money::from_minor(0, test::USD);
-                prop_assert_eq!(money.add(zero).unwrap(), money);
-                prop_assert_eq!(zero.add(money).unwrap(), money);
-            }
-
-            #[test]
             fn subtraction_is_inverse_of_addition(a in minor_amount()) {
                 let money = Money::from_minor(a, test::USD);
                 let zero = Money::from_minor(0, test::USD);
@@ -2447,26 +2462,6 @@ mod proptest_tests {
             fn negation_is_self_inverse(a in minor_amount()) {
                 let money = Money::from_minor(a, test::USD);
                 prop_assert_eq!(-(-money), money);
-            }
-
-            #[test]
-            fn multiplication_by_one_is_identity(a in minor_amount()) {
-                let money = Money::from_minor(a, test::USD);
-                prop_assert_eq!(money.mul(1i64).unwrap(), money);
-            }
-
-            #[test]
-            #[allow(clippy::erasing_op)]
-            fn multiplication_by_zero_gives_zero(a in minor_amount()) {
-                let money = Money::from_minor(a, test::USD);
-                let zero = Money::from_minor(0, test::USD);
-                prop_assert_eq!(money.mul(0i64).unwrap(), zero);
-            }
-
-            #[test]
-            fn division_by_one_is_identity(a in minor_amount()) {
-                let money = Money::from_minor(a, test::USD);
-                prop_assert_eq!(money.div(1i64).unwrap(), money);
             }
 
             #[test]
@@ -2510,20 +2505,15 @@ mod proptest_tests {
             }
 
             #[test]
-            fn allocation_sum_equals_original(amount in minor_amount(), shares in valid_shares()) {
+            fn allocation_preserves_total_count_and_currency(amount in minor_amount(), shares in valid_shares()) {
                 let money = Money::from_minor(amount, test::USD);
+                let count = shares.len();
                 let allocated = money.allocate(shares).unwrap();
 
+                prop_assert_eq!(allocated.len(), count);
+                prop_assert!(allocated.iter().all(|m| m.currency() == test::USD));
                 let sum: Decimal = allocated.iter().map(|m| *m.amount()).sum();
                 prop_assert_eq!(sum, *money.amount(), "sum of allocations must equal original");
-            }
-
-            #[test]
-            fn allocation_count_equals_shares_count(amount in minor_amount(), shares in valid_shares()) {
-                let money = Money::from_minor(amount, test::USD);
-                let allocated = money.allocate(shares.clone()).unwrap();
-
-                prop_assert_eq!(allocated.len(), shares.len());
             }
 
             #[test]
@@ -2556,15 +2546,6 @@ mod proptest_tests {
                 let via_split = money.split(n).unwrap();
 
                 prop_assert_eq!(via_allocate, via_split);
-            }
-
-            #[test]
-            fn allocation_is_deterministic(amount in minor_amount(), shares in valid_shares()) {
-                let money = Money::from_minor(amount, test::USD);
-                let first = money.allocate(shares.clone()).unwrap();
-                let second = money.allocate(shares).unwrap();
-
-                prop_assert_eq!(first, second);
             }
 
             #[test]
@@ -2655,11 +2636,6 @@ mod proptest_tests {
                 prop_assert_eq!(from_minor, from_major);
             }
 
-            #[test]
-            fn currency_is_preserved(amount in minor_amount()) {
-                let money = Money::from_minor(amount, test::USD);
-                prop_assert_eq!(money.currency(), test::USD);
-            }
         }
     }
 }

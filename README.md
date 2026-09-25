@@ -250,6 +250,8 @@ Only choose `FastMoney` over `Money`:
 ### Usage
 
 ```rust
+# #[cfg(feature = "fast")]
+# {
 use rusty_money::{FastMoney, Money, iso};
 
 // Create from minor units (no conversion needed)
@@ -272,6 +274,7 @@ let fast_again = FastMoney::from_money(money).unwrap();
 
 // Or use lossy conversion if you accept truncation
 let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
+# }
 ```
 
 ### Precision Differences
@@ -279,17 +282,21 @@ let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
 FastMoney truncates intermediate results to minor units, which can accumulate into different final values:
 
 ```rust
-use rusty_money::{FastMoney, Money, iso};
+use rusty_money::{Money, iso};
 
 // With Money (high precision): $10.00 / 3 keeps full decimal precision
 let money = Money::from_major(10, iso::USD);
 let divided = money.div(3).unwrap();               // => $3.3333333...
 let restored = divided.mul(3).unwrap();            // => $10.00 (no loss)
 
+# #[cfg(feature = "fast")]
+# {
+use rusty_money::FastMoney;
 // With FastMoney (low precision): truncates to minor units
 let fast = FastMoney::from_major(10, iso::USD).unwrap();
 let divided = fast.div(3).unwrap();                // => $3.33 (truncated)
 let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
+# }
 ```
 
 ## Performance

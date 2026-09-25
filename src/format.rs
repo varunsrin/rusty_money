@@ -25,6 +25,9 @@ impl Formatter {
 
         // Round the decimal and ensure it has the correct scale
         if let Some(x) = params.rounding {
+            // Keep rescale within Decimal's supported range, even if a dependency
+            // version accepts larger scales. The formatter buffer relies on this bound.
+            let x = x.min(Decimal::MAX_SCALE);
             decimal = *money.round(x, Round::HalfEven).amount();
             decimal.rescale(x);
         }
@@ -139,6 +142,7 @@ pub struct Params<'a> {
     /// The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
     pub positions: &'a [Position],
     /// The number of minor unit digits should remain after Round::HalfEven is applied.
+    /// Values above Decimal::MAX_SCALE (28) are capped at that limit.
     pub rounding: Option<u32>,
     /// The symbol of the currency (e.g. $)
     pub symbol: Option<&'static str>,
@@ -426,6 +430,21 @@ mod tests {
     }
 
     #[test]
+    fn format_caps_precision_at_decimal_maximum() {
+        let money = Money::from_decimal(Decimal::from_parts(0, 0, 1, false, 22), test::USD);
+        for digits in [28, 29, 31, 32, u32::MAX] {
+            let params = Params {
+                rounding: Some(digits),
+                ..Default::default()
+            };
+            assert_eq!(
+                Formatter::money(&money, params),
+                "0.0018446744073709551616000000"
+            );
+        }
+    }
+
+    #[test]
     fn format_preserves_custom_grouping() {
         for (amount, pattern, separator, expected) in [
             (1_234_567_890, &[3, 2, 2][..], ',', "123,45,67,890"),
@@ -539,6 +558,7 @@ mod tests {
             let money = Money::from_decimal(decimal, test::USD);
             let mut expected_decimal = decimal;
             if let Some(digits) = rounding {
+                let digits = digits.min(Decimal::MAX_SCALE);
                 expected_decimal = decimal.round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven);
                 expected_decimal.rescale(digits);
             }
