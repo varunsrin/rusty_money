@@ -17,6 +17,20 @@ pub mod iso {
     }
 
     impl FormattableCurrency for Currency {
+        #[inline]
+        fn is_currency_mismatch(&self, other: &Self) -> bool {
+            // Keep derived PartialEq for public value equality and const patterns.
+            // Currency descriptors need not share an address, even for ISO consts.
+            self.exponent != other.exponent
+                || self.minor_units != other.minor_units
+                || self.locale != other.locale
+                || self.symbol_first != other.symbol_first
+                || !same_code(self.iso_alpha_code, other.iso_alpha_code)
+                || !same_code(self.iso_numeric_code, other.iso_numeric_code)
+                || !same_text(self.name, other.name)
+                || !same_text(self.symbol, other.symbol)
+        }
+
         fn to_string(&self) -> String {
             self.code().to_string()
         }
@@ -54,6 +68,30 @@ pub mod iso {
         }
     }
 
+    // ISO alphabetic and numeric codes are exactly three bytes. Packing them
+    // lets the compiler dispatch on integers instead of a chain of string tests.
+    const fn packed_code(code: &str) -> Option<u32> {
+        match code.as_bytes() {
+            [a, b, c] => Some(((*a as u32) << 16) | ((*b as u32) << 8) | *c as u32),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn same_code(left: &str, right: &str) -> bool {
+        match (packed_code(left), packed_code(right)) {
+            (Some(left), Some(right)) => left == right,
+            // Public currency fields also permit nonstandard codes.
+            _ => left == right,
+        }
+    }
+
+    #[inline]
+    fn same_text(left: &str, right: &str) -> bool {
+        // Fat-pointer equality includes length; shared prefixes can differ.
+        std::ptr::eq(left, right) || left == right
+    }
+
     macro_rules! define_iso {
     (
       $(
@@ -82,9 +120,20 @@ pub mod iso {
         };
       )+
 
+      mod alpha_keys {
+        $(pub(super) const $currency: Option<u32> = super::packed_code($alpha_code);)+
+      }
+
+      mod numeric_keys {
+        $(pub(super) const $currency: Option<u32> = super::packed_code($num_code);)+
+      }
+
+      #[cfg(test)]
+      pub(super) const TEST_CURRENCIES: &[&Currency] = &[$($currency,)+];
+
       pub fn find(code: &str) -> Option<&'static Currency> {
-        match code {
-          $($alpha_code => (Some($currency)),)+
+        match packed_code(code) {
+          $(alpha_keys::$currency => Some($currency),)+
           _ => None,
         }
       }
@@ -94,8 +143,8 @@ pub mod iso {
       // Amendment 176). The active currency will be matched first.
       #[allow(unreachable_patterns)]
       pub fn find_by_num_code(code: &str) -> Option<&'static Currency> {
-        match code {
-          $($num_code => (Some($currency)),)+
+        match packed_code(code) {
+          $(numeric_keys::$currency => Some($currency),)+
           _ => None,
         }
       }
@@ -1913,6 +1962,207 @@ pub mod iso {
 mod tests {
     use super::*;
 
+    use crate::{FormattableCurrency, Locale, Money, MoneyError};
+    use proptest::prelude::*;
+
+    #[test]
+    fn optimized_identity_matches_derived_equality_for_all_iso_pairs() {
+        for a in iso::TEST_CURRENCIES {
+            for b in iso::TEST_CURRENCIES {
+                assert_eq!(a.is_currency_mismatch(b), a != b);
+            }
+        }
+    }
+
+    #[test]
+    fn identity_checks_every_field_and_preserves_error_precedence() {
+        let original = *iso::USD;
+        let mut variants = [original; 8];
+        variants[0].iso_alpha_code = "usd";
+        variants[1].exponent = u32::MAX;
+        variants[2].iso_numeric_code = "0840";
+        variants[3].locale = Locale::EnEu;
+        variants[4].minor_units = u64::MAX;
+        variants[5].name = "Another Dollar";
+        variants[6].symbol = "US$";
+        variants[7].symbol_first = !original.symbol_first;
+        for other in &variants {
+            assert_ne!(original, *other);
+            assert!(original.is_currency_mismatch(other));
+            assert!(other.is_currency_mismatch(&original));
+            // Use from_decimal so the arbitrary exponent is never interpreted.
+            let a = Money::from_decimal(rust_decimal::Decimal::MAX, &original);
+            let b = Money::from_decimal(rust_decimal::Decimal::MAX, other);
+            assert!(matches!(a.add(b), Err(MoneyError::CurrencyMismatch { .. })));
+            assert!(matches!(a.sub(b), Err(MoneyError::CurrencyMismatch { .. })));
+            assert!(matches!(
+                a.compare(&b),
+                Err(MoneyError::CurrencyMismatch { .. })
+            ));
+            let rate =
+                crate::ExchangeRate::new(&original, iso::EUR, rust_decimal::Decimal::ONE).unwrap();
+            assert_eq!(rate.convert(&b), Err(MoneyError::InvalidCurrency));
+            #[cfg(feature = "fast")]
+            {
+                let a = crate::FastMoney::from_minor(i64::MAX, &original);
+                let b = crate::FastMoney::from_minor(i64::MAX, other);
+                assert!(matches!(a.add(b), Err(MoneyError::CurrencyMismatch { .. })));
+                assert!(matches!(a.sub(b), Err(MoneyError::CurrencyMismatch { .. })));
+                assert!(matches!(
+                    a.compare(&b),
+                    Err(MoneyError::CurrencyMismatch { .. })
+                ));
+            }
+        }
+    }
+
+    #[test]
+    fn separately_allocated_equal_metadata_still_matches() {
+        let original = *iso::USD;
+        let mut other = original;
+        other.iso_alpha_code = Box::leak(original.iso_alpha_code.to_owned().into_boxed_str());
+        other.iso_numeric_code = Box::leak(original.iso_numeric_code.to_owned().into_boxed_str());
+        other.name = Box::leak(original.name.to_owned().into_boxed_str());
+        other.symbol = Box::leak(original.symbol.to_owned().into_boxed_str());
+        assert!(!std::ptr::eq(original.name, other.name));
+        assert!(!original.is_currency_mismatch(&other));
+        assert!(!other.is_currency_mismatch(&original));
+        let a = Money::from_minor(100, &original);
+        let b = Money::from_minor(50, &other);
+        assert_eq!(a.add(b).unwrap().try_to_minor_units(), Ok(150));
+        assert_eq!(a.sub(b).unwrap().try_to_minor_units(), Ok(50));
+        assert_eq!(a.compare(&b), Ok(std::cmp::Ordering::Greater));
+        #[cfg(feature = "fast")]
+        {
+            let a = crate::FastMoney::from_minor(100, &original);
+            let b = crate::FastMoney::from_minor(50, &other);
+            assert_eq!(a.add(b).unwrap().minor_units(), 150);
+            assert_eq!(a.sub(b).unwrap().minor_units(), 50);
+            assert_eq!(a.compare(&b), Ok(std::cmp::Ordering::Greater));
+        }
+        use std::hash::{Hash, Hasher};
+        let mut left = std::collections::hash_map::DefaultHasher::new();
+        let mut right = std::collections::hash_map::DefaultHasher::new();
+        original.hash(&mut left);
+        other.hash(&mut right);
+        assert_eq!(left.finish(), right.finish());
+    }
+
+    #[test]
+    fn shared_string_prefixes_and_nonstandard_codes_preserve_identity() {
+        // Equal data addresses do not imply equal strings when lengths differ.
+        for text in [
+            "", "U", "US", "USD", "USDD", "usd", "€", "💰", "USD\0", "000840",
+        ] {
+            for end in text
+                .char_indices()
+                .map(|(i, _)| i)
+                .chain(std::iter::once(text.len()))
+            {
+                let prefix = &text[..end];
+                for field in 0..4 {
+                    let mut a = *iso::USD;
+                    let mut b = a;
+                    match field {
+                        0 => {
+                            a.iso_alpha_code = text;
+                            b.iso_alpha_code = prefix;
+                        }
+                        1 => {
+                            a.iso_numeric_code = text;
+                            b.iso_numeric_code = prefix;
+                        }
+                        2 => {
+                            a.name = text;
+                            b.name = prefix;
+                        }
+                        _ => {
+                            a.symbol = text;
+                            b.symbol = prefix;
+                        }
+                    }
+                    assert_eq!(a.is_currency_mismatch(&b), a != b);
+                    assert_eq!(b.is_currency_mismatch(&a), b != a);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn currency_constants_remain_usable_as_patterns() {
+        let copy = *iso::USD;
+        assert!(matches!(&copy, iso::USD));
+        assert!(!matches!(iso::EUR, iso::USD));
+    }
+
+    fn arbitrary_currency() -> impl Strategy<Value = iso::Currency> {
+        let text = || {
+            proptest::sample::select(vec![
+                "", "USD", "EUR", "US", "USDD", "usd", "840", "0840", "€", "💰", "USD\0",
+            ])
+        };
+        (
+            text(),
+            any::<u32>(),
+            text(),
+            0u8..4,
+            any::<u64>(),
+            text(),
+            text(),
+            any::<bool>(),
+        )
+            .prop_map(
+                |(
+                    iso_alpha_code,
+                    exponent,
+                    iso_numeric_code,
+                    locale,
+                    minor_units,
+                    name,
+                    symbol,
+                    symbol_first,
+                )| {
+                    let locale = match locale {
+                        0 => Locale::EnUs,
+                        1 => Locale::EnEu,
+                        2 => Locale::EnIn,
+                        _ => Locale::EnBy,
+                    };
+                    iso::Currency {
+                        iso_alpha_code,
+                        exponent,
+                        iso_numeric_code,
+                        locale,
+                        minor_units,
+                        name,
+                        symbol,
+                        symbol_first,
+                    }
+                },
+            )
+    }
+
+    proptest! {
+        #[test]
+        fn optimized_identity_matches_arbitrary_and_nearly_equal_metadata(a in arbitrary_currency(), b in arbitrary_currency(), field in 0u8..8) {
+            prop_assert_eq!(a.is_currency_mismatch(&b), a != b);
+            prop_assert!(!a.is_currency_mismatch(&a));
+            let mut near = a;
+            match field {
+                0 => near.iso_alpha_code = b.iso_alpha_code,
+                1 => near.exponent = b.exponent,
+                2 => near.iso_numeric_code = b.iso_numeric_code,
+                3 => near.locale = b.locale,
+                4 => near.minor_units = b.minor_units,
+                5 => near.name = b.name,
+                6 => near.symbol = b.symbol,
+                _ => near.symbol_first = b.symbol_first,
+            }
+            prop_assert_eq!(a.is_currency_mismatch(&near), a != near);
+            prop_assert_eq!(near.is_currency_mismatch(&a), near != a);
+        }
+    }
+
     #[test]
     fn find_returns_known_currencies() {
         let currency_by_alpha = iso::find("USD").unwrap();
@@ -1929,6 +2179,38 @@ mod tests {
         assert_eq!(iso::find("fake"), None,);
 
         assert_eq!(iso::find_by_num_code("123"), None,);
+    }
+
+    #[test]
+    fn packed_lookups_match_metadata_and_preserve_numeric_alias_precedence() {
+        for a in b'A'..=b'Z' {
+            for b in b'A'..=b'Z' {
+                for c in b'A'..=b'Z' {
+                    let bytes = [a, b, c];
+                    let code = std::str::from_utf8(&bytes).unwrap();
+                    let expected = iso::TEST_CURRENCIES
+                        .iter()
+                        .copied()
+                        .find(|currency| currency.iso_alpha_code == code);
+                    assert_eq!(iso::find(code), expected);
+                }
+            }
+        }
+        for number in 0..=999 {
+            let code = format!("{number:03}");
+            // Ordered metadata establishes the first match for deprecated aliases.
+            let expected = iso::TEST_CURRENCIES
+                .iter()
+                .copied()
+                .find(|currency| currency.iso_numeric_code == code);
+            assert_eq!(iso::find_by_num_code(&code), expected);
+        }
+        for code in [
+            "", "US", "USDD", "usd", "Usd", "84", "0840", "€", "💰", "USD\0",
+        ] {
+            assert_eq!(iso::find(code), None);
+            assert_eq!(iso::find_by_num_code(code), None);
+        }
     }
 
     #[test]

@@ -1,7 +1,6 @@
 use crate::currency::FormattableCurrency;
 use crate::{Money, MoneyError};
 use rust_decimal::Decimal;
-use rust_decimal::prelude::ToPrimitive;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -63,6 +62,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Creates a FastMoney from major units (e.g., dollars for USD).
     ///
     /// Returns an error if the conversion would overflow.
+    /// Zero is representable at any exponent. For nonzero amounts, both the scale
+    /// factor and the final minor-unit amount must fit in `i64`.
     ///
     /// # Example
     ///
@@ -74,7 +75,12 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// ```
     #[inline]
     pub fn from_major(amount: i64, currency: &'a T) -> Result<Self, MoneyError> {
-        let multiplier = 10i64.pow(currency.exponent());
+        if amount == 0 {
+            return Ok(Self::from_minor(0, currency));
+        }
+        let multiplier = 10i64
+            .checked_pow(currency.exponent())
+            .ok_or(MoneyError::Overflow)?;
         let minor_units = amount.checked_mul(multiplier).ok_or(MoneyError::Overflow)?;
         Ok(FastMoney {
             minor_units,
@@ -99,7 +105,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Returns an error on currency mismatch or overflow.
     #[inline]
     pub fn add(&self, other: Self) -> Result<Self, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -120,7 +126,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Returns an error on currency mismatch or overflow.
     #[inline]
     pub fn sub(&self, other: Self) -> Result<Self, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -216,7 +222,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Returns an error if the currencies don't match.
     #[inline]
     pub fn compare(&self, other: &Self) -> Result<Ordering, MoneyError> {
-        if self.currency != other.currency {
+        if self.currency.is_currency_mismatch(other.currency) {
             return Err(MoneyError::CurrencyMismatch {
                 expected: self.currency.code(),
                 actual: other.currency.code(),
@@ -241,17 +247,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     ///
     /// Use [`from_money_lossy`](Self::from_money_lossy) if you want to truncate extra precision.
     pub fn from_money(money: Money<'a, T>) -> Result<Self, MoneyError> {
-        let exponent = money.currency().exponent();
-        let scale = Decimal::from(10u64.pow(exponent));
-        let scaled = money.amount() * scale;
-
-        // Check for precision loss: if truncating changes the value, there's extra precision
-        if scaled != scaled.trunc() {
-            return Err(MoneyError::PrecisionLoss);
-        }
-
-        // Convert to i64, checking for overflow
-        let minor_units = scaled.trunc().to_i64().ok_or(MoneyError::Overflow)?;
+        let minor_units = money.try_to_minor_units()?;
 
         Ok(FastMoney {
             minor_units,
@@ -275,17 +271,11 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// assert_eq!(fast.minor_units(), 1000);  // Truncated to 1000 cents ($10.00)
     /// ```
     pub fn from_money_lossy(money: Money<'a, T>) -> Result<Self, MoneyError> {
-        let exponent = money.currency().exponent();
-        let scale = Decimal::from(10u64.pow(exponent));
-        let scaled = (money.amount() * scale).trunc();
-
-        // Convert to i64, checking for overflow
-        let minor_units = scaled.to_i64().ok_or(MoneyError::Overflow)?;
-
-        Ok(FastMoney {
-            minor_units,
-            currency: money.currency(),
-        })
+        let truncated = money.amount().round_dp_with_strategy(
+            money.currency().exponent(),
+            rust_decimal::RoundingStrategy::ToZero,
+        );
+        Self::from_money(Money::from_decimal(truncated, money.currency()))
     }
 }
 
@@ -455,6 +445,34 @@ mod serde_tests {
     }
 
     #[test]
+    fn deserialize_extreme_amounts_returns_errors_without_panicking() {
+        for amount in [
+            "79228162514264337593543950335",
+            "-79228162514264337593543950335",
+            "92233720368547758.08",
+            "-92233720368547758.09",
+        ] {
+            let json = format!(r#"{{"amount":"{amount}","currency":"USD"}}"#);
+            let result = serde_json::from_str::<FastMoney<test::Currency>>(&json);
+            assert!(result.is_err(), "{amount}");
+        }
+    }
+
+    #[test]
+    fn deserialize_retains_lossy_precision_policy_at_limits() {
+        for (amount, expected) in [
+            ("1.005", 100),
+            ("-1.005", -100),
+            ("92233720368547758.079", i64::MAX),
+            ("-92233720368547758.089", i64::MIN),
+        ] {
+            let json = format!(r#"{{"amount":"{amount}","currency":"USD"}}"#);
+            let fast = serde_json::from_str::<FastMoney<test::Currency>>(&json).unwrap();
+            assert_eq!(fast.minor_units(), expected);
+        }
+    }
+
+    #[test]
     fn deserialize_reversed_field_order() {
         let json = r#"{"currency":"USD","amount":"50.00"}"#;
         let fast: FastMoney<test::Currency> = serde_json::from_str(json).unwrap();
@@ -562,6 +580,60 @@ mod tests {
         assert_eq!(result, Err(MoneyError::Overflow));
     }
 
+    #[test]
+    fn from_major_checks_extreme_exponents() {
+        for exponent in [19, 20, 28, u32::MAX] {
+            let currency = test::Currency {
+                exponent,
+                ..*test::USD
+            };
+            for amount in [i64::MIN, -1, 1, i64::MAX] {
+                assert_eq!(
+                    FastMoney::from_major(amount, &currency),
+                    Err(MoneyError::Overflow)
+                );
+            }
+            assert_eq!(
+                FastMoney::from_major(0, &currency).unwrap().minor_units(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn from_major_at_scaling_boundaries() {
+        let currency = test::Currency {
+            exponent: 18,
+            ..*test::USD
+        };
+        for amount in [-9, -1, 0, 1, 9] {
+            assert_eq!(
+                FastMoney::from_major(amount, &currency)
+                    .unwrap()
+                    .minor_units(),
+                amount * 1_000_000_000_000_000_000
+            );
+        }
+        for amount in [-10, 10] {
+            assert_eq!(
+                FastMoney::from_major(amount, &currency),
+                Err(MoneyError::Overflow)
+            );
+        }
+        let currency = test::Currency {
+            exponent: 0,
+            ..*test::USD
+        };
+        for amount in [i64::MIN, i64::MAX] {
+            assert_eq!(
+                FastMoney::from_major(amount, &currency)
+                    .unwrap()
+                    .minor_units(),
+                amount
+            );
+        }
+    }
+
     // ============ Arithmetic Tests ============
 
     #[test]
@@ -650,20 +722,39 @@ mod tests {
         assert!(FastMoney::from_minor(0, test::USD).is_zero());
         assert!(!FastMoney::from_minor(1, test::USD).is_zero());
         assert!(!FastMoney::from_minor(-1, test::USD).is_zero());
+        assert!(!FastMoney::from_minor(i64::MIN, test::USD).is_zero());
+        assert!(!FastMoney::from_minor(i64::MAX, test::USD).is_zero());
     }
 
     #[test]
     fn is_positive() {
         assert!(FastMoney::from_minor(1, test::USD).is_positive());
+        assert!(FastMoney::from_minor(i64::MAX, test::USD).is_positive());
         assert!(!FastMoney::from_minor(0, test::USD).is_positive());
         assert!(!FastMoney::from_minor(-1, test::USD).is_positive());
+        assert!(!FastMoney::from_minor(i64::MIN, test::USD).is_positive());
     }
 
     #[test]
     fn is_negative() {
         assert!(FastMoney::from_minor(-1, test::USD).is_negative());
+        assert!(FastMoney::from_minor(i64::MIN, test::USD).is_negative());
         assert!(!FastMoney::from_minor(0, test::USD).is_negative());
         assert!(!FastMoney::from_minor(1, test::USD).is_negative());
+        assert!(!FastMoney::from_minor(i64::MAX, test::USD).is_negative());
+    }
+
+    #[test]
+    fn arithmetic_identities_at_i64_boundaries() {
+        let zero = FastMoney::from_minor(0, test::USD);
+        for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
+            let money = FastMoney::from_minor(amount, test::USD);
+            assert_eq!(money.add(zero), Ok(money));
+            assert_eq!(zero.add(money), Ok(money));
+            assert_eq!(money.mul(1), Ok(money));
+            assert_eq!(money.mul(0), Ok(zero));
+            assert_eq!(money.div(1), Ok(money));
+        }
     }
 
     #[test]
@@ -755,6 +846,74 @@ mod tests {
         let money = original.to_money();
         let back = FastMoney::from_money(money).unwrap();
         assert_eq!(original, back);
+    }
+
+    #[test]
+    fn conversions_check_decimal_extremes() {
+        for amount in [Decimal::MAX, Decimal::MIN] {
+            let money = Money::from_decimal(amount, test::USD);
+            assert_eq!(FastMoney::from_money(money), Err(MoneyError::Overflow));
+            assert_eq!(
+                FastMoney::from_money_lossy(money),
+                Err(MoneyError::Overflow)
+            );
+        }
+    }
+
+    #[test]
+    fn conversions_roundtrip_limits_and_high_exponents() {
+        for exponent in [0, 2, 18, 19, 20, 28] {
+            let currency = test::Currency {
+                exponent,
+                ..*test::USD
+            };
+            for minor in [i64::MIN, -1, 0, 1, i64::MAX] {
+                let money = Money::from_minor(minor, &currency);
+                assert_eq!(FastMoney::from_money(money).unwrap().minor_units(), minor);
+                assert_eq!(
+                    FastMoney::from_money_lossy(money).unwrap().minor_units(),
+                    minor
+                );
+            }
+        }
+        let currency = test::Currency {
+            exponent: u32::MAX,
+            ..*test::USD
+        };
+        let zero = Money::from_major(0, &currency);
+        assert_eq!(FastMoney::from_money(zero).unwrap().minor_units(), 0);
+        assert_eq!(FastMoney::from_money_lossy(zero).unwrap().minor_units(), 0);
+        let one = Money::from_major(1, &currency);
+        assert_eq!(FastMoney::from_money(one), Err(MoneyError::Overflow));
+        assert_eq!(FastMoney::from_money_lossy(one), Err(MoneyError::Overflow));
+    }
+
+    #[test]
+    fn conversions_keep_strict_and_lossy_policies_distinct() {
+        use rust_decimal_macros::dec;
+        for (amount, expected) in [
+            (dec!(1.005), 100),
+            (dec!(-1.005), -100),
+            (dec!(0.009), 0),
+            (dec!(-0.009), 0),
+            (dec!(92233720368547758.079), i64::MAX),
+            (dec!(-92233720368547758.089), i64::MIN),
+        ] {
+            let money = Money::from_decimal(amount, test::USD);
+            assert_eq!(FastMoney::from_money(money), Err(MoneyError::PrecisionLoss));
+            assert_eq!(
+                FastMoney::from_money_lossy(money).unwrap().minor_units(),
+                expected
+            );
+        }
+        for amount in [dec!(92233720368547758.08), dec!(-92233720368547758.09)] {
+            let money = Money::from_decimal(amount, test::USD);
+            assert_eq!(FastMoney::from_money(money), Err(MoneyError::Overflow));
+            assert_eq!(
+                FastMoney::from_money_lossy(money),
+                Err(MoneyError::Overflow)
+            );
+        }
     }
 
     #[test]
@@ -1008,12 +1167,9 @@ mod proptest_tests {
         fn mul_div_inverse(a in safe_amount(), n in 1i64..1000) {
             let ma = FastMoney::from_minor(a, test::USD);
 
-            if let Ok(product) = ma.mul(n) {
-                let back = product.div(n);
-                // Due to truncation, this should be close but might not be exact
-                // for values that don't divide evenly
-                prop_assert!(back.is_ok());
-            }
+            // This generator cannot overflow, and the product is divisible by n.
+            let product = ma.mul(n).unwrap();
+            prop_assert_eq!(product.div(n), Ok(ma));
         }
 
         #[test]
@@ -1053,24 +1209,6 @@ mod proptest_tests {
         }
 
         #[test]
-        fn is_zero_consistent(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.is_zero(), a == 0);
-        }
-
-        #[test]
-        fn is_positive_consistent(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.is_positive(), a > 0);
-        }
-
-        #[test]
-        fn is_negative_consistent(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.is_negative(), a < 0);
-        }
-
-        #[test]
         fn addition_is_associative(a in safe_amount(), b in safe_amount(), c in safe_amount()) {
             let ma = FastMoney::from_minor(a, test::USD);
             let mb = FastMoney::from_minor(b, test::USD);
@@ -1083,33 +1221,5 @@ mod proptest_tests {
             prop_assert_eq!(left, right);
         }
 
-        #[test]
-        fn zero_is_additive_identity(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            let zero = FastMoney::from_minor(0, test::USD);
-
-            prop_assert_eq!(ma.add(zero).unwrap(), ma);
-            prop_assert_eq!(zero.add(ma).unwrap(), ma);
-        }
-
-        #[test]
-        fn multiplication_by_one_is_identity(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.mul(1).unwrap(), ma);
-        }
-
-        #[test]
-        #[allow(clippy::erasing_op)]
-        fn multiplication_by_zero_gives_zero(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            let zero = FastMoney::from_minor(0, test::USD);
-            prop_assert_eq!(ma.mul(0).unwrap(), zero);
-        }
-
-        #[test]
-        fn division_by_one_is_identity(a in safe_amount()) {
-            let ma = FastMoney::from_minor(a, test::USD);
-            prop_assert_eq!(ma.div(1).unwrap(), ma);
-        }
     }
 }

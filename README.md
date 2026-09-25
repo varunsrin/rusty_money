@@ -162,6 +162,8 @@ let parts = total.allocate(vec![70, 20, 10]).unwrap();
 // => [$70.00, $20.00, $10.00]
 ```
 
+Zero split counts, empty weights, and all-zero weights return `MoneyError::InvalidRatio`. Shares are calculated with exact integer quotient/remainder arithmetic and successful results preserve the floored total. `MoneyError::Overflow` is returned if the currency exponent exceeds 28, minor-unit arithmetic exceeds `i128`, the weight sum exceeds `u64`, or an individual share cannot be represented exactly as a Decimal.
+
 ### Formatting
 
 `Money` formats according to its currency's locale:
@@ -236,6 +238,8 @@ let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 
 `FastMoney` uses `i64` minor units (cents) instead of 128-bit decimals, providing significantly faster arithmetic for performance-critical code paths. It comes with a narrower feature set and has lower precision due to the use of integers.
 
+Both conversion methods return `MoneyError::Overflow` when the resulting minor-unit amount does not fit in `i64`. With the `serde` feature, `FastMoney` deserialization uses the lossy conversion: it truncates fractional minor units and returns a deserialization error for out-of-range amounts.
+
 
 Only choose `FastMoney` over `Money`: 
 
@@ -246,6 +250,8 @@ Only choose `FastMoney` over `Money`:
 ### Usage
 
 ```rust
+# #[cfg(feature = "fast")]
+# {
 use rusty_money::{FastMoney, Money, iso};
 
 // Create from minor units (no conversion needed)
@@ -268,6 +274,7 @@ let fast_again = FastMoney::from_money(money).unwrap();
 
 // Or use lossy conversion if you accept truncation
 let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
+# }
 ```
 
 ### Precision Differences
@@ -275,18 +282,33 @@ let fast_lossy = FastMoney::from_money_lossy(fast_again.to_money());
 FastMoney truncates intermediate results to minor units, which can accumulate into different final values:
 
 ```rust
-use rusty_money::{FastMoney, Money, iso};
+use rusty_money::{Money, iso};
 
 // With Money (high precision): $10.00 / 3 keeps full decimal precision
 let money = Money::from_major(10, iso::USD);
 let divided = money.div(3).unwrap();               // => $3.3333333...
 let restored = divided.mul(3).unwrap();            // => $10.00 (no loss)
 
+# #[cfg(feature = "fast")]
+# {
+use rusty_money::FastMoney;
 // With FastMoney (low precision): truncates to minor units
 let fast = FastMoney::from_major(10, iso::USD).unwrap();
 let divided = fast.div(3).unwrap();                // => $3.33 (truncated)
 let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
+# }
 ```
+
+## Performance
+
+`FastMoney` offers faster checked integer arithmetic and uses 16 bytes per value versus `Money`'s 24 bytes.
+
+| Operation | Example call | `Money` | `FastMoney` | `FastMoney` speedup |
+| --- | --- | --- | --- | --- |
+| Add amounts | `amount.add(other)` | 6.1 ns | 3.0 ns | 2.0x |
+| Subtract amounts | `amount.sub(other)` | 7.4 ns | 3.0 ns | 2.5x |
+| Multiply amounts | `amount.mul(100i64)` | 1.7 ns | 0.7 ns | 2.4x |
+| Divide amounts | `amount.div(4i64)` | 3.4 ns | 0.8 ns | 4.3x |
 
 ## Feature Flags
 

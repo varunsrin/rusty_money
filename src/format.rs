@@ -1,6 +1,9 @@
+use arrayvec::ArrayString;
+use rust_decimal::Decimal;
+
 use crate::currency::FormattableCurrency;
 use crate::{Money, Round};
-use std::cmp::Ordering;
+use std::fmt::{self, Write};
 
 /// Converts Money objects into human readable strings.
 pub struct Formatter;
@@ -8,79 +11,110 @@ pub struct Formatter;
 impl Formatter {
     /// Returns a formatted Money String given parameters and a Money object.
     pub fn money<'a, T: FormattableCurrency>(money: &Money<'a, T>, params: Params<'_>) -> String {
+        let mut result = String::with_capacity(32);
+        Self::write_money(money, params, &mut result).expect("writing to a String cannot fail");
+        result
+    }
+
+    pub(crate) fn write_money<T: FormattableCurrency, W: Write + ?Sized>(
+        money: &Money<'_, T>,
+        params: Params<'_>,
+        output: &mut W,
+    ) -> fmt::Result {
         let mut decimal = *money.amount();
 
         // Round the decimal and ensure it has the correct scale
         if let Some(x) = params.rounding {
+            // Keep rescale within Decimal's supported range, even if a dependency
+            // version accepts larger scales. The formatter buffer relies on this bound.
+            let x = x.min(Decimal::MAX_SCALE);
             decimal = *money.round(x, Round::HalfEven).amount();
             decimal.rescale(x);
         }
 
-        // Format the Amount String
-        let amount = Formatter::amount(&format!("{}", decimal), &params);
+        let raw_amount = Self::unsigned_decimal_text(decimal)?;
+        let (digits, fraction) = raw_amount
+            .split_once('.')
+            .map_or((raw_amount.as_str(), None), |(digits, fraction)| {
+                (digits, Some(fraction))
+            });
 
         // Position values in the Output String
-        let mut result = String::new();
         for position in params.positions.iter() {
             match position {
-                Position::Space => result.push(' '),
-                Position::Amount => result.push_str(&amount),
-                Position::Code => result.push_str(params.code.unwrap_or("")),
-                Position::Symbol => result.push_str(params.symbol.unwrap_or("")),
-                Position::Sign => result.push_str(if money.is_negative() { "-" } else { "" }),
+                Position::Space => output.write_char(' ')?,
+                Position::Amount => {
+                    Self::write_digits(digits, &params, output)?;
+                    if let Some(fraction) = fraction {
+                        output.write_char(params.exponent_separator)?;
+                        output.write_str(fraction)?;
+                    }
+                }
+                Position::Code => output.write_str(params.code.unwrap_or(""))?,
+                Position::Symbol => output.write_str(params.symbol.unwrap_or(""))?,
+                Position::Sign => {
+                    if money.is_negative() {
+                        output.write_str("-")?;
+                    } else {
+                        output.write_str("")?;
+                    }
+                }
             }
         }
-        result
+        Ok(())
     }
 
-    /// Returns a formatted amount String, given the raw amount and formatting parameters.
-    fn amount(raw_amount: &str, params: &Params<'_>) -> String {
-        // Split amount into digits and exponent.
-        let amount_split: Vec<&str> = raw_amount.split('.').collect();
-        let mut amount_digits = amount_split[0].to_string();
-
-        // Format the digits
-        amount_digits.retain(|c| c != '-');
-        amount_digits = Formatter::digits(
-            &amount_digits,
-            params.digit_separator,
-            params.separator_pattern,
-        );
-        let mut result = amount_digits;
-
-        // Format the exponent, and add to digits
-        match amount_split.len().cmp(&2) {
-            Ordering::Equal => {
-                // Exponent found, concatenate to digits.
-                result.push(params.exponent_separator);
-                result += amount_split[1];
+    fn write_digits<W: Write + ?Sized>(
+        digits: &str,
+        params: &Params<'_>,
+        output: &mut W,
+    ) -> fmt::Result {
+        let mut grouped = 0;
+        let mut count = 0;
+        for &width in params.separator_pattern {
+            if width >= digits.len() - grouped {
+                break;
             }
-            Ordering::Less => {
-                // No exponent, do nothing.
-            }
-            Ordering::Greater => {
-                unreachable!(
-                    "Decimal formatted string should never contain more than 1 exponent separator"
-                )
-            }
+            grouped += width;
+            count += 1;
         }
 
-        result
+        let mut start = digits.len() - grouped;
+        output.write_str(&digits[..start])?;
+        for &width in params.separator_pattern[..count].iter().rev() {
+            output.write_char(params.digit_separator)?;
+            output.write_str(&digits[start..start + width])?;
+            start += width;
+        }
+        Ok(())
     }
 
-    /// Returns a formatted digit component, given the digit string, separator and pattern of separation.
-    fn digits(raw_digits: &str, separator: char, pattern: &[usize]) -> String {
-        let mut digits = raw_digits.to_string();
-
-        let mut current_position: usize = 0;
-        for &position in pattern.iter() {
-            current_position += position;
-            if digits.len() > current_position {
-                digits.insert(digits.len() - current_position, separator);
-                current_position += 1;
-            }
+    // Decimal has at most 29 coefficient digits and scale <= 28. Its unsigned
+    // fixed-point representation therefore needs at most 30 bytes ("0." + 28
+    // fractional digits). Both buffers have spare capacity; all writes remain
+    // fallible. The sign is handled separately from the original Money amount.
+    fn unsigned_decimal_text(decimal: Decimal) -> Result<ArrayString<32>, fmt::Error> {
+        let mut coefficient = ArrayString::<32>::new();
+        write!(&mut coefficient, "{}", decimal.mantissa().unsigned_abs())?;
+        let scale = decimal.scale() as usize;
+        if scale == 0 {
+            return Ok(coefficient);
         }
-        digits
+
+        let mut result = ArrayString::<32>::new();
+        if coefficient.len() > scale {
+            let boundary = coefficient.len() - scale;
+            result.write_str(&coefficient[..boundary])?;
+            result.write_char('.')?;
+            result.write_str(&coefficient[boundary..])?;
+        } else {
+            result.write_str("0.")?;
+            for _ in coefficient.len()..scale {
+                result.write_char('0')?;
+            }
+            result.write_str(&coefficient)?;
+        }
+        Ok(result)
     }
 }
 
@@ -102,10 +136,13 @@ pub struct Params<'a> {
     /// The character that separates minor units from major units (e.g. 1,000.00)
     pub exponent_separator: char,
     /// The grouping pattern that is applied to digits / major units (e.g. 1,000,000 vs 1,00,000)
+    /// Steps count digits from right to left. A zero step repeats the current
+    /// boundary; a leading zero places a separator after the final digit.
     pub separator_pattern: &'a [usize],
     /// The relative positions of the elements in a currency string (e.g. -$1,000 vs $ -1,000)
     pub positions: &'a [Position],
     /// The number of minor unit digits should remain after Round::HalfEven is applied.
+    /// Values above Decimal::MAX_SCALE (28) are capped at that limit.
     pub rounding: Option<u32>,
     /// The symbol of the currency (e.g. $)
     pub symbol: Option<&'static str>,
@@ -218,6 +255,71 @@ mod tests {
         assert_eq!("$-1,000", Formatter::money(&money, params));
     }
 
+    fn format_grouped_amount(amount: i64, separator: char, pattern: &[usize]) -> String {
+        let money = Money::from_major(amount, test::USD);
+        Formatter::money(
+            &money,
+            Params {
+                digit_separator: separator,
+                separator_pattern: pattern,
+                ..Params::default()
+            },
+        )
+    }
+
+    #[test]
+    fn grouping_handles_multibyte_separators() {
+        for separator in [',', '\u{a0}', '\u{202f}', '💰'] {
+            assert_eq!(
+                format_grouped_amount(1234567, separator, &[3, 3, 3]),
+                format!("1{separator}234{separator}567")
+            );
+            assert_eq!(
+                format_grouped_amount(123456789, separator, &[3, 2, 2]),
+                format!("12{separator}34{separator}56{separator}789")
+            );
+            assert_eq!(format_grouped_amount(123, separator, &[3, 3, 3]), "123");
+        }
+        let money = Money::from_major(-1234567, test::USD);
+        let params = Params {
+            digit_separator: '\u{202f}',
+            symbol: Some("$"),
+            rounding: Some(2),
+            ..Params::default()
+        };
+        assert_eq!(
+            Formatter::money(&money, params),
+            "-$1\u{202f}234\u{202f}567.00"
+        );
+    }
+
+    #[test]
+    fn grouping_zero_steps_repeat_at_the_same_boundary() {
+        for separator in [',', '\u{202f}', '💰'] {
+            assert_eq!(
+                format_grouped_amount(1234567, separator, &[0, 0, 3]),
+                format!("1234{separator}567{separator}{separator}")
+            );
+            assert_eq!(
+                format_grouped_amount(1234567, separator, &[3, 0, 3]),
+                format!("1{separator}234{separator}{separator}567")
+            );
+        }
+    }
+
+    #[test]
+    fn grouping_oversized_steps_stop_without_overflow() {
+        assert_eq!(
+            format_grouped_amount(1234567, ',', &[usize::MAX]),
+            "1234567"
+        );
+        assert_eq!(
+            format_grouped_amount(1234567, ',', &[3, usize::MAX, 1]),
+            "1234,567"
+        );
+        assert_eq!(format_grouped_amount(1234567, '\u{202f}', &[]), "1234567");
+    }
+
     #[test]
     fn format_digit_separators_with_custom_separators() {
         let params = Params {
@@ -305,6 +407,200 @@ mod tests {
             "3.3333333333333333333333333333",
             Formatter::money(&money, params)
         );
+    }
+
+    #[test]
+    fn format_preserves_rounding_carry_sign_and_scale() {
+        for (amount, expected) in [
+            ("999.995", "1,000.00"),
+            ("-999.995", "-1,000.00"),
+            ("-0.001", "-0.00"),
+            ("0", "0.00"),
+            ("1.5", "1.50"),
+        ] {
+            let decimal = amount.parse().unwrap();
+            let money = Money::from_decimal(decimal, test::USD);
+            let params = Params {
+                rounding: Some(2),
+                ..Default::default()
+            };
+            assert_eq!(Formatter::money(&money, params), expected);
+            assert_eq!(money.amount().serialize(), decimal.serialize());
+        }
+    }
+
+    #[test]
+    fn format_caps_precision_at_decimal_maximum() {
+        let money = Money::from_decimal(Decimal::from_parts(0, 0, 1, false, 22), test::USD);
+        for digits in [28, 29, 31, 32, u32::MAX] {
+            let params = Params {
+                rounding: Some(digits),
+                ..Default::default()
+            };
+            assert_eq!(
+                Formatter::money(&money, params),
+                "0.0018446744073709551616000000"
+            );
+        }
+    }
+
+    #[test]
+    fn format_preserves_custom_grouping() {
+        for (amount, pattern, separator, expected) in [
+            (1_234_567_890, &[3, 2, 2][..], ',', "123,45,67,890"),
+            (1_234, &[][..], ',', "1234"),
+            (1_234, &[0, 3][..], ',', "1,234,"),
+            (1_234, &[4, 3][..], ',', "1234"),
+            (1_234_567, &[3, 3, 3][..], '\u{a0}', "1\u{a0}234\u{a0}567"),
+        ] {
+            let money = Money::from_major(amount, test::USD);
+            let params = Params {
+                separator_pattern: pattern,
+                digit_separator: separator,
+                ..Default::default()
+            };
+            // Preserve finite grouping patterns and correct multibyte grouping.
+            assert_eq!(Formatter::money(&money, params), expected);
+        }
+    }
+
+    #[test]
+    fn format_preserves_repeated_amount_positions() {
+        let money = Money::from_minor(-123_450, test::USD);
+        let params = Params {
+            positions: &[
+                Position::Amount,
+                Position::Space,
+                Position::Sign,
+                Position::Amount,
+                Position::Symbol,
+            ],
+            symbol: Some("€"),
+            exponent_separator: ',',
+            digit_separator: '.',
+            rounding: Some(2),
+            ..Default::default()
+        };
+        assert_eq!(Formatter::money(&money, params), "1.234,50 -1.234,50€");
+    }
+
+    #[test]
+    fn decimal_text_preserves_coefficient_boundaries_and_every_scale() {
+        for coefficient in [
+            0,
+            1,
+            9,
+            10,
+            99,
+            100,
+            u32::MAX as u128,
+            u64::MAX as u128,
+            (1u128 << 96) - 1,
+        ] {
+            for scale in 0..=28 {
+                for negative in [false, true] {
+                    let decimal = Decimal::from_parts(
+                        coefficient as u32,
+                        (coefficient >> 32) as u32,
+                        (coefficient >> 64) as u32,
+                        negative,
+                        scale,
+                    );
+                    let expected = decimal.to_string();
+                    assert_eq!(
+                        Formatter::unsigned_decimal_text(decimal).unwrap().as_str(),
+                        expected.trim_start_matches('-'),
+                    );
+                }
+            }
+        }
+    }
+
+    // Differential reference: keep the previous Decimal Display + string
+    // insertion algorithm independent of the new integer/streaming path.
+    fn reference_amount(decimal: Decimal, separator: char, pattern: &[usize]) -> String {
+        let raw = decimal.to_string();
+        let unsigned = raw.trim_start_matches('-');
+        let (integer, fraction) = unsigned
+            .split_once('.')
+            .map_or((unsigned, None), |(i, f)| (i, Some(f)));
+        let mut digits = integer.to_string();
+        let mut position = 0usize;
+        for &width in pattern {
+            let Some(next) = position.checked_add(width) else {
+                break;
+            };
+            position = next;
+            if digits.len() > position {
+                digits.insert(digits.len() - position, separator);
+                position += separator.len_utf8();
+            }
+        }
+        if let Some(fraction) = fraction {
+            digits.push('.');
+            digits.push_str(fraction);
+        }
+        digits
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn streaming_matches_decimal_and_insertion_reference(
+            words in proptest::array::uniform3(proptest::prelude::any::<u32>()),
+            negative in proptest::prelude::any::<bool>(),
+            scale in 0u32..=28,
+            rounding in proptest::option::of(0u32..=32),
+            separator in proptest::sample::select(vec![',', '.', '\u{a0}', '\u{202f}', '💰']),
+            pattern in proptest::collection::vec(
+                proptest::prop_oneof![0usize..=32, proptest::strategy::Just(usize::MAX)], 0..12),
+        ) {
+            let decimal = Decimal::from_parts(words[0], words[1], words[2], negative, scale);
+            let money = Money::from_decimal(decimal, test::USD);
+            let mut expected_decimal = decimal;
+            if let Some(digits) = rounding {
+                let digits = digits.min(Decimal::MAX_SCALE);
+                expected_decimal = decimal.round_dp_with_strategy(digits, rust_decimal::RoundingStrategy::MidpointNearestEven);
+                expected_decimal.rescale(digits);
+            }
+            let amount = reference_amount(expected_decimal, separator, &pattern);
+            let sign = if money.is_negative() { "-" } else { "" };
+            let params = Params {
+                digit_separator: separator,
+                separator_pattern: &pattern,
+                rounding,
+                positions: &[Position::Amount, Position::Space, Position::Sign, Position::Amount],
+                ..Params::default()
+            };
+            proptest::prop_assert_eq!(Formatter::money(&money, params), format!("{amount} {sign}{amount}"));
+        }
+    }
+
+    #[test]
+    fn writing_propagates_output_errors() {
+        struct FailingWriter {
+            remaining: usize,
+        }
+        impl std::fmt::Write for FailingWriter {
+            fn write_str(&mut self, text: &str) -> std::fmt::Result {
+                if text.len() > self.remaining {
+                    return Err(std::fmt::Error);
+                }
+                self.remaining -= text.len();
+                Ok(())
+            }
+        }
+        let money = Money::from_major(1_234_567, test::USD);
+        // Fail immediately or after part of the grouped amount has been written.
+        for separator in [',', '\u{202f}', '💰'] {
+            for remaining in [0, 1, 4, 8] {
+                let mut writer = FailingWriter { remaining };
+                let params = Params {
+                    digit_separator: separator,
+                    ..Params::default()
+                };
+                assert!(Formatter::write_money(&money, params, &mut writer).is_err());
+            }
+        }
     }
 }
 

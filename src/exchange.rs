@@ -56,7 +56,7 @@ impl<'a, T: FormattableCurrency> ExchangeRate<'a, T> {
     /// Returns `MoneyError::InvalidCurrency` if the amount's currency does not match the source.
     /// Returns `MoneyError::Overflow` if the conversion overflows.
     pub fn convert(&self, amount: &Money<'a, T>) -> Result<Money<'a, T>, MoneyError> {
-        if amount.currency() != self.from {
+        if amount.currency().is_currency_mismatch(self.from) {
             return Err(MoneyError::InvalidCurrency);
         }
         let converted_amount = amount
@@ -291,6 +291,15 @@ mod proptest_tests {
         -1_000_000_000i64..1_000_000_000i64
     }
 
+    #[test]
+    fn exchange_missing_pair_and_reverse_return_none() {
+        let mut exchange = Exchange::new();
+        let rate = ExchangeRate::new(test::USD, test::EUR, Decimal::new(15, 1)).unwrap();
+        exchange.set_rate(&rate);
+        assert!(exchange.get_rate(test::USD, test::GBP).is_none());
+        assert!(exchange.get_rate(test::EUR, test::USD).is_none());
+    }
+
     proptest! {
         #[test]
         fn conversion_preserves_sign(amount in minor_amount(), rate in positive_rate()) {
@@ -345,22 +354,6 @@ mod proptest_tests {
 
             prop_assert!(retrieved.is_some());
             prop_assert_eq!(retrieved.unwrap(), exchange_rate);
-        }
-
-        #[test]
-        fn exchange_missing_rate_returns_none(rate in positive_rate()) {
-            let mut exchange = Exchange::new();
-            let exchange_rate = ExchangeRate::new(test::USD, test::EUR, rate).unwrap();
-
-            exchange.set_rate(&exchange_rate);
-
-            // Different currency pair should return None
-            let retrieved = exchange.get_rate(test::USD, test::GBP);
-            prop_assert!(retrieved.is_none());
-
-            // Reversed direction should also return None
-            let reversed = exchange.get_rate(test::EUR, test::USD);
-            prop_assert!(reversed.is_none());
         }
 
         #[test]

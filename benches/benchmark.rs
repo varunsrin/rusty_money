@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use rust_decimal_macros::dec;
 
 #[cfg(feature = "iso")]
@@ -29,6 +29,10 @@ fn bench_money_arithmetic(c: &mut Criterion) {
         c.bench_function("money_div", |bencher| {
             bencher.iter(|| black_box(a).div(black_box(3i64)))
         });
+
+        c.bench_function("money_div_exact", |bencher| {
+            bencher.iter(|| black_box(a).div(black_box(4i64)))
+        });
     }
 }
 
@@ -53,6 +57,10 @@ fn bench_fastmoney_arithmetic(c: &mut Criterion) {
 
         c.bench_function("fastmoney_div", |bencher| {
             bencher.iter(|| black_box(a).div(black_box(3i64)))
+        });
+
+        c.bench_function("fastmoney_div_exact", |bencher| {
+            bencher.iter(|| black_box(a).div(black_box(4i64)))
         });
     }
 }
@@ -132,6 +140,14 @@ fn bench_formatting(c: &mut Criterion) {
             bencher.iter(|| format!("{}", black_box(&small)))
         });
 
+        #[cfg(feature = "fast")]
+        {
+            let small = FastMoney::from_minor(1_234, iso::USD);
+            c.bench_function("fastmoney_display_small", |bencher| {
+                bencher.iter(|| format!("{}", black_box(&small)))
+            });
+        }
+
         // Large amount with many digit separators
         let large = Money::from_minor(123_456_789_012, iso::USD);
         c.bench_function("money_display_large", |bencher| {
@@ -150,6 +166,58 @@ fn bench_parsing(c: &mut Criterion) {
         c.bench_function("money_from_str_large", |bencher| {
             bencher.iter(|| Money::from_str(black_box("1,234,567.89"), iso::USD))
         });
+    }
+}
+
+fn bench_parse_format_workloads(c: &mut Criterion) {
+    #[cfg(feature = "iso")]
+    {
+        use std::fmt::Write;
+
+        let mut parsing = c.benchmark_group("parse_workloads");
+        for (name, amount, currency) in [
+            ("ungrouped", "1234.56", iso::USD),
+            ("integer", "1234", iso::USD),
+            ("us_grouped", "1,234,567.89", iso::USD),
+            ("eu_grouped", "1.234.567,89", iso::EUR),
+            ("indian_grouped", "1,23,456.78", iso::INR),
+            ("space_grouped", "1 234 567,89", iso::BYN),
+            ("invalid", "12,34.56", iso::USD),
+        ] {
+            parsing.bench_function(name, |b| {
+                b.iter(|| Money::from_str(black_box(amount), black_box(currency)))
+            });
+        }
+        #[cfg(feature = "crypto")]
+        parsing.bench_function("crypto_fraction", |b| {
+            b.iter(|| Money::from_str(black_box("1.123456789012345678"), rusty_money::crypto::ETH))
+        });
+        parsing.finish();
+
+        let mut formatting = c.benchmark_group("format_workloads");
+        for currency in [iso::USD, iso::EUR, iso::INR, iso::JPY, iso::BYN] {
+            let money = Money::from_minor(-123_456_789, currency);
+            formatting.bench_with_input(
+                BenchmarkId::new("string", currency.iso_alpha_code),
+                &money,
+                |b, m| b.iter(|| black_box(m).to_string()),
+            );
+        }
+
+        let amounts: Vec<_> = (0..1000)
+            .map(|i| Money::from_minor(i * 123_457 - 50_000_000, iso::USD))
+            .collect();
+        let mut output = String::with_capacity(32_000);
+        formatting.bench_function("batch_1000_reused_buffer", |b| {
+            b.iter(|| {
+                output.clear();
+                for money in black_box(&amounts) {
+                    writeln!(&mut output, "{money}").unwrap();
+                }
+                black_box(&output);
+            })
+        });
+        formatting.finish();
     }
 }
 
@@ -224,6 +292,10 @@ fn bench_allocate(c: &mut Criterion) {
             bencher.iter(|| black_box(money).allocate(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
         });
 
+        c.bench_function("money_allocate_100", |bencher| {
+            bencher.iter(|| black_box(money).allocate(vec![1; 100]))
+        });
+
         c.bench_function("money_split_3", |bencher| {
             bencher.iter(|| black_box(money).split(3))
         });
@@ -231,6 +303,67 @@ fn bench_allocate(c: &mut Criterion) {
         c.bench_function("money_split_10", |bencher| {
             bencher.iter(|| black_box(money).split(10))
         });
+    }
+}
+
+fn bench_currency_lookup(c: &mut Criterion) {
+    #[cfg(feature = "iso")]
+    {
+        c.bench_function("currency_lookup_alpha", |bencher| {
+            bencher.iter(|| iso::find(black_box("USD")))
+        });
+        c.bench_function("currency_lookup_numeric", |bencher| {
+            bencher.iter(|| iso::find_by_num_code(black_box("840")))
+        });
+        c.bench_function("currency_lookup_mixed_7", |bencher| {
+            bencher.iter(|| {
+                for code in black_box(["USD", "EUR", "GBP", "JPY", "INR", "BHD", "ZZZ"]) {
+                    black_box(iso::find(black_box(code)));
+                }
+            })
+        });
+    }
+}
+
+fn bench_currency_identity(c: &mut Criterion) {
+    #[cfg(feature = "iso")]
+    {
+        // Compare both shared static metadata and equal user-built descriptors.
+        // All allocation and construction happen outside the timed operation.
+        let shared = black_box(iso::USD);
+        let left = black_box(*iso::USD);
+        let right = black_box(*iso::USD);
+        let mut owned = right;
+        owned.iso_alpha_code = Box::leak(owned.iso_alpha_code.to_owned().into_boxed_str());
+        owned.iso_numeric_code = Box::leak(owned.iso_numeric_code.to_owned().into_boxed_str());
+        owned.name = Box::leak(owned.name.to_owned().into_boxed_str());
+        owned.symbol = Box::leak(owned.symbol.to_owned().into_boxed_str());
+        let mut renamed = right;
+        renamed.name = "Different Dollar";
+
+        let mut group = c.benchmark_group("currency_identity");
+        for (name, a, b) in [
+            ("shared_descriptor", shared, shared),
+            ("copied_descriptor", &left, &right),
+            ("owned_strings", &left, &owned),
+            ("different_currency", shared, iso::EUR),
+            ("different_metadata", shared, &renamed),
+        ] {
+            let a_money = Money::from_minor(100_000, a);
+            let b_money = Money::from_minor(50_000, b);
+            group.bench_function(BenchmarkId::new("money_add", name), |bencher| {
+                bencher.iter(|| black_box(a_money).add(black_box(b_money)))
+            });
+            #[cfg(feature = "fast")]
+            {
+                let a_fast = FastMoney::from_minor(100_000, a);
+                let b_fast = FastMoney::from_minor(50_000, b);
+                group.bench_function(BenchmarkId::new("fastmoney_add", name), |bencher| {
+                    bencher.iter(|| black_box(a_fast).add(black_box(b_fast)))
+                });
+            }
+        }
+        group.finish();
     }
 }
 
@@ -283,10 +416,13 @@ criterion_group!(
     bench_exchange_convert,
     bench_formatting,
     bench_parsing,
+    bench_parse_format_workloads,
     bench_comparison,
     bench_to_minor_units,
     bench_allocate,
     bench_accessors,
+    bench_currency_lookup,
+    bench_currency_identity,
 );
 
 #[cfg(feature = "fast")]
