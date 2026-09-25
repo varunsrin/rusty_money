@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+* ISO: Added BOV, CHE, CHW, COU, MXV, USN, UYI, XAD, XSU, XUA, and XXX.
+* ISO: Documented the zero-exponent library fallback for codes whose ISO minor unit is N/A.
+* ISO: Corrected historical notes for CUC withdrawal and the SLL/SLE transition.
+
 ## [0.5.0] - 2026-01-14
 
 Breaking Changes:
