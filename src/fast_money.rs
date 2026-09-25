@@ -754,36 +754,14 @@ mod tests {
     }
 
     #[test]
-    fn adding_zero_preserves_boundary_amounts() {
+    fn arithmetic_identities_at_i64_boundaries() {
         let zero = FastMoney::from_minor(0, test::USD);
         for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
             let money = FastMoney::from_minor(amount, test::USD);
             assert_eq!(money.add(zero), Ok(money));
             assert_eq!(zero.add(money), Ok(money));
-        }
-    }
-
-    #[test]
-    fn multiplying_by_one_preserves_boundary_amounts() {
-        for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
-            let money = FastMoney::from_minor(amount, test::USD);
             assert_eq!(money.mul(1), Ok(money));
-        }
-    }
-
-    #[test]
-    fn multiplying_by_zero_clears_boundary_amounts() {
-        let zero = FastMoney::from_minor(0, test::USD);
-        for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
-            let money = FastMoney::from_minor(amount, test::USD);
             assert_eq!(money.mul(0), Ok(zero));
-        }
-    }
-
-    #[test]
-    fn dividing_by_one_preserves_boundary_amounts() {
-        for amount in [i64::MIN, -1, 0, 1, i64::MAX] {
-            let money = FastMoney::from_minor(amount, test::USD);
             assert_eq!(money.div(1), Ok(money));
         }
     }
@@ -937,11 +915,6 @@ mod tests {
                 expected
             );
         }
-    }
-
-    #[test]
-    fn conversions_reject_amounts_outside_i64_range() {
-        use rust_decimal_macros::dec;
         for amount in [dec!(92233720368547758.08), dec!(-92233720368547758.09)] {
             let money = Money::from_decimal(amount, test::USD);
             assert_eq!(FastMoney::from_money(money), Err(MoneyError::Overflow));
