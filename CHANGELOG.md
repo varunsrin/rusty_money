@@ -1,10 +1,23 @@
 # Change Log
 
-## Unreleased
+## [0.5.1] - 2026-09-24
 
+Breaking Changes:
+
+* Currency: Added default `is_currency_mismatch()` method; may conflict with same-named methods in downstream traits.
+
+Minor Changes:
+
+* Money: Added `try_to_minor_units()` for exact, checked conversion.
+* Money: Added `try_from_minor()` and `FastMoney::try_to_money()` for checked custom currency scales.
+* Fix: Arithmetic, exchange, and FastMoney conversions return errors on overflow instead of panicking.
+* Fix: Split and allocation preserve totals at Decimal limits or return an error.
+* Fix: Zero-weight allocations no longer receive remainder units.
+* Fix: `to_minor_units()` handles large amounts and custom exponents without overflow.
+* Fix: Parsing accepts long fractional amounts.
+* Fix: Corrected Unicode digit grouping and capped formatting precision at 28.
 * ISO: Added BOV, CHE, CHW, COU, MXV, USN, UYI, XAD, XSU, XUA, and XXX.
-* ISO: Documented the zero-exponent library fallback for codes whose ISO minor unit is N/A.
-* ISO: Corrected historical notes for CUC withdrawal and the SLL/SLE transition.
+* Perf: Improved parsing, formatting, allocation, ISO lookup, and currency validation.
 
 ## [0.5.0] - 2026-01-14
 
