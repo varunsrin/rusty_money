@@ -282,17 +282,6 @@ pub mod iso {
             symbol: "৳",
             symbol_first: true,
         },
-
-        BGN : {
-            exponent: 2,
-            iso_alpha_code: "BGN",
-            iso_numeric_code: "975",
-            locale: EnIn,
-            minor_units: 1,
-            name: "Bulgarian Lev",
-            symbol: "лв.",
-            symbol_first: false,
-        },
         BHD : {
             exponent: 3,
             iso_alpha_code: "BHD",
@@ -765,7 +754,7 @@ pub mod iso {
             symbol_first: false,
         },
         HUF : {
-            exponent: 0,
+            exponent: 2,
             iso_alpha_code: "HUF",
             iso_numeric_code: "348",
             locale: EnBy,
@@ -778,7 +767,7 @@ pub mod iso {
             exponent: 2,
             iso_alpha_code: "IDR",
             iso_numeric_code: "360",
-            locale: EnUs,
+            locale: EnEu,
             minor_units: 5000,
             name: "Indonesian Rupiah",
             symbol: "Rp",
@@ -1035,7 +1024,8 @@ pub mod iso {
             symbol_first: false,
         },
         MGA : {
-            exponent: 1, // TODO - exponent is 1/5th need to represent somehow
+            // ISO decimal precision is independent of cash denominations.
+            exponent: 2,
             iso_alpha_code: "MGA",
             iso_numeric_code: "969",
             locale: EnUs,
@@ -1085,7 +1075,8 @@ pub mod iso {
             symbol_first: false,
         },
         MRU : {
-            exponent: 1, // TODO - exponent problem of 5
+            // ISO decimal precision is independent of cash denominations.
+            exponent: 2,
             iso_alpha_code: "MRU",
             iso_numeric_code: "929",
             locale: EnUs,
@@ -1814,6 +1805,7 @@ pub mod iso {
             symbol: "$",
             symbol_first: true,
         },
+        // The CBCS specifies the Caribbean guilder symbol as Cg (before the amount).
         XCG : {
             exponent: 2,
             iso_alpha_code: "XCG",
@@ -1821,8 +1813,8 @@ pub mod iso {
             locale: EnUs,
             minor_units: 1,
             name: "Caribbean Guilder",
-            symbol: "ƒ",
-            symbol_first: false,
+            symbol: "Cg",
+            symbol_first: true,
         },
         XDR : {
             exponent: 0,
@@ -1886,13 +1878,14 @@ pub mod iso {
             symbol_first: false,
         },
         XTS : {
+            // Testing code: use its code as a symbol, not a precious-metal weight unit.
             exponent: 0,
             iso_alpha_code: "XTS",
             iso_numeric_code: "963",
             locale: EnUs,
             minor_units: 100,
             name: "Codes specifically reserved for testing purposes",
-            symbol: "oz t",
+            symbol: "XTS",
             symbol_first: false,
         },
         // ISO minor unit: N.A.; exponent 0 is the library fallback.
@@ -1974,6 +1967,18 @@ pub mod iso {
             minor_units: 1,
             name: "Netherlands Antillean Gulden",
             symbol: "ƒ",
+            symbol_first: false,
+        },
+        // Deprecated: BGN was replaced by EUR on January 1, 2026 (ISO Amendment 180).
+        // The conversion rate was 1.95583 BGN = 1 EUR. Retained for historical data.
+        BGN : {
+            exponent: 2,
+            iso_alpha_code: "BGN",
+            iso_numeric_code: "975",
+            locale: EnBy,
+            minor_units: 1,
+            name: "Bulgarian Lev",
+            symbol: "лв.",
             symbol_first: false,
         },
         // Deprecated: BYR was replaced by BYN on July 1, 2016 at a rate of 10,000 BYR = 1 BYN.
