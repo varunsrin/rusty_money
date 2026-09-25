@@ -310,8 +310,6 @@ let restored = divided.mul(3).unwrap();            // => $9.99 (1 cent lost)
 | Multiply amounts | `amount.mul(100i64)` | 1.7 ns | 0.7 ns | 2.4x |
 | Divide amounts | `amount.div(4i64)` | 3.4 ns | 0.8 ns | 4.3x |
 
-Local release-build Criterion medians on an Apple M4 Max, using preconstructed USD amounts ($1,000 and $500); timings vary by hardware and input. Division by 4 is exact here; `FastMoney` truncates fractional minor units otherwise.
-
 ## Feature Flags
 
 ```toml
