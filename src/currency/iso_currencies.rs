@@ -2182,7 +2182,7 @@ mod tests {
     }
 
     #[test]
-    fn packed_lookups_match_metadata_and_preserve_numeric_alias_precedence() {
+    fn alpha_lookup_matches_metadata() {
         for a in b'A'..=b'Z' {
             for b in b'A'..=b'Z' {
                 for c in b'A'..=b'Z' {
@@ -2196,6 +2196,10 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn numeric_lookup_preserves_alias_precedence() {
         for number in 0..=999 {
             let code = format!("{number:03}");
             // Ordered metadata establishes the first match for deprecated aliases.
@@ -2205,6 +2209,10 @@ mod tests {
                 .find(|currency| currency.iso_numeric_code == code);
             assert_eq!(iso::find_by_num_code(&code), expected);
         }
+    }
+
+    #[test]
+    fn lookups_reject_invalid_codes() {
         for code in [
             "", "US", "USDD", "usd", "Usd", "84", "0840", "€", "💰", "USD\0",
         ] {

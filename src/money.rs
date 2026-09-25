@@ -1119,14 +1119,15 @@ mod tests {
         use super::*;
 
         #[test]
-        fn addition_and_subtraction() {
-            // Addition
+        fn addition() {
             let sum = Money::from_major(1, test::USD)
                 .add(Money::from_major(1, test::USD))
                 .unwrap();
             assert_eq!(Money::from_major(2, test::USD), sum);
+        }
 
-            // Subtraction
+        #[test]
+        fn subtraction() {
             let diff = Money::from_major(1, test::USD)
                 .sub(Money::from_major(1, test::USD))
                 .unwrap();
@@ -2444,7 +2445,7 @@ mod proptest_tests {
         use super::*;
 
         #[test]
-        fn zero_and_one_identities_at_decimal_boundaries() {
+        fn adding_zero_preserves_boundary_amounts() {
             let zero = Money::from_decimal(Decimal::ZERO, test::USD);
             for amount in [
                 Decimal::MIN,
@@ -2458,8 +2459,54 @@ mod proptest_tests {
                 let money = Money::from_decimal(amount, test::USD);
                 assert_eq!(money.add(zero), Ok(money));
                 assert_eq!(zero.add(money), Ok(money));
+            }
+        }
+
+        #[test]
+        fn multiplying_by_one_preserves_boundary_amounts() {
+            for amount in [
+                Decimal::MIN,
+                -Decimal::ONE,
+                Decimal::new(-1, 28),
+                Decimal::ZERO,
+                Decimal::new(1, 28),
+                Decimal::ONE,
+                Decimal::MAX,
+            ] {
+                let money = Money::from_decimal(amount, test::USD);
                 assert_eq!(money.mul(1i64), Ok(money));
+            }
+        }
+
+        #[test]
+        fn multiplying_by_zero_clears_boundary_amounts() {
+            let zero = Money::from_decimal(Decimal::ZERO, test::USD);
+            for amount in [
+                Decimal::MIN,
+                -Decimal::ONE,
+                Decimal::new(-1, 28),
+                Decimal::ZERO,
+                Decimal::new(1, 28),
+                Decimal::ONE,
+                Decimal::MAX,
+            ] {
+                let money = Money::from_decimal(amount, test::USD);
                 assert_eq!(money.mul(0i64), Ok(zero));
+            }
+        }
+
+        #[test]
+        fn dividing_by_one_preserves_boundary_amounts() {
+            for amount in [
+                Decimal::MIN,
+                -Decimal::ONE,
+                Decimal::new(-1, 28),
+                Decimal::ZERO,
+                Decimal::new(1, 28),
+                Decimal::ONE,
+                Decimal::MAX,
+            ] {
+                let money = Money::from_decimal(amount, test::USD);
                 assert_eq!(money.div(1i64), Ok(money));
             }
         }

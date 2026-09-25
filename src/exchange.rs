@@ -292,11 +292,18 @@ mod proptest_tests {
     }
 
     #[test]
-    fn exchange_missing_pair_and_reverse_return_none() {
+    fn exchange_missing_pair_returns_none() {
         let mut exchange = Exchange::new();
         let rate = ExchangeRate::new(test::USD, test::EUR, Decimal::new(15, 1)).unwrap();
         exchange.set_rate(&rate);
         assert!(exchange.get_rate(test::USD, test::GBP).is_none());
+    }
+
+    #[test]
+    fn exchange_reverse_pair_returns_none() {
+        let mut exchange = Exchange::new();
+        let rate = ExchangeRate::new(test::USD, test::EUR, Decimal::new(15, 1)).unwrap();
+        exchange.set_rate(&rate);
         assert!(exchange.get_rate(test::EUR, test::USD).is_none());
     }
 
