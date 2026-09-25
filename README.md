@@ -75,6 +75,8 @@ Arithmetic retains the precision available in `Decimal` without automatically ro
 
 ### Creating Money
 
+For custom currencies, `Money::try_from_minor()` returns `MoneyError::InvalidAmount` when the exponent exceeds 28. `from_minor()` panics for those exponents.
+
 ```rust
 use rusty_money::{Money, iso};
 
@@ -275,6 +277,8 @@ let euros = usd.exchange_to(iso::EUR, &exchange).unwrap();
 `from_money` checks for excess precision; `from_money_lossy` explicitly truncates toward zero. Integer division also truncates toward zero, so `-100` minor units divided by `3` becomes `-33`. Addition, subtraction, and multiplication retain exact integer results when they fit.
 
 Both conversion methods return `MoneyError::Overflow` when the resulting minor-unit amount does not fit in `i64`. With the `serde` feature, `FastMoney` deserialization uses the lossy conversion: it truncates fractional minor units and returns a deserialization error for out-of-range amounts.
+
+For conversion back to `Money`, `FastMoney::try_to_money()` returns `MoneyError::InvalidAmount` when the currency exponent exceeds 28; `to_money()` panics instead. Both preserve the amount exactly for supported exponents.
 
 
 Only choose `FastMoney` over `Money`: 
