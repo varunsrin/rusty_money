@@ -6,6 +6,10 @@ use std::fmt;
 
 /// High-performance money type using i64 minor units.
 ///
+/// Fractional minor units cannot be stored. Integer division and explicitly lossy
+/// conversion truncate toward zero, including for negative amounts. Strict
+/// conversion rejects fractional minor units instead.
+///
 /// Use this for performance-critical paths (matching engines, high-frequency trading).
 /// For complex operations (allocation, exchange), convert to [`Money<T>`].
 ///
@@ -24,7 +28,7 @@ use std::fmt;
 /// ```
 /// use rusty_money::{FastMoney, Money, iso};
 ///
-/// // FastMoney -> Money (always succeeds)
+/// // FastMoney -> Money (currency exponent must be at most 28)
 /// let fast = FastMoney::from_minor(1000, iso::USD);
 /// let money: Money<_> = fast.to_money();
 ///
@@ -255,6 +259,7 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// - The amount has precision beyond the currency's exponent (e.g., $10.005 for USD)
     ///
     /// Use [`from_money_lossy`](Self::from_money_lossy) if you want to truncate extra precision.
+    /// Trailing fractional zeros do not cause precision loss.
     pub fn from_money(money: Money<'a, T>) -> Result<Self, MoneyError> {
         let minor_units = money.try_to_minor_units()?;
 
@@ -267,7 +272,8 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
     /// Converts from a [`Money<T>`], truncating any extra precision.
     ///
     /// Returns an error only if the amount would overflow i64.
-    /// Extra precision beyond the currency's exponent is silently truncated.
+    /// Extra precision beyond the currency's exponent is truncated toward zero.
+    /// For example, USD `-1.005` becomes `-100` cents, not `-101`.
     ///
     /// # Example
     ///

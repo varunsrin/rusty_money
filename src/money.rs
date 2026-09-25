@@ -13,9 +13,11 @@ use rust_decimal::Decimal;
 
 /// Represents an amount of a given currency.
 ///
-/// Money represents financial amounts through a Decimal (owned) and a Currency (reference).
-/// Operations on Money objects always create new instances of Money, with the exception
-/// of `round()`.
+/// Money stores an owned [`Decimal`] and a currency reference. Stored precision is
+/// independent of the currency's exponent, within Decimal's finite range and scale.
+/// Arithmetic and [`round`](Self::round) return new values without changing the original.
+/// Display rounds to the currency's exponent using [`Round::HalfEven`] without
+/// changing the stored amount.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Money<'a, T: FormattableCurrency> {
     amount: Decimal,
@@ -141,6 +143,7 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 
     /// Creates a Money object given a decimal amount and a currency reference.
+    /// The amount is stored unchanged, including any fractional minor units.
     pub fn from_decimal(amount: Decimal, currency: &'a T) -> Money<'a, T> {
         Money { amount, currency }
     }
@@ -515,8 +518,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 
     /// Divides money equally into n shares.
     ///
-    /// If the division cannot be applied perfectly, it allocates the remainder
-    /// to some of the shares.
+    /// Floors the amount to integral minor units, then floors each equal share.
+    /// Remaining minor units are added to the first shares in order. Flooring
+    /// also applies to negative values: USD `-1.005` is split as `-1.01`, not `-1.00`.
+    /// Round explicitly first if a different policy is needed.
     ///
     /// # Errors
     /// Returns [`MoneyError::InvalidRatio`] if `n` is zero.
@@ -559,6 +564,10 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
     }
 
     /// Divides money into n shares according to the given weights.
+    ///
+    /// Floors the amount to integral minor units, then floors each weighted share.
+    /// This rounds toward negative infinity, not toward zero. Fractions smaller
+    /// than a minor unit are discarded; round explicitly first to choose another policy.
     ///
     /// If the division cannot be applied perfectly, it allocates the remainder
     /// to shares with non-zero weights in input order. Zero-weight shares receive zero.
@@ -656,7 +665,19 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
         Ok(Money::from_decimal(amount, self.currency))
     }
 
-    /// Returns a `Money` rounded to the specified number of minor units using the rounding strategy.
+    /// Returns a new `Money` rounded to `digits` decimal places using the strategy.
+    ///
+    /// The original amount is unchanged. Use the currency's exponent for rounding
+    /// to minor units. This cannot increase Decimal's available precision.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, Round, iso};
+    /// let amount = Money::from_str("-1.005", iso::USD).unwrap();
+    /// assert_eq!(amount.round(2, Round::HalfUp).amount().to_string(), "-1.01");
+    /// assert_eq!(amount.round(2, Round::HalfDown).amount().to_string(), "-1.00");
+    /// assert_eq!(amount.amount().to_string(), "-1.005");
+    /// ```
     pub fn round(&self, digits: u32, strategy: Round) -> Money<'a, T> {
         let mut money = *self;
 
@@ -682,8 +703,11 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
 ///
 /// For more details, see [rust_decimal::RoundingStrategy]
 pub enum Round {
+    /// Round to nearest, with exact midpoints rounded away from zero.
     HalfUp,
+    /// Round to nearest, with exact midpoints rounded toward zero.
     HalfDown,
+    /// Round to nearest, with exact midpoints rounded to an even retained digit.
     HalfEven,
 }
 
