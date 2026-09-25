@@ -1,4 +1,12 @@
-/// ISO-4217 Currency Set
+/// Current and historical ISO 4217 currencies and funds.
+///
+/// Codes and decimal places come from the [SIX currency lists](https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html).
+/// When ISO leaves decimal places unspecified ("N.A."), we use 0, so amounts
+/// display as whole units by default. Use custom precision to display fractions.
+///
+/// Symbols and formatting are library choices. The added fund codes use their
+/// code as the symbol, EnUs formatting, and `minor_units: 1`; these defaults
+/// do not set cash denominations or rounding rules.
 pub mod iso {
     use crate::{FormattableCurrency, Locale, Locale::*};
     use std::fmt;
@@ -7,9 +15,11 @@ pub mod iso {
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
     pub struct Currency {
         pub iso_alpha_code: &'static str,
+        /// Number of decimal places. Uses 0 when ISO does not specify a value.
         pub exponent: u32,
         pub iso_numeric_code: &'static str,
         pub locale: Locale,
+        /// Denomination metadata. Amount conversion and formatting use `exponent`.
         pub minor_units: u64,
         pub name: &'static str,
         pub symbol: &'static str,
@@ -334,6 +344,16 @@ pub mod iso {
             symbol: "Bs.",
             symbol_first: true,
         },
+        BOV : {
+            exponent: 2,
+            iso_alpha_code: "BOV",
+            iso_numeric_code: "984",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Mvdol",
+            symbol: "BOV",
+            symbol_first: false,
+        },
         BRL : {
             exponent: 2,
             iso_alpha_code: "BRL",
@@ -414,6 +434,16 @@ pub mod iso {
             symbol: "Fr",
             symbol_first: false,
         },
+        CHE : {
+            exponent: 2,
+            iso_alpha_code: "CHE",
+            iso_numeric_code: "947",
+            locale: EnUs,
+            minor_units: 1,
+            name: "WIR Euro",
+            symbol: "CHE",
+            symbol_first: false,
+        },
         CHF : {
             exponent: 2,
             iso_alpha_code: "CHF",
@@ -423,6 +453,16 @@ pub mod iso {
             name: "Swiss Franc",
             symbol: "Fr",
             symbol_first: true,
+        },
+        CHW : {
+            exponent: 2,
+            iso_alpha_code: "CHW",
+            iso_numeric_code: "948",
+            locale: EnUs,
+            minor_units: 1,
+            name: "WIR Franc",
+            symbol: "CHW",
+            symbol_first: false,
         },
         CLF : {
             exponent: 4,
@@ -463,6 +503,16 @@ pub mod iso {
             name: "Colombian Peso",
             symbol: "$",
             symbol_first: true,
+        },
+        COU : {
+            exponent: 2,
+            iso_alpha_code: "COU",
+            iso_numeric_code: "970",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Unidad de Valor Real",
+            symbol: "COU",
+            symbol_first: false,
         },
         CRC : {
             exponent: 2,
@@ -1084,6 +1134,16 @@ pub mod iso {
             symbol: "$",
             symbol_first: true,
         },
+        MXV : {
+            exponent: 2,
+            iso_alpha_code: "MXV",
+            iso_numeric_code: "979",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Mexican Unidad de Inversion (UDI)",
+            symbol: "MXV",
+            symbol_first: false,
+        },
         MYR : {
             exponent: 2,
             iso_alpha_code: "MYR",
@@ -1564,6 +1624,26 @@ pub mod iso {
             symbol: "$",
             symbol_first: true,
         },
+        USN : {
+            exponent: 2,
+            iso_alpha_code: "USN",
+            iso_numeric_code: "997",
+            locale: EnUs,
+            minor_units: 1,
+            name: "US Dollar (Next day)",
+            symbol: "USN",
+            symbol_first: false,
+        },
+        UYI : {
+            exponent: 0,
+            iso_alpha_code: "UYI",
+            iso_numeric_code: "940",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Uruguay Peso en Unidades Indexadas (UI)",
+            symbol: "UYI",
+            symbol_first: false,
+        },
         UYU : {
             exponent: 2,
             iso_alpha_code: "UYU",
@@ -1642,6 +1722,16 @@ pub mod iso {
             minor_units: 10,
             name: "Samoan Tala",
             symbol: "T",
+            symbol_first: false,
+        },
+        XAD : {
+            exponent: 2,
+            iso_alpha_code: "XAD",
+            iso_numeric_code: "396",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Arab Accounting Dinar",
+            symbol: "XAD",
             symbol_first: false,
         },
         XAF : {
@@ -1784,6 +1874,17 @@ pub mod iso {
             symbol: "oz t",
             symbol_first: false,
         },
+        // ISO minor unit: N.A.; exponent 0 is the library fallback.
+        XSU : {
+            exponent: 0,
+            iso_alpha_code: "XSU",
+            iso_numeric_code: "994",
+            locale: EnUs,
+            minor_units: 1,
+            name: "Sucre",
+            symbol: "XSU",
+            symbol_first: false,
+        },
         XTS : {
             exponent: 0,
             iso_alpha_code: "XTS",
@@ -1792,6 +1893,28 @@ pub mod iso {
             minor_units: 100,
             name: "Codes specifically reserved for testing purposes",
             symbol: "oz t",
+            symbol_first: false,
+        },
+        // ISO minor unit: N.A.; exponent 0 is the library fallback.
+        XUA : {
+            exponent: 0,
+            iso_alpha_code: "XUA",
+            iso_numeric_code: "965",
+            locale: EnUs,
+            minor_units: 1,
+            name: "ADB Unit of Account",
+            symbol: "XUA",
+            symbol_first: false,
+        },
+        // ISO minor unit: N.A.; exponent 0 is the library fallback.
+        XXX : {
+            exponent: 0,
+            iso_alpha_code: "XXX",
+            iso_numeric_code: "999",
+            locale: EnUs,
+            minor_units: 1,
+            name: "The codes assigned for transactions where no currency is involved",
+            symbol: "XXX",
             symbol_first: false,
         },
         YER : {
@@ -1864,7 +1987,8 @@ pub mod iso {
             symbol: "Br",
             symbol_first: false,
         },
-        // Deprecated: CUC was withdrawn on December 30, 2021. Cuba unified its currency to CUP only.
+        // Deprecated: CUC withdrawal completed on June 30, 2021 (ISO Amendment 178).
+        // Cuba unified its currency to CUP only.
         CUC : {
             exponent: 2,
             iso_alpha_code: "CUC",
@@ -1910,7 +2034,9 @@ pub mod iso {
             symbol: "Sk",
             symbol_first: true,
         },
-        // Deprecated: SLL was replaced by SLE on April 1, 2022 at a rate of 1,000 SLL = 1 SLE.
+        // Deprecated: SLE entered circulation on July 1, 2022 at 1,000 SLL = 1 SLE.
+        // Its ISO code took effect on April 1, 2022; SLL remained in circulation
+        // during the transition. The ISO historical list records withdrawal as 2023-12.
         SLL : {
             exponent: 2,
             iso_alpha_code: "SLL",
