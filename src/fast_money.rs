@@ -179,6 +179,29 @@ impl<'a, T: FormattableCurrency> FastMoney<'a, T> {
         })
     }
 
+    /// Divides by another FastMoney value.
+    ///
+    /// Returns an error on currency mismatch or division by zero.
+    #[inline]
+    pub fn ratio(&self, other: Self) -> Result<Decimal, MoneyError> {
+        if self.currency.is_currency_mismatch(other.currency) {
+            return Err(MoneyError::CurrencyMismatch {
+                expected: self.currency.code(),
+                actual: other.currency.code(),
+            });
+        }
+        if other.minor_units == 0 {
+            return Err(MoneyError::DivisionByZero);
+        }
+
+        let self_value = Decimal::new(self.minor_units, 0);
+        let other_value = Decimal::new(other.minor_units, 0);
+        self_value
+            .checked_div(other_value)
+            // Division of two i64 values cannot overflow Decimal.
+            .ok_or(MoneyError::Overflow)
+    }
+
     /// Returns true if the amount is zero.
     #[inline]
     pub fn is_zero(&self) -> bool {
@@ -721,6 +744,33 @@ mod tests {
     fn div_by_zero() {
         let money = FastMoney::from_minor(1000, test::USD);
         assert_eq!(money.div(0), Err(MoneyError::DivisionByZero));
+    }
+
+    #[test]
+    fn ratio_same_currency() {
+        let a = FastMoney::from_minor(1500, test::USD);
+        let b = FastMoney::from_minor(1000, test::USD);
+        assert_eq!(a.ratio(b).unwrap(), Decimal::new(15, 1));
+    }
+
+    #[test]
+    fn ratio_by_zero() {
+        let a = FastMoney::from_minor(1500, test::USD);
+        let zero = FastMoney::from_minor(0, test::USD);
+        assert_eq!(a.ratio(zero), Err(MoneyError::DivisionByZero));
+    }
+
+    #[test]
+    fn ratio_different_currency_errors() {
+        let a = FastMoney::from_minor(1500, test::USD);
+        let b = FastMoney::from_minor(1000, test::EUR);
+        assert_eq!(
+            a.ratio(b),
+            Err(MoneyError::CurrencyMismatch {
+                expected: "USD",
+                actual: "EUR",
+            })
+        );
     }
 
     #[test]

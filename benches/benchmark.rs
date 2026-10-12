@@ -13,6 +13,7 @@ fn bench_money_arithmetic(c: &mut Criterion) {
     {
         let a = Money::from_minor(100_000, iso::USD);
         let b = Money::from_minor(50_000, iso::USD);
+        let d = Money::from_minor(30_000, iso::USD);
 
         c.bench_function("money_add", |bencher| {
             bencher.iter(|| black_box(a).add(black_box(b)))
@@ -33,6 +34,14 @@ fn bench_money_arithmetic(c: &mut Criterion) {
         c.bench_function("money_div_exact", |bencher| {
             bencher.iter(|| black_box(a).div(black_box(4i64)))
         });
+
+        c.bench_function("money_ratio", |bencher| {
+            bencher.iter(|| black_box(a).ratio(black_box(d)))
+        });
+
+        c.bench_function("money_ratio_exact", |bencher| {
+            bencher.iter(|| black_box(a).ratio(black_box(b)))
+        });
     }
 }
 
@@ -42,6 +51,7 @@ fn bench_fastmoney_arithmetic(c: &mut Criterion) {
     {
         let a = FastMoney::from_minor(100_000, iso::USD);
         let b = FastMoney::from_minor(50_000, iso::USD);
+        let d = FastMoney::from_minor(30_000, iso::USD);
 
         c.bench_function("fastmoney_add", |bencher| {
             bencher.iter(|| black_box(a).add(black_box(b)))
@@ -61,6 +71,14 @@ fn bench_fastmoney_arithmetic(c: &mut Criterion) {
 
         c.bench_function("fastmoney_div_exact", |bencher| {
             bencher.iter(|| black_box(a).div(black_box(4i64)))
+        });
+
+        c.bench_function("fastmoney_ratio", |bencher| {
+            bencher.iter(|| black_box(a).ratio(black_box(d)))
+        });
+
+        c.bench_function("fastmoney_ratio_exact", |bencher| {
+            bencher.iter(|| black_box(a).ratio(black_box(b)))
         });
     }
 }

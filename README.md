@@ -106,6 +106,7 @@ a.add(b).unwrap();                                 // => $150.00
 a.sub(b).unwrap();                                 // => $50.00
 a.mul(3).unwrap();                                 // => $300.00
 a.div(4).unwrap();                                 // => $25.00
+a.ratio(b).unwrap();                               // => dec!(2)
 
 // Currency mismatch returns an error
 let eur = Money::from_major(50, iso::EUR);

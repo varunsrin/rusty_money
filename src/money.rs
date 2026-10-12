@@ -412,6 +412,37 @@ impl<'a, T: FormattableCurrency> Money<'a, T> {
             .ok_or(MoneyError::Overflow)
     }
 
+    /// Divides two Money values of the same currency, returning their ratio as a Decimal.
+    ///
+    /// # Example
+    /// ```
+    /// use rusty_money::{Money, iso};
+    /// let a = Money::from_minor(1500, iso::USD);
+    /// let b = Money::from_minor(1000, iso::USD);
+    /// let ratio = a.ratio(b).unwrap();
+    /// assert_eq!(ratio, rust_decimal::Decimal::new(15, 1));
+    /// ```
+    ///
+    /// # Errors
+    /// Returns `MoneyError::CurrencyMismatch` if the currencies differ.
+    /// Returns `MoneyError::DivisionByZero` if the divisor is zero.
+    /// Returns `MoneyError::Overflow` if the division overflows.
+    #[inline]
+    pub fn ratio(&self, other: Money<'a, T>) -> Result<Decimal, MoneyError> {
+        if self.currency.is_currency_mismatch(other.currency) {
+            return Err(MoneyError::CurrencyMismatch {
+                expected: self.currency.code(),
+                actual: other.currency.code(),
+            });
+        }
+        if other.amount.is_zero() {
+            return Err(MoneyError::DivisionByZero);
+        }
+        self.amount
+            .checked_div(other.amount)
+            .ok_or(MoneyError::Overflow)
+    }
+
     /// Converts this Money to another currency using the provided exchange rates.
     ///
     /// This is a convenience method that looks up the exchange rate and performs
@@ -1257,6 +1288,40 @@ mod tests {
             let result = money.div(0);
             assert!(result.is_err());
             assert_eq!(result.unwrap_err(), MoneyError::DivisionByZero);
+        }
+
+        #[test]
+        fn ratio() {
+            let a = Money::from_minor(1500, test::USD);
+            let b = Money::from_minor(1000, test::USD);
+            assert_eq!(a.ratio(b).unwrap(), Decimal::new(15, 1));
+        }
+
+        #[test]
+        fn ratio_returns_error_on_different_currencies() {
+            let a = Money::from_minor(1500, test::USD);
+            let b = Money::from_minor(1000, test::GBP);
+            assert_eq!(
+                a.ratio(b),
+                Err(MoneyError::CurrencyMismatch {
+                    expected: "USD",
+                    actual: "GBP",
+                })
+            );
+        }
+
+        #[test]
+        fn ratio_by_zero_returns_error() {
+            let a = Money::from_minor(1500, test::USD);
+            let zero = Money::from_minor(0, test::USD);
+            assert_eq!(a.ratio(zero), Err(MoneyError::DivisionByZero));
+        }
+
+        #[test]
+        fn ratio_overflow_returns_error() {
+            let a = Money::from_decimal(Decimal::MAX, test::USD);
+            let b = Money::from_decimal(Decimal::new(1, 28), test::USD);
+            assert_eq!(a.ratio(b), Err(MoneyError::Overflow));
         }
 
         #[test]
